@@ -1,118 +1,86 @@
 <script lang="ts" setup>
 import { useLayout } from '@/layout/composables/layout';
-import { onMounted, ref, watch, computed } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import Chart from 'primevue/chart';
+import Fluid from 'primevue/fluid';
 
 const { layoutConfig, isDarkTheme } = useLayout();
 
-// Define proper types for chart data and options
-const chartData = ref<any>({});
-const chartOptions = ref<any>({});
-
-// Create computed properties for theme values
+// Create computed properties for the missing values
 const getPrimary = computed(() => layoutConfig.primary);
 const getSurface = computed(() => layoutConfig.surface);
 
-function setChartData() {
+// Define proper types for the chart data and options
+const lineData = ref<any>({});
+
+const barData = ref<any>({});
+
+const barOptions = ref<any>({});
+
+onMounted(() => {
+    setColorOptions();
+});
+
+function setColorOptions() {
     const documentStyle = getComputedStyle(document.documentElement);
 
-    return {
-        labels: ['Q1', 'Q2', 'Q3', 'Q4'],
+    barData.value = {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
         datasets: [
             {
-                type: 'bar',
-                label: 'Subscriptions',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-400'),
-                data: [4000, 10000, 15000, 4000],
-                barThickness: 32
+                label: 'My First dataset',
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
+                data: [65, 59, 80, 81, 56, 55, 40]
             },
             {
-                type: 'bar',
-                label: 'Advertising',
-                backgroundColor: documentStyle.getPropertyValue('--p-primary-300'),
-                data: [2100, 8400, 2400, 7500],
-                barThickness: 32
-            },
-            {
-                type: 'bar',
-                label: 'Affiliate',
+                label: 'My Second dataset',
                 backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
-                data: [4100, 5200, 3400, 7400],
-                borderRadius: {
-                    topLeft: 8,
-                    topRight: 8
-                },
-                borderSkipped: true,
-                barThickness: 32
+                borderColor: documentStyle.getPropertyValue('--p-primary-200'),
+                data: [28, 48, 40, 19, 86, 27, 90]
+            }
+        ]
+    };
+
+    lineData.value = {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+        datasets: [
+            {
+                label: 'First Dataset',
+                data: [65, 59, 80, 81, 56, 55, 40],
+                fill: false,
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
+                tension: 0.4
+            },
+            {
+                label: 'Second Dataset',
+                data: [28, 48, 40, 19, 86, 27, 90],
+                fill: false,
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-200'),
+                tension: 0.4
             }
         ]
     };
 }
 
-function setChartOptions() {
-    const documentStyle = getComputedStyle(document.documentElement);
-    const borderColor = documentStyle.getPropertyValue('--surface-border');
-    const textMutedColor = documentStyle.getPropertyValue('--text-color-secondary');
-
-    return {
-        maintainAspectRatio: false,
-        aspectRatio: 0.8,
-        plugins: {
-            legend: {
-                labels: {
-                    color: textMutedColor,
-                    font: {
-                        family: 'Niramit, sans-serif'
-                    }
-                }
-            }
-        },
-        scales: {
-            x: {
-                stacked: true,
-                ticks: {
-                    color: textMutedColor,
-                    font: {
-                        family: 'Niramit, sans-serif'
-                    }
-                },
-                grid: {
-                    color: 'transparent',
-                    borderColor: 'transparent'
-                }
-            },
-            y: {
-                stacked: true,
-                ticks: {
-                    color: textMutedColor,
-                    font: {
-                        family: 'Niramit, sans-serif'
-                    }
-                },
-                grid: {
-                    color: borderColor,
-                    borderColor: 'transparent',
-                    drawTicks: false
-                }
-            }
-        }
-    };
-}
-
-watch([getPrimary, getSurface, isDarkTheme], () => {
-    chartData.value = setChartData();
-    chartOptions.value = setChartOptions();
-});
-
-onMounted(() => {
-    chartData.value = setChartData();
-    chartOptions.value = setChartOptions();
-});
+watch(
+    [getPrimary, getSurface, isDarkTheme],
+    () => {
+        setColorOptions();
+    },
+    { immediate: true }
+);
 </script>
 
 <template>
-    <div class="card">
-        <div class="font-semibold text-xl mb-4">Revenue Stream</div>
-        <Chart type="bar" :data="chartData" :options="chartOptions" class="h-80" />
+    <div>
+        <div class="col-span-12 xl:col-span-6">
+            <div class="card">
+                <div class="font-semibold text-xl mb-4">Bar</div>
+                <Chart type="bar" :data="barData" :options="barOptions"></Chart>
+            </div>
+        </div>
     </div>
 </template>

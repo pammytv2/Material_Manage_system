@@ -1,51 +1,287 @@
 <script lang="ts" setup>
-import { ProductService } from '@/service/ProductService';
-import { onMounted, ref } from 'vue';
+import { useLayout } from '@/layout/composables/layout';
+import { computed, onMounted, ref, watch } from 'vue';
+import Chart from 'primevue/chart';
+import Fluid from 'primevue/fluid';
 
-interface Product {
-    id: string;
-    code: string;
-    name: string;
-    description: string;
-    image: string;
-    price: number;
-    category: string;
-    quantity: number;
-    inventoryStatus: string;
-    rating: number;
-}
+const { layoutConfig, isDarkTheme } = useLayout();
 
-const products = ref<Product[] | null>(null);
+// Create computed properties for the missing values
+const getPrimary = computed(() => layoutConfig.primary);
+const getSurface = computed(() => layoutConfig.surface);
 
-function formatCurrency(value: number) {
-    return value.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
-}
+// Define proper types for the chart data and options
+const lineData = ref<any>({});
+const pieData = ref<any>({});
+const polarData = ref<any>({});
+const barData = ref<any>({});
+const radarData = ref<any>({});
+const lineOptions = ref<any>({});
+const pieOptions = ref<any>({});
+const polarOptions = ref<any>({});
+const barOptions = ref<any>({});
+const radarOptions = ref<any>({});
 
 onMounted(() => {
-    ProductService.getProductsSmall().then((data) => (products.value = data));
+    setColorOptions();
 });
-</script>
 
+function setColorOptions() {
+    const documentStyle = getComputedStyle(document.documentElement);
+    const textColor = documentStyle.getPropertyValue('--text-color');
+    const textColorSecondary = documentStyle.getPropertyValue('--text-color-secondary');
+    const surfaceBorder = documentStyle.getPropertyValue('--surface-border');
+
+    barData.value = {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+        datasets: [
+            {
+                label: 'My First dataset',
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
+                data: [65, 59, 80, 81, 56, 55, 40]
+            },
+            {
+                label: 'My Second dataset',
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-200'),
+                data: [28, 48, 40, 19, 86, 27, 90]
+            }
+        ]
+    };
+    barOptions.value = {
+        plugins: {
+            legend: {
+                labels: {
+                    color: textColor,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    color: textColorSecondary,
+                    font: {
+                        family: 'Niramit, sans-serif',
+                        weight: 500
+                    }
+                },
+                grid: {
+                    display: false,
+                    drawBorder: false
+                }
+            },
+            y: {
+                ticks: {
+                    color: textColorSecondary,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                },
+                grid: {
+                    color: surfaceBorder,
+                    drawBorder: false
+                }
+            }
+        }
+    };
+
+    pieData.value = {
+        labels: ['A', 'B', 'C'],
+        datasets: [
+            {
+                data: [540, 325, 702],
+                backgroundColor: [documentStyle.getPropertyValue('--p-indigo-500'), documentStyle.getPropertyValue('--p-purple-500'), documentStyle.getPropertyValue('--p-teal-500')],
+                hoverBackgroundColor: [documentStyle.getPropertyValue('--p-indigo-400'), documentStyle.getPropertyValue('--p-purple-400'), documentStyle.getPropertyValue('--p-teal-400')]
+            }
+        ]
+    };
+
+    pieOptions.value = {
+        plugins: {
+            legend: {
+                labels: {
+                    usePointStyle: true,
+                    color: textColor,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        }
+    };
+
+    lineData.value = {
+        labels: ['January', 'February', 'March', 'April', 'May', 'June', 'July'],
+        datasets: [
+            {
+                label: 'First Dataset',
+                data: [65, 59, 80, 81, 56, 55, 40],
+                fill: false,
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-500'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-500'),
+                tension: 0.4
+            },
+            {
+                label: 'Second Dataset',
+                data: [28, 48, 40, 19, 86, 27, 90],
+                fill: false,
+                backgroundColor: documentStyle.getPropertyValue('--p-primary-200'),
+                borderColor: documentStyle.getPropertyValue('--p-primary-200'),
+                tension: 0.4
+            }
+        ]
+    };
+
+    lineOptions.value = {
+        plugins: {
+            legend: {
+                labels: {
+                    color: textColor,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: {
+                    color: textColorSecondary,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                },
+                grid: {
+                    color: surfaceBorder,
+                    drawBorder: false
+                }
+            },
+            y: {
+                ticks: {
+                    color: textColorSecondary,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                },
+                grid: {
+                    color: surfaceBorder,
+                    drawBorder: false
+                }
+            }
+        }
+    };
+
+    polarData.value = {
+        datasets: [
+            {
+                data: [11, 16, 7, 3],
+                backgroundColor: [documentStyle.getPropertyValue('--p-indigo-500'), documentStyle.getPropertyValue('--p-purple-500'), documentStyle.getPropertyValue('--p-teal-500'), documentStyle.getPropertyValue('--p-orange-500')],
+                label: 'My dataset'
+            }
+        ],
+        labels: ['Indigo', 'Purple', 'Teal', 'Orange']
+    };
+
+    polarOptions.value = {
+        plugins: {
+            legend: {
+                labels: {
+                    color: textColor,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        },
+        scales: {
+            r: {
+                grid: {
+                    color: surfaceBorder
+                },
+                pointLabels: {
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        }
+    };
+
+    radarData.value = {
+        labels: ['Eating', 'Drinking', 'Sleeping', 'Designing', 'Coding', 'Cycling', 'Running'],
+        datasets: [
+            {
+                label: 'My First dataset',
+                borderColor: documentStyle.getPropertyValue('--p-indigo-400'),
+                pointBackgroundColor: documentStyle.getPropertyValue('--p-indigo-400'),
+                pointBorderColor: documentStyle.getPropertyValue('--p-indigo-400'),
+                pointHoverBackgroundColor: textColor,
+                pointHoverBorderColor: documentStyle.getPropertyValue('--p-indigo-400'),
+                data: [65, 59, 90, 81, 56, 55, 40]
+            },
+            {
+                label: 'My Second dataset',
+                borderColor: documentStyle.getPropertyValue('--p-purple-400'),
+                pointBackgroundColor: documentStyle.getPropertyValue('--p-purple-400'),
+                pointBorderColor: documentStyle.getPropertyValue('--p-purple-400'),
+                pointHoverBackgroundColor: textColor,
+                pointHoverBorderColor: documentStyle.getPropertyValue('--p-purple-400'),
+                data: [28, 48, 40, 19, 96, 27, 100]
+            }
+        ]
+    };
+
+    radarOptions.value = {
+        plugins: {
+            legend: {
+                labels: {
+                    color: textColor,
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        },
+        scales: {
+            r: {
+                grid: {
+                    color: textColorSecondary
+                },
+                pointLabels: {
+                    font: {
+                        family: 'Niramit, sans-serif'
+                    }
+                }
+            }
+        }
+    };
+}
+
+watch(
+    [getPrimary, getSurface, isDarkTheme],
+    () => {
+        setColorOptions();
+    },
+    { immediate: true }
+);
+</script>
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Recent Sales</div>
-        <DataTable :value="products" :rows="5" :paginator="true" responsiveLayout="scroll">
-            <Column style="width: 15%" header="Image">
-                <template #body="slotProps">
-                    <img :src="`https://primefaces.org/cdn/primevue/images/product/${slotProps.data.image}`" :alt="slotProps.data.image" width="50" class="shadow" />
-                </template>
-            </Column>
-            <Column field="name" header="Name" :sortable="true" style="width: 35%"></Column>
-            <Column field="price" header="Price" :sortable="true" style="width: 35%">
-                <template #body="slotProps">
-                    {{ formatCurrency(slotProps.data.price) }}
-                </template>
-            </Column>
-            <Column style="width: 15%" header="View">
-                <template #body>
-                    <Button icon="pi pi-search" type="button" class="p-button-text"></Button>
-                </template>
-            </Column>
-        </DataTable>
+        <div class="col-span-12 xl:col-span-6">
+            <div class="card">
+                <div class="font-semibold text-xl mb-4">Linear</div>
+                <Chart type="line" :data="lineData" :options="lineOptions"></Chart>
+            </div>
+        </div>
+                <div class="col-span-12 xl:col-span-6">
+            <div class="card flex flex-col items-center">
+                <div class="font-semibold text-xl mb-4">Pie</div>
+                <Chart type="pie" :data="pieData" :options="pieOptions"></Chart>
+            </div>
+        </div>
     </div>
 </template>

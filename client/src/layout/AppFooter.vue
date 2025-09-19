@@ -1,8 +1,5 @@
 <script lang="ts" setup></script>
 
 <template>
-    <div class="layout-footer">
-        SAKAI by
-        <a href="https://primevue.org" target="_blank" rel="noopener noreferrer" class="text-primary font-bold hover:underline">PrimeVue</a>
-    </div>
+    <div class="layout-footer">2025 © Material Management System</div>
 </template>

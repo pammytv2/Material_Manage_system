@@ -15,7 +15,8 @@
     "lib": ["ESNext", "DOM"],
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/shared/*": ["../server/shared/*"]
     },
     "allowJs": true,
     "baseUrl": "."

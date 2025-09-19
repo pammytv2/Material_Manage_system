@@ -12,7 +12,7 @@ const items = ref([
 </script>
 
 <template>
-    <div class="card">
+    <!-- <div class="card">
         <div class="flex justify-between items-center mb-6">
             <div class="font-semibold text-xl">Best Selling Products</div>
             <div>
@@ -94,5 +94,5 @@ const items = ref([
                 </div>
             </li>
         </ul>
-    </div>
+    </div> -->
 </template>
