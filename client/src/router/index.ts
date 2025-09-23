@@ -20,13 +20,37 @@ const routes: RouteRecordRaw[] = [
             {
                 path: '/uikit/Receive_Page',
                 name: 'Receive_Page',
-                component: () => import('@/views/uikit/Receive_mat_Page.vue')
+                component: () => import('@/views/Receice/Receive_mat_Page.vue')
             },
             {
                 path: '/uikit/Receive_Detail/:receiveNumber',
                 name: 'Receive_Detail',
-                component: () => import('@/views/uikit/Receive.Detail_Page.vue')
+                component: () => import('@/views/Receice/Receive.Detail_Page.vue')
             },
+            {
+                path: '/receive-manual',
+                name: 'ReceiveManual',
+                component: () => import('@/views/Receice/Receive.Manual_Page.vue')
+            },
+            {
+                path: '/materials-split',
+                name: 'MaterialsSplit',
+                component: () => import('@/views/Split_Materials/Materials.Split_Page.vue')
+
+            },
+            {
+                path: '/materials-split-detail/:receiveNumber',
+                name: 'MaterialsSplitDetail',
+                component: () => import('@/views/Split_Materials/Materials.Split_Delail_Page.vue')
+
+            },
+            {
+                path: '/manual-receive-list',
+                name: 'ManualReceiveList',
+                component: () => import('@/views/Receice/Manual.Receive.List_Page.vue')
+            },
+
+        
 
             {
                 path: '/documentation',

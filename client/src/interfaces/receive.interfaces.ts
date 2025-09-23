@@ -1,3 +1,5 @@
+import { item } from '@primeuix/themes/aura/breadcrumb';
+import { reactive } from 'vue';
 
 
 interface IReceiveItem {
@@ -24,6 +26,29 @@ interface IReceiveItem {
 
 
 } 
+interface SplitMaterial {
+    ReceptNumbar: string;
+    ReceptNumber: string;
+    ReciveDate: string;
+    Countoder: number;
+    ImportDate: Date;
+    InveiceNumbar: string;
+    InvoiceNumber: string;
+    VedorName: string;
+    VedorCode: string;
+    SyncAt: Date;
+    endDate: Date;
+    startDate: Date;
+    ITEMNO: string;
+    iTEMDESC: string;
+    RQRECEIVED: Date;
+    UNIT: string;
+    LotSplitStatus: number;
+    ItemStatusIqaID: number;
+    LotSplit?: number;
+    IQA: number ;
+
+}
 interface filterMeta {
     value: string | null;
     matchMode: string;
@@ -42,18 +67,42 @@ interface IReceiveDetailItem {
     iqaStatus: number ;
 }
 interface LotRow {
+    id?: number | null;
     no: string;
     lotNo: string;
     qty: string;
     unit: string;
     expireDate: string;
-}
-
-interface LotRowEx extends LotRow {
-    takeOutQty?: string;
-    problem?: string;
+    takeOutQty?: string | number;
+    problem?: boolean ;
     remark?: string;
 }
 
+interface ILotSplitData {
+    ItemNo: number ;
+    LotSplit: string;
+    receiveno: string;
+    lot_unit: string;
+    exp_date: Date;
+    remark: string;
+    isProblem: boolean;
+    lot_qty: number;
+}
 
-export type { IReceiveItem , filterMeta, IReceiveDetailItem , LotRow, LotRowEx };
+interface ReceiveItem {
+    itemNo : string | number;
+    receiveno: string | number;
+    lotNo: string | number;
+}
+interface ReceiveStoreState {
+    items: IReceiveItem[];
+    materialSplitItems: IReceiveItem[]; // เพิ่มสำหรับเก็บข้อมูล material-split แยกต่างหาก
+    item_split: SplitMaterial[];
+    loading: boolean;
+    error: string | null;
+    detail: any | null;
+}
+
+
+
+export type { IReceiveItem , filterMeta, IReceiveDetailItem , LotRow, ILotSplitData, ReceiveItem, ReceiveStoreState };

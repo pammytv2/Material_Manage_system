@@ -10,6 +10,10 @@ export class DatabaseService {
     async query(sqlQuery: string, params?: any[]): Promise<any[]> {
     const pool = await this.getConnection();
     const request = pool.request();
+    
+    // Set timeout for individual request (60 seconds)
+    request.timeout = 60000;
+    
     if (params) {
       params.forEach((param) => {
         request.input(param.name, param.type, param.value);
@@ -27,6 +31,8 @@ export class DatabaseService {
       password: this.configService.get<string>('DATABASE_PASSWORD'),
       port: parseInt(this.configService.get<string>('DATABASE_PORT') || '1433', 10),
       database: this.configService.get<string>('DATABASE_NAME') || 'MMSystem',
+      connectionTimeout: 30000, // 30 seconds connection timeout
+      requestTimeout: 60000, // 60 seconds request timeout (เพิ่มจาก 15 วินาที)
       options: {
         encrypt: false,
         trustServerCertificate: true,

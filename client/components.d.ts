@@ -7,11 +7,13 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    Badge: typeof import('primevue/badge')['default']
     BestSellingWidget: typeof import('./src/components/dashboard/BestSellingWidget.vue')['default']
     Button: typeof import('primevue/button')['default']
     Calendar: typeof import('primevue/calendar')['default']
     Checkbox: typeof import('primevue/checkbox')['default']
     Column: typeof import('primevue/column')['default']
+    ConfirmDialog: typeof import('primevue/confirmdialog')['default']
     ConfirmPopup: typeof import('primevue/confirmpopup')['default']
     DataTable: typeof import('primevue/datatable')['default']
     DatePicker: typeof import('primevue/datepicker')['default']
@@ -23,18 +25,24 @@ declare module 'vue' {
     HighlightsWidget: typeof import('./src/components/landing/HighlightsWidget.vue')['default']
     IconField: typeof import('primevue/iconfield')['default']
     InputIcon: typeof import('primevue/inputicon')['default']
+    InputNumber: typeof import('primevue/inputnumber')['default']
     InputText: typeof import('primevue/inputtext')['default']
+    LotSplitDialog: typeof import('./src/components/receive/LotSplitDialog.vue')['default']
+    MaterialListTable: typeof import('./src/components/receive/MaterialListTable.vue')['default']
     NotificationsWidget: typeof import('./src/components/dashboard/NotificationsWidget.vue')['default']
     PricingWidget: typeof import('./src/components/landing/PricingWidget.vue')['default']
+    ReceiveDetailHeader: typeof import('./src/components/receive/ReceiveDetailHeader.vue')['default']
     RecentSalesWidget: typeof import('./src/components/dashboard/RecentSalesWidget.vue')['default']
     RevenueStreamWidget: typeof import('./src/components/dashboard/RevenueStreamWidget.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SelectButton: typeof import('primevue/selectbutton')['default']
     StatsWidget: typeof import('./src/components/dashboard/StatsWidget.vue')['default']
+    Textarea: typeof import('primevue/textarea')['default']
     TopbarWidget: typeof import('./src/components/landing/TopbarWidget.vue')['default']
   }
   export interface ComponentCustomProperties {
     StyleClass: typeof import('primevue/styleclass')['default']
+    Tooltip: typeof import('primevue/tooltip')['default']
   }
 }

@@ -3,18 +3,20 @@ import { DatabaseService } from '../../database/database.service';
 import { POReceipt_ICShipment } from 'shared/interfaces/mms-system/POReceipt_ICShipment';
 import { POReceipt_ICShipment_Detail } from 'shared/interfaces/mms-system/POReceipt_ICShipment_Detail';
 import * as sql from 'mssql';
+
 @Injectable()
 export class MaterialReceiveService {
-
   constructor(private readonly databaseService: DatabaseService) {}
   //  POReceipt_ICShipment
   async findAllPOReceipt_ICShipment(): Promise<POReceipt_ICShipment[]> {
-    const sqlQuery: string = `SELECT * FROM POReceipt_ICShipment`;
+    const sqlQuery: string = `SELECT * FROM accpac_sync_poreceipt_icshipment_h`;
     return await this.databaseService.query(sqlQuery);
   }
 
-  async findOnePOReceipt_ICShipment(receiptNumber: string): Promise<POReceipt_ICShipment[]> {
-    const sqlQuery: string = `SELECT * FROM POReceipt_ICShipment WHERE ReceptNumbar = @receiptNumber`;
+  async findOnePOReceipt_ICShipment(
+    receiptNumber: string,
+  ): Promise<POReceipt_ICShipment[]> {
+    const sqlQuery: string = `SELECT * FROM accpac_sync_poreceipt_icshipment_h WHERE ReceptNumbar = @receiptNumber`;
     return await this.databaseService.query(sqlQuery, [
       { name: 'receiptNumber', type: sql.VarChar, value: receiptNumber },
     ]);
@@ -29,30 +31,31 @@ export class MaterialReceiveService {
       { name: 'startDate', type: sql.VarChar, value: startDate },
       { name: 'endDate', type: sql.VarChar, value: endDate },
     ]);
-    const selectQuery = `SELECT * FROM dbo.POReceipt_ICShipment WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
+    const selectQuery = `SELECT * FROM dbo.accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
     return await this.databaseService.query(selectQuery, [
       { name: 'StartDate', type: sql.VarChar, value: startDate },
       { name: 'EndDate', type: sql.VarChar, value: endDate },
-    ]); 
+    ]);
   }
-  
 
   // Sync RecD_ICH
-async syncData_Detail(receiptNumber: string ,StatusRecIC: number): Promise<any> {
+  async syncData_Detail(
+    receiptNumber: string,
+  
+  ): Promise<any> {
     // Sync data
     const syncQuery = `
-      EXEC sp_Sync_RecD_ICD @ReceptNumber = @ReceptNumber, @StatusRecIC = @StatusRecIC
+      SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE ReceptNumber = @ReceptNumber
     `;
     await this.databaseService.query(syncQuery, [
       { name: 'ReceptNumber', type: sql.NVarChar, value: receiptNumber },
-      { name: 'StatusRecIC', type: sql.Int, value: StatusRecIC },
     ]);
     // Return detail
-    const selectQuery = `SELECT * FROM POReceipt_ICShipment_Detail WHERE ReceptNumber = @receiptNumber`;
+    const selectQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE ReceptNumber = @receiptNumber`;
     return await this.databaseService.query(selectQuery, [
-      { name: 'receiptNumber', type: sql.VarChar, value: receiptNumber }
+      { name: 'receiptNumber', type: sql.VarChar, value: receiptNumber },
     ]);
-}
+  }
 
   // Sync Dates
   async syncDates(): Promise<any> {
@@ -67,14 +70,148 @@ async syncData_Detail(receiptNumber: string ,StatusRecIC: number): Promise<any> 
       SELECT * FROM lot_status_IQA  WHERE @IQAStatusID = IQAStatusID
     `;
     return await this.databaseService.query(sqlQuery, [
-      { name: 'IQAStatusID', type: sql.Int, value: IQAStatusID }
+      { name: 'IQAStatusID', type: sql.Int, value: IQAStatusID },
     ]);
   }
-  async lot_SplitStatus (ItemNo: number): Promise<any> {
+  async lot_SplitStatus(ItemNo: number): Promise<any> {
     const sqlQuery = `
-      SELECT ItemNo , LotSplit FROM view_item_mms_active WHERE ItemNo = @ItemNo
+      SELECT ItemNo , LotSplit FROM item_test WHERE ItemNo = @ItemNo
     `;
-    return await this.databaseService.query(sqlQuery);
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ItemNo', type: sql.Int, value: ItemNo },
+    ]);
   }
 
+  async insert_LotSplit(
+    ItemNo: string,
+    LotSplit: string,
+    receiveno: string,
+    lot_unit: string,
+    exp_date: Date,
+    remark: string,
+    isProblem: boolean | string,
+    lot_qty: number,
+  ): Promise<any> {
+    // Log เพื่อ debug
+    console.log('Received isProblem:', isProblem, 'Type:', typeof isProblem);
+
+    const sqlQuery = `
+      INSERT INTO mat_lot_Split (
+      lot_no, ITEMNO, ReceiveNo, lot_unit, exp_date, 
+      created_at, remark, isProblem, lot_qty
+    ) VALUES (
+      @LotSplit, @ItemNo, @ReceptNumber, @LotUnit, @ExpDate,
+      GETDATE(), @Remark, @IsProblem, @LotQty
+    )                                
+  `;
+    let booleanValue: boolean;
+    if (typeof isProblem === 'string') {
+      booleanValue = (isProblem as string).toLowerCase() === 'true';
+    } else {
+      booleanValue = Boolean(isProblem);
+    }
+
+    const isProblemValue = booleanValue === true ? 1 : 0;
+    console.log('Converted isProblem to:', isProblemValue);
+
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ItemNo', type: sql.NVarChar, value: ItemNo },
+      { name: 'LotSplit', type: sql.NVarChar, value: LotSplit },
+      { name: 'ReceptNumber', type: sql.NVarChar, value: receiveno },
+      { name: 'LotUnit', type: sql.NVarChar, value: lot_unit },
+      { name: 'ExpDate', type: sql.Date, value: exp_date },
+      { name: 'Remark', type: sql.NVarChar, value: remark },
+      { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
+      { name: 'LotQty', type: sql.Int, value: lot_qty },
+    ]);
+  }
+
+  async lot_Split_BY_Rec_and_ItemNo(
+    receiveno: string,
+    itemNo: string,
+  ): Promise<any> {
+    const sqlQuery = `
+    EXEC sp_Get_mat_lot_Split @ReceiveNo = @ReceptNumber, @ITEMNO = @ItemNo
+  `;
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ReceptNumber', type: sql.NVarChar, value: receiveno },
+      { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+    ]);
+  }
+
+  async update_LotSplit(
+    id: number,
+    ItemNo: string,
+    LotSplit: string,
+    receiveno: string,
+    lot_unit: string,
+    exp_date: Date,
+    remark: string,
+    isProblem: boolean | string,
+    lot_qty: number,
+  ): Promise<any> {
+    console.log(
+      'Update Lot Split - ID:',
+      id,
+      'isProblem:',
+      isProblem,
+      'Type:',
+      typeof isProblem,
+    );
+
+    const sqlQuery = `
+    UPDATE mat_lot_Split 
+    SET 
+      lot_no = @LotSplit,
+      ReceiveNo = @ReceptNumber,
+      lot_unit = @LotUnit,
+      exp_date = @ExpDate,
+      updated_at = GETDATE(),       
+      remark = @Remark,
+      isProblem = @IsProblem,
+      lot_qty = @LotQty
+    WHERE id = @Id           
+  `;
+
+    let isProblemValue: number;
+    if (typeof isProblem === 'string') {
+      isProblemValue = isProblem.toLowerCase() === 'true' ? 1 : 0;
+    } else {
+      isProblemValue = isProblem === true ? 1 : 0;
+    }
+
+    console.log('Converted isProblem to:', isProblemValue);
+
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'Id', type: sql.Int, value: id },
+      { name: 'ItemNo', type: sql.NVarChar, value: ItemNo },
+      { name: 'LotSplit', type: sql.NVarChar, value: LotSplit },
+      { name: 'ReceptNumber', type: sql.NVarChar, value: receiveno },
+      { name: 'LotUnit', type: sql.NVarChar, value: lot_unit },
+      { name: 'ExpDate', type: sql.Date, value: exp_date },
+      { name: 'Remark', type: sql.NVarChar, value: remark },
+      { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
+      { name: 'LotQty', type: sql.Int, value: lot_qty },
+    ]);
+  }
+
+  async delete_LotSplit(receiveno: string, itemNo: string, lotNo: string): Promise<any> {
+    const sqlQuery = `
+    DELETE FROM mat_lot_Split WHERE  ReceiveNo = @ReceptNumber AND ITEMNO = @ItemNo AND lot_no = @LotNo
+  `;
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ReceptNumber', type: sql.NVarChar, value: receiveno },
+      { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+      { name: 'LotNo', type: sql.NVarChar, value: lotNo },
+    ]);
+  }
+
+  async material_split(startDate: string, endDate: string): Promise<any> {
+    const sqlQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
+    
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'StartDate', type: sql.VarChar, value: startDate },
+      { name: 'EndDate', type: sql.VarChar, value: endDate },
+    ]);
+  } 
 }

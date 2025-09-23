@@ -4,7 +4,7 @@ import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
-import {filterMeta} from '@/interfaces/receive.interfaces';
+import { filterMeta } from '@/interfaces/receive.interfaces';
 
 const loading = ref(false);
 const router = useRouter();
@@ -17,15 +17,16 @@ const filters = ref<{
     invoiceNumber: filterMeta;
     vendorCode: filterMeta;
     vendorName: filterMeta;
+    countOrder: filterMeta;
 }>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
     receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
     invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
     vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
+    vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-
 
 async function handleRowClick(receipt: any) {
     const receiveNumber = receipt.ReceptNumber;
@@ -33,13 +34,14 @@ async function handleRowClick(receipt: any) {
     const InvoiceNumber = receipt.InvoiceNumber;
     const RecReceiveDate = receipt.ReciveDate;
     const VendorName = receipt.VendorName;
-    router.push({ 
+
+    router.push({
         path: `/uikit/Receive_Detail/${receiveNumber}`,
         query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
     });
 
-    console.log('Row clicked:', receipt)
-    
+    console.log('Row clicked:', receipt);
+
     console.log('Row clicked1:', receiveNumber);
 
     // receiveStore.getComponents(receiveNumber, StatusRecIC);
@@ -85,8 +87,6 @@ const filteredReceiveList = computed(() => {
     return list;
 });
 
-
-
 async function onDateSearch() {
     localStorage.setItem('receiveStartDate', startDate.value);
     localStorage.setItem('receiveEndDate', endDate.value);
@@ -97,7 +97,6 @@ async function onDateSearch() {
     loading.value = false;
 }
 
-
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -105,7 +104,8 @@ function clearFilter() {
         receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
         invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
+        vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 }
 
@@ -117,7 +117,6 @@ function formatDate(dateString: string) {
 }
 
 // ไม่ต้องเรียก API ใน onMounted เพราะ store จะจัดการให้
-
 </script>
 
 <template>
@@ -131,16 +130,34 @@ function formatDate(dateString: string) {
                     <button
                         type="button"
                         class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-0"
-                        @click="async () => { await onDateSearch();}"
+                        @click="
+                            async () => {
+                                await onDateSearch();
+                            }
+                        "
                     >
                         Sync Date
                     </button>
+                  
                 </div>
             </div>
         </form>
     </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">Receive Material List</div>
+          <div class="flex-1 flex justify-end  p-3">
+                        <Button
+                            icon="pi pi-plus"
+                            label="Manual Receive"
+                            class="p-button-success mr-2"
+                            @click="
+                                () => {
+                                    router.push('/manual-receive-list');
+                                }
+                            "
+                        />
+                    </div>
+        
         <DataTable
             :value="filteredReceiveList"
             v-model:filters="filters"
@@ -151,27 +168,19 @@ function formatDate(dateString: string) {
             showGridlines
             rowHover
             @rowClick="(e) => handleRowClick(e.data)"
-            :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName']"
+            :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
             :loading="loading"
         >
             <template #header>
                 <div class="flex justify-between">
-                    <Button
-                        type="button"
-                        icon="pi pi-filter-slash"
-                        label="Clear"
-                        variant="outlined"
-                        @click="clearFilter()"
-                    />
+                    <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
+
                     <IconField>
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText
-                            v-model="searchQuery"
-                            placeholder="Keyword Search"
-                        />
+                        <InputText v-model="searchQuery" placeholder="Keyword Search" />
                     </IconField>
                 </div>
             </template>
@@ -186,12 +195,7 @@ function formatDate(dateString: string) {
 
             <Column field="ReceptNumber" header="Receive Number" sortable>
                 <template #filter="{ filterModel }">
-                    <InputText
-                        v-model="filterModel.value"
-                        type="text"
-                        class="p-column-filter"
-                        placeholder="Search by receive number"
-                    />
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive number" />
                 </template>
             </Column>
 
@@ -200,44 +204,30 @@ function formatDate(dateString: string) {
                     {{ formatDate(data.ReciveDate) }}
                 </template>
                 <template #filter="{ filterModel }">
-                    <DatePicker
-                        v-model="filterModel.value"
-                        dateFormat="yy-mm-dd"
-                        placeholder="yyyy-mm-dd"
-                    />
+                    <DatePicker v-model="filterModel.value" dateFormat="yy-mm-dd" placeholder="yyyy-mm-dd" />
                 </template>
             </Column>
 
             <Column field="InvoiceNumber" header="Invoice Number" sortable>
                 <template #filter="{ filterModel }">
-                    <InputText
-                        v-model="filterModel.value"
-                        type="text"
-                        class="p-column-filter"
-                        placeholder="Search by invoice"
-                    />
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by invoice" />
                 </template>
             </Column>
 
             <Column field="VendorCode" header="Vendor Code" sortable>
                 <template #filter="{ filterModel }">
-                    <InputText
-                        v-model="filterModel.value"  
-                        type="text"
-                        class="p-column-filter"
-                        placeholder="Search by vendor code"
-                    />
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor code" />
                 </template>
             </Column>
 
             <Column field="VendorName" header="Vendor Name" sortable>
                 <template #filter="{ filterModel }">
-                    <InputText
-                        v-model="filterModel.value"
-                        type="text"
-                        class="p-column-filter"
-                        placeholder="Search by vendor name"
-                    />
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
+                </template>
+            </Column>
+            <Column field="CountOrder" header="Item Count" sortable>
+                <template #filter="{ filterModel }">
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count order" />
                 </template>
             </Column>
         </DataTable>

@@ -5,8 +5,9 @@ import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { onMounted, reactive, ref, toRefs, nextTick, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
-import { IReceiveDetailItem, LotRow, LotRowEx } from '@/interfaces/receive.interfaces';
+import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
 import { useRoute } from 'vue-router';
+import { item } from '@primeuix/themes/aura/breadcrumb';
 
 const receiveStore = useReceiveStore();
 const router = useRouter();
@@ -16,7 +17,7 @@ const loading = ref(false);
 const route = useRoute();
 
 // const receiveNumber = route.params.receiveNumber;
-const expireDate = ref('');
+
 
 // Dialog state
 const isDialogOpen = ref(false);
@@ -46,11 +47,71 @@ const vendorName = computed(() => receiveStore.detail?.vendorName || route.query
 const detailTableRef = ref<HTMLElement | null>(null);
 const lotSplitStatusList = reactive([{ value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }]);
 const allLotRows = computed(() => receiveStore.detail?.allLotRows || []);
-const lotRows = ref<LotRowEx[]>([]);
+const lotRows = ref<LotRow[]>([]);
 const lotStatusIQA = ref<any[]>([]);
 
 // ดึงข้อมูล tableRows จาก API
 const tableRows = computed(() => receiveStore.detail?.tableRows || []);
+
+// สร้าง reactive object เพื่อเก็บข้อมูล balance qty ของแต่ละแถว
+const rowBalanceQtys = ref<{ [key: string]: number }>({});
+
+// สร้าง reactive object เพื่อเก็บข้อมูล lot split qty ของแต่ละแถว
+const rowLotSplitQtys = ref<{ [key: string]: number }>({});
+
+// ฟังก์ชันสำหรับคำนวณและอัปเดต Lot Split QTY ของแต่ละแถว
+async function updateRowLotSplitQtys() {
+    const lotSplitQtys: { [key: string]: number } = {};
+    
+    for (const row of tableRows.value) {
+        const key = `${row.itemNo}_${row.no}`;
+        
+        try {
+            // ดึงข้อมูล Lot Split ที่มีอยู่
+            const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
+                receiveno: receiveNumber.value,
+                itemNo: row.itemNo || ''
+            } as any);
+            
+            // นับจำนวน Lot ที่แบ่ง (จำนวน records/items) ไม่ใช่รวม quantity
+            const lotCount = existingLotSplits?.length || 0;
+            
+            lotSplitQtys[key] = lotCount;
+        } catch (error) {
+            console.error('Error calculating lot split qty:', error);
+            lotSplitQtys[key] = 0;
+        }
+    }
+    
+    rowLotSplitQtys.value = lotSplitQtys;
+}
+
+// ฟังก์ชันสำหรับดึง Lot Split QTY ของแถวที่ระบุ
+function getRowLotSplitQty(data: any): number {
+    const key = `${data.itemNo}_${data.no}`;
+    return rowLotSplitQtys.value[key] ?? 0;
+}
+
+// ฟังก์ชันสำหรับคำนวณและอัปเดต Balance QTY ของแต่ละแถว
+async function updateRowBalanceQtys() {
+    const balances: { [key: string]: number } = {};
+    
+    for (const row of tableRows.value) {
+        const key = `${row.itemNo}_${row.no}`;
+        balances[key] = await calculateRowBalanceQtyWithLot(row);
+    }
+    
+    rowBalanceQtys.value = balances;
+    
+    // อัปเดต Lot Split QTY พร้อมกัน
+    await updateRowLotSplitQtys();
+}
+
+// ฟังก์ชันสำหรับดึง Balance QTY ของแถวที่ระบุ
+function getRowBalanceQty(data: any): number {
+    const key = `${data.itemNo}_${data.no}`;
+    return rowBalanceQtys.value[key] ?? calculateRowBalanceQty(data);
+}
 
 const filteredRows = computed(() => {
     const rows = tableRows.value;
@@ -68,27 +129,86 @@ const filteredRows = computed(() => {
     );
 });
 
-// สำหรับ scroll กลับไปยังตาราง Detail
+async function saveLotSplit() {
+    if (dialogRowIndex.value === null) return;
+    const currentRow = tableRows.value[dialogRowIndex.value];
 
+    if (!lotRows.value || lotRows.value.length === 0) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'No lot data to save', life: 3000 });
+        return;
+    }
+
+    const validLotRows = lotRows.value.filter(lotRow => lotRow.lotNo && lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0);
+    if (validLotRows.length === 0) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please fill in Lot No and Take Out Qty for at least one row', life: 3000 });
+        return;
+    }
+
+    const lotSplitPromises = validLotRows.map(lotRow => {
+        // Ensure value is boolean before converting to 1/0
+        const payload = {
+            ItemNo: currentRow?.itemNo || '',
+            LotSplit: lotRow.lotNo,
+            receiveno: receiveNumber.value,
+            lot_unit: lotRow.unit || currentRow.unit,
+            exp_date: new Date(lotRow.expireDate),
+            remark: lotRow.remark || '',
+            isProblem: !!lotRow.problem,
+            lot_qty: parseFloat(String(lotRow.takeOutQty ?? '0')) || 0
+        };
+
+        // ถ้ามี id = UPDATE, ถ้าไม่มี id = INSERT
+        if (lotRow.id) {
+            const updatePayload = { ...payload, id: lotRow.id };
+            console.log('Update LotSplit Payload:', updatePayload);
+            return receiveStore.updateLotSplit(updatePayload);
+        } else {
+            console.log('Insert LotSplit Payload:', payload);
+            return receiveStore.createLotSplit(payload);
+        }
+    });
+    
+
+    try {
+        loading.value = true;
+        const results = await Promise.all(lotSplitPromises);
+        const allSuccess = results.every(result => result !== null && result !== undefined);
+        if (allSuccess) {
+            toast.add({ severity: 'success', summary: 'Success', detail: 'Lot split data saved successfully', life: 3000 });
+            
+            // อัปเดต Balance QTY ใหม่หลังจากบันทึกสำเร็จ
+            await updateRowBalanceQtys();
+            
+            closeEditDialog(true);
+        } else {
+            toast.add({ severity: 'error', summary: 'Error', detail: 'Some lot split data failed to save', life: 3000 });
+        }
+    } catch (error) {
+        toast.add({ severity: 'error', summary: 'Error', detail: `Failed to save lot split data: ${String(error)}`, life: 5000 });
+    } finally {
+        loading.value = false;
+    }
+}
+
+
+// สำหรับ scroll กลับไปยังตาราง Detail
 onMounted(async () => {
-    const defaultIQAStatusID = 1;
 
     const receiveNumber = (route.query.receiptNumber as string) || (route.params.receiveNumber as string);
-    const StatusRecIC = Number(route.query.StatusRecIC);
     const InvoiceNumber = (route.query.InvoiceNumber as string) || '';
     const RecReceiveDate = (route.query.RecReceiveDate as string) || '';
     const VendorName = (route.query.VendorName as string) || '';
 
     loading.value = true;
-    const response = await receiveStore.getComponents(receiveNumber, StatusRecIC);
-    const lotStatusIQAResponse = await receiveStore.fetchLotStatusIQA(defaultIQAStatusID);
-    lotStatusIQA.value = lotStatusIQAResponse;
+    const response = await receiveStore.getComponents(receiveNumber);
+    // const lotStatusIQAResponse = await receiveStore.fetchLotStatusIQA(defaultIQAStatusID);
+    // lotStatusIQA.value = lotStatusIQAResponse;
 
-    console.log('lotStatusIQAResponse:', lotStatusIQAResponse);
+    // console.log('lotStatusIQAResponse:', lotStatusIQAResponse);
     console.log('lotStatusIQA:', lotStatusIQA.value);
     console.log('receiveNumber:', receiveNumber);
     console.log('lotStatusIQA length:', lotStatusIQA.value.length);
-    console.log('StatusRecIC:', StatusRecIC);
+    
     console.log('InvoiceNumber:', InvoiceNumber);
     console.log('RecReceiveDate:', RecReceiveDate);
     console.log('VendorName:', VendorName);
@@ -115,18 +235,20 @@ onMounted(async () => {
                 ExpDate: row.ExpDate ?? '',
                 IQA: row.IQA ?? ''
 
-                // เพิ่ม field อื่นๆ ตามหัวข้อที่ต้องการ
+                
             }))
         };
+        
+        // คำนวณ Balance QTY สำหรับแต่ละแถว
+        await updateRowBalanceQtys();
     }
     loading.value = false;
-    console.log('getComponents called with:', 'receiveNumber:', receiveNumber, 'StatusRecIC:', StatusRecIC);
+    console.log('getComponents called with:', 'receiveNumber:', receiveNumber);
 });
 
 const goBack = () => {
     router.back();
 };
-
 
 function getReturnQty(receiveQty: number | string, returnQty: number | string) {
     const r = parseFloat(receiveQty as string) || 0;
@@ -134,13 +256,12 @@ function getReturnQty(receiveQty: number | string, returnQty: number | string) {
     return Math.max(t + r, 0);
 } //ไม่ต้องมีก็ได้
 
-
 function calculateBalanceQty() {
     if (dialogRowIndex.value === null) return 0;
 
     const receiveQty = parseFloat(tableRows.value[dialogRowIndex.value]?.receiveQty || '0') || 0;
     const totalTakeOutQty = lotRows.value.reduce((sum, row) => {
-        return sum + (parseFloat(row.takeOutQty || '0') || 0);
+        return sum + (parseFloat(String(row.takeOutQty || '0')) || 0);
     }, 0);
 
     // ห้ามใส่เกิน receiveQty
@@ -149,6 +270,56 @@ function calculateBalanceQty() {
     }
 
     return Math.max(receiveQty - totalTakeOutQty, 0);
+}
+
+function calculateRowBalanceQty(data: any) {
+    // คำนวณ Balance QTY สำหรับแต่ละแถวใน DataTable
+    const receiveQty = parseFloat(data.receiveQty || '0') || 0;
+    const returnQty = parseFloat(data.returnQty || '0') || 0;
+    
+    // Balance = Receive - Return - Total Lot Split Qty
+    return Math.max(receiveQty - returnQty, 0);
+}
+
+// ฟังก์ชันใหม่สำหรับคำนวณ Balance QTY แบบ async ที่ดึงข้อมูล Lot Split มาคำนวณ
+async function calculateRowBalanceQtyWithLot(data: any) {
+    try {
+        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
+        const returnQty = parseFloat(data.returnQty || '0') || 0;
+        
+        // ดึงข้อมูล Lot Split ที่มีอยู่
+        const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
+            receiveno: receiveNumber.value,
+            itemNo: data.itemNo || ''
+        } as any);
+        
+        // คำนวณจำนวนที่แบ่งไปแล้ว
+        const totalLotSplitQty = existingLotSplits?.reduce((sum: number, lot: any) => {
+            return sum + (parseFloat(lot.lot_qty || '0') || 0);
+        }, 0) || 0;
+        
+        // Balance = Receive - Return - Total Lot Split Qty
+        return Math.max(receiveQty - returnQty - totalLotSplitQty, 0);
+    } catch (error) {
+        console.error('Error calculating balance with lot splits:', error);
+        // ถ้าเกิด error ให้คำนวณแบบปกติ
+        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
+        const returnQty = parseFloat(data.returnQty || '0') || 0;
+        return Math.max(receiveQty - returnQty, 0);
+    }
+}
+const canAddRow = computed(() => {
+    return calculateBalanceQty() > 0;
+});
+
+function color_BalanceQty(data: any) {
+    const balanceQty = getRowBalanceQty(data);
+    if (balanceQty === 0) {
+        return 'bg-green-200 text-green-700 font-semibold px-2 py-1 rounded'; 
+    } else if (balanceQty > 0) {
+        return 'bg-yellow-200 text-yellow-700 font-semibold px-2 py-1 rounded'; 
+    }
+    return ''; 
 }
 
 function getIQAStatusText(iqa: number | string | null | undefined) {
@@ -264,17 +435,83 @@ function expireDateEnd(date: string) {
 }
 // ข้อมูล lotRows จาก API (เช่น receiveStore.detail.lotRows)
 
-function openEditDialog(rowIndex: number) {
+async function openEditDialog(rowIndex: number) {
     dialogRowIndex.value = rowIndex;
-    // clone ข้อมูลมาแก้ไขจาก API
-    lotRows.value = allLotRows.value[rowIndex]?.map((row: LotRowEx) => ({ ...row })) || [];
-    isDialogOpen.value = true;
+    const currentRow = tableRows.value[rowIndex];
+    
+    try {
+        loading.value = true;
+        
+        // ดึงข้อมูล Lot Split ที่มีอยู่แล้วจาก API
+        const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
+            receiveno: receiveNumber.value,
+            itemNo: currentRow?.itemNo || ''
+        } as any);
+        
+        console.log('Existing Lot Splits:', existingLotSplits);
+        
+        // แปลงข้อมูลจาก API เป็นรูปแบบที่ใช้ใน Dialog
+        if (existingLotSplits && existingLotSplits.length > 0) {
+            lotRows.value = existingLotSplits.map((row: any) => ({
+                id: row.id, // เพิ่ม id สำหรับ update
+                no: '',
+                lotNo: row.lot_no || '',
+                qty: row.lot_qty || '',
+                unit: row.lot_unit || currentRow?.unit || '',
+                expireDate: row.exp_date ? new Date(row.exp_date).toISOString().split('T')[0] : '',
+                takeOutQty: row.lot_qty || '',
+                problem: !!row.isProblem, // แปลง 1/0 เป็น boolean
+                remark: row.remark || ''
+            }));
+        } else {
+            // ถ้าไม่มีข้อมูลเก่า ให้สร้าง row ว่างใหม่
+            lotRows.value = [{
+                id: null, // ไม่มี id = ข้อมูลใหม่
+                no: '',
+                lotNo: '',
+                qty: '',
+                unit: currentRow?.unit || '',
+                expireDate: '',
+                takeOutQty: '',
+                problem: false,
+                remark: ''
+            }];
+        }
+        
+    } catch (error) {
+        console.error('Error fetching lot split data:', error);
+        toast.add({ 
+            severity: 'error', 
+            summary: 'Error', 
+            detail: 'Failed to load existing lot split data', 
+            life: 3000 
+        });
+        
+        // ถ้าเกิด error ให้สร้าง row ว่างใหม่
+        lotRows.value = [{
+            id: null, // ไม่มี id = ข้อมูลใหม่
+            no: '',
+            lotNo: '',
+            qty: '',
+            unit: currentRow?.unit || '',
+            expireDate: '',
+            takeOutQty: '',
+            problem: false,
+            remark: ''
+        }];
+    } finally {
+        loading.value = false;
+        isDialogOpen.value = true;
+    }
 }
 
-function closeEditDialog(save = false) {
+async function closeEditDialog(save = false) {
     if (save && dialogRowIndex.value !== null) {
         // เซฟกลับไปที่ allLotRows
         allLotRows[dialogRowIndex.value] = lotRows.value.map((row) => ({ ...row }));
+        
+        // อัปเดต Balance QTY ใหม่หลังจากบันทึก Lot Split
+        await updateRowBalanceQtys();
     }
     isDialogOpen.value = false;
     dialogRowIndex.value = null;
@@ -288,24 +525,103 @@ function closeEditDialog(save = false) {
 }
 
 function addRow() {
-    // ดึง unit จากแถวที่เลือกใน dialog
-    let unit = '';
+ let unit = '';
     if (dialogRowIndex.value !== null) {
         unit = tableRows.value[dialogRowIndex.value]?.unit || '';
     }
-    lotRows.value.push({ no: '', lotNo: '', qty: '', unit, expireDate: '' });
+
+    const newRow = {
+        id: null, // ไม่มี id = ข้อมูลใหม่
+        no: '',
+        lotNo: '',
+        qty: '',
+        unit,
+        expireDate: '',
+        takeOutQty: '',
+        problem: false, 
+        remark: ''
+    };
+    lotRows.value.push(newRow);
 }
 
-function removeRow(index: number) {
-    if (lotRows.value.length > 1) {
-        lotRows.value.splice(index, 1);
+async function removeRow(index: number) {
+    const lotRow = lotRows.value[index];
+    
+    // ถ้า row มี id แสดงว่าเป็นข้อมูลที่มีอยู่ในฐานข้อมูล ต้องลบจริง
+    if (lotRow.id) {
+        try {
+            loading.value = true;
+            
+            // เรียก API delete
+            const deleteResult = await receiveStore.Delete_LotSplit({
+                receiveno: receiveNumber.value,
+                itemNo: dialogRowIndex.value !== null ? tableRows.value[dialogRowIndex.value]?.itemNo || '' : '',
+                lotNo: lotRow.lotNo
+            } as any);
+            
+            // ถือว่าสำเร็จถ้าไม่มี error throw (ไม่ต้องเช็ค deleteResult)
+            toast.add({ 
+                severity: 'success', 
+                summary: 'Success', 
+                detail: 'Lot split deleted successfully', 
+                life: 3000 
+            });
+            
+            // ลบ row จาก array
+            lotRows.value.splice(index, 1);
+            
+            // อัปเดต Balance QTY ใหม่
+            if (dialogRowIndex.value !== null) {
+                await updateRowBalanceQtys();
+            }
+        } catch (error) {
+            console.error('Error deleting lot split:', error);
+            toast.add({ 
+                severity: 'error', 
+                summary: 'Error', 
+                detail: `Failed to delete lot split: ${String(error)}`, 
+                life: 3000 
+            });
+        } finally {
+            loading.value = false;
+        }
+    } else {
+        // ถ้าไม่มี id แสดงว่าเป็นข้อมูลใหม่ที่ยังไม่ได้บันทึก แค่ลบจาก array
+        if (lotRows.value.length > 1) {
+            lotRows.value.splice(index, 1);
+        }
     }
 }
 
+function confirmDelete(index: number, event?: Event) {
+    const lotRow = lotRows.value[index];
+    
+    confirmPopup.require({
+        target: event?.target as HTMLElement,
+        message: lotRow.id 
+            ? `Are you sure you want to delete Lot ${lotRow.lotNo}? This will permanently remove it from the database.`
+            : 'Are you sure you want to remove this row?',
+        icon: 'pi pi-exclamation-triangle',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Delete',
+            severity: 'danger'
+        },
+        accept: async () => {
+            await removeRow(index);
+        },
+    });
+}
+
 function confirm(event) {
+    console.log('🔍 confirm function called'); // เพิ่ม log เพื่อ debug
     confirmPopup.require({
         target: event.target,
-        message: 'Are you sure you want to proceed?',
+        message: 'Are you sure you want to save the lot split data?',
         icon: 'pi pi-exclamation-triangle',
         rejectProps: {
             label: 'Cancel',
@@ -315,13 +631,13 @@ function confirm(event) {
         acceptProps: {
             label: 'Save'
         },
-        accept: () => {
-            toast.add({ severity: 'info', summary: 'Confirmed', detail: 'You have accepted', life: 3000 });
-            closeEditDialog(true);
+        accept: async () => {
+            console.log('✅ User accepted, calling saveLotSplit'); // เพิ่ม log
+            await saveLotSplit();
         },
         reject: () => {
-            toast.add({ severity: 'warn', summary: 'Rejected', detail: 'You have rejected', life: 3000 });
-            closeEditDialog(true);
+            console.log('❌ User rejected'); // เพิ่ม log
+            toast.add({ severity: 'info', summary: 'Cancelled', detail: 'Operation cancelled', life: 3000 });
         }
     });
 }
@@ -455,56 +771,35 @@ function clearFilter() {
                 </template>
             </Column>
 
-            
-
-            <Column field="receiveQty" header="Receive QTY" sortable>
+            <Column field="receiveQty" header="Receive(QTY)" sortable>
                 <template #body="{ data }">
                     {{ getReturnQty(data.receiveQty, data.returnQty) }}
                 </template>
             </Column>
 
-            <Column field="returnQty" header="Return QTY" sortable>
+            <!-- <Column field="returnQty" header="Return QTY" sortable>
                 <template #body>0</template>
-            </Column>
+            </Column> -->
 
-           
-            <Column field="lotExpireDate" header="Expire Date" sortable :style="{ minWidth: '200px' }">
+            <Column field="balanceQty" header="Wait Split(QTY)" sortable>
                 <template #body="{ data }">
-                    <div v-if="data.ExpDate === 0" class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-600 font-semibold rounded px-2 py-1">No Expiration</div>
-                    <div v-else :class="[expireDateEnd(data.lotExpireDate), 'w-full', 'h-full', 'flex', 'items-center', 'justify-center', 'rounded']">
-                        <Calendar v-model="data.lotExpireDate" dateFormat="yy-mm-dd" :showIcon="true" :showButtonBar="true" class="w-full" :baseZIndex="1000" />
-                    </div>
+                    <!-- จำนวนที่เหลือหลังจากแบ่ง Lot ไปแล้ว (Balance QTY) -->
+                    <span :class="color_BalanceQty(data)">
+                        {{ getRowBalanceQty(data) }}
+                    </span>
                 </template>
-                000000
-                <template #filter="{ filterModel }">
-                    <Calendar v-model="filterModel.value" dateFormat="yy-mm-dd" placeholder="Select Date" :showButtonBar="true" class="w-full" />
+            </Column>
+            <Column field="LotSplit" header="Lot Split(Lot)" sortable>
+                <template #body="{ data }">
+                    <!-- จำนวน Lot ที่แบ่ง (นับจำนวน items/records) -->
+                    {{ getRowLotSplitQty(data) }} lot
                 </template>
             </Column>
             <Column field="lotSplitStatusIdx" header="Lot Split Status" sortable>
                 <template #body="{ data }">
-                    <Dropdown
-                        :modelValue="getLotSplitStatusText(data.lotSplit)"
-                        @update:modelValue="(val) => (data.lotSplit = val === 'Lot Required' ? 1 : val === 'No Lot Required' ? 0 : '')"
-                        :options="['Lot Required', 'No Lot Required', 'Not Specified']"
-                        :disabled="data.lotSplit !== 2"
-                        :pt="{
-                            root: { class: 'w-full' },
-                            input: {
-                                class: 'w-full ' + getLotSplitStatusClass(getLotSplitStatusText(data.lotSplit)) + (data.lotSplit !== 2 ? ' opacity-50 cursor-not-allowed' : '')
-                            }
-                        }"
-                    >
-                        <template #value="{ value }">
-                            <span :class="getLotSplitStatusClass(value)">
-                                {{ value }}
-                            </span>
-                        </template>
-                        <template #option="{ option }">
-                            <span :class="getLotSplitStatusClass(option)">
-                                {{ option }}
-                            </span>
-                        </template>
-                    </Dropdown>
+                    <span :class="getLotSplitStatusClass(getLotSplitStatusText(data.lotSplit))">
+                        {{ getLotSplitStatusText(data.lotSplit) }}
+                    </span>
                 </template>
                 <template #filter="{ filterModel }">
                     <Dropdown v-model="filterModel.value" :options="['Lot Required', 'No Lot Required', 'Not Specified']" placeholder="Select Status">
@@ -518,39 +813,11 @@ function clearFilter() {
                 </template>
             </Column>
 
-            <Column field="iqaStatus" header="IQA Status" sortable>
-                <template #body="{ data }">
-                    <span :class="getIQAStatusClass(data.iqaStatus || 'PENDING')">
-                        {{ data.iqaStatus || 'PENDING' }}
-                    </span>
-                </template>
-            </Column>
-
             <Column field="iqaRequirement" header="IQA Requirement" sortable>
                 <template #body="{ data }">
-                    <Dropdown
-                        :modelValue="getIQAStatusText(data.IQA)"
-                        @update:modelValue="(val) => updateIQAValue(data, val)"
-                        :options="['IQA Required', 'No IQA Required', 'Not Specified']"
-                        :disabled="!canEditIQA(data.IQA)"
-                        :pt="{
-                            root: { class: 'w-full' },
-                            input: {
-                                class: 'w-full ' + getIQARequiredClass(getIQAStatusText(data.IQA)) + (!canEditIQA(data.IQA) ? ' opacity-50 cursor-not-allowed' : ' cursor-pointer')
-                            }
-                        }"
-                    >
-                        <template #value="{ value }">
-                            <span :class="getIQARequiredClass(value)">
-                                {{ value }}
-                            </span>
-                        </template>
-                        <template #option="{ option }">
-                            <span :class="getIQARequiredClass(option)">
-                                {{ option }}
-                            </span>
-                        </template>
-                    </Dropdown>
+                    <span :class="getIQARequiredClass(getIQAStatusText(data.IQA))">
+                        {{ getIQAStatusText(data.IQA) }}
+                    </span>
                 </template>
                 <template #filter="{ filterModel }">
                     <Dropdown v-model="filterModel.value" :options="['IQA Required', 'No IQA Required', 'Not Specified']" placeholder="Select Requirement">
@@ -561,6 +828,14 @@ function clearFilter() {
                             <span :class="getIQARequiredClass(option)">{{ option }}</span>
                         </template>
                     </Dropdown>
+                </template>
+            </Column>
+
+            <Column field="iqaStatus" header="IQA Status" sortable>
+                <template #body="{ data }">
+                    <span :class="getIQAStatusClass(data.iqaStatus || 'PENDING')">
+                        {{ data.iqaStatus || 'PENDING' }}
+                    </span>
                 </template>
             </Column>
 
@@ -614,8 +889,8 @@ function clearFilter() {
                         <thead class="bg-gray-100">
                             <tr>
                                 <th class="border px-2 py-1">No</th>
-                                <th class="border px-2 py-1">Lot No</th>      
-                                <th class="border px-2 py-1">UNIT</th>
+                                <th class="border px-2 py-1">Lot No</th>
+                               
                                 <th class="border px-2 py-1">TAKE OUT QTY</th>
                                 <th class="border px-2 py-1">EXPIRE DATE</th>
                                 <th class="border px-2 py-1">have a problem?</th>
@@ -632,23 +907,32 @@ function clearFilter() {
                                 <td class="border px-2 py-1">
                                     <input type="text" class="border rounded px-2 py-1 w-24" placeholder="Lot No" v-model="row.lotNo" />
                                 </td>
-                                <td class="border px-2 py-1">
-                                    <input type="text" class="border rounded px-2 py-1 w-16" placeholder="Unit" v-model="row.unit" />
-                                </td>
+                                
                                 <td class="border px-2 py-1">
                                     <input
                                         type="number"
                                         min="0"
-                                        :max="dialogRowIndex !== null && tableRows.value && tableRows.value[dialogRowIndex] ? tableRows.value[dialogRowIndex].receiveQty : ''"
+                                        :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
                                         class="border rounded px-2 py-1 w-16"
-                                        placeholder="TAKE OUT QTY"
+                                        placeholder="0"
                                         v-model="row.takeOutQty"
                                         step="any"
                                         @input="
-                                            if (dialogRowIndex !== null && parseFloat(row.takeOutQty || '') > (parseFloat(tableRows.value[dialogRowIndex].receiveQty || '') || 0)) {
-                                                row.takeOutQty = (parseFloat(tableRows.value[dialogRowIndex].receiveQty || '') || 0).toString();
-                                                toast.add({ severity: 'warn', summary: 'Warning', detail: 'Take Out Qty ห้ามเกิน Receive Qty', life: 2000 });
-                                            }
+                                            (() => {
+                                                if (dialogRowIndex !== null) {
+                                                    // รวม takeOutQty ทุกแถว
+                                                    const totalTakeOutQty = lotRows.reduce((sum, r) => {
+                                                        return sum + (parseFloat(String(r.takeOutQty || '0')) || 0);
+                                                    }, 0);
+                                                    const receiveQty = parseFloat(String(tableRows[dialogRowIndex].receiveQty || '0')) || 0;
+                                                    if (totalTakeOutQty > receiveQty) {
+                                                        // ปรับค่า row.takeOutQty ให้ไม่เกิน receiveQty - (sum ของแถวอื่น)
+                                                        const otherRowsSum = totalTakeOutQty - (parseFloat(String(row.takeOutQty || '0')) || 0);
+                                                        row.takeOutQty = Math.max(receiveQty - otherRowsSum, 0).toString();
+                                                        toast.add({ severity: 'warn', summary: 'Warning', detail: 'Take Out Qty รวมทุกแถวห้ามเกิน Receive Qty', life: 2000 });
+                                                    }
+                                                }
+                                            })()
                                         "
                                     />
                                 </td>
@@ -656,36 +940,55 @@ function clearFilter() {
                                     <input type="date" class="border rounded px-2 py-1 w-36" v-model="row.expireDate" :class="expireDateEnd(row.expireDate)" />
                                 </td>
                                 <td class="border px-2 py-1">
-                                    <Checkbox :id="'checkOption' + idx" name="option" :value="true" v-model="row.problem" />
+                                    <Checkbox
+                                        :id="'checkOption' + idx"
+                                        name="option"
+                                        :binary="true"
+                                        v-model="row.problem"
+                                        @update:modelValue="
+                                            (value) => {
+                                                console.log(`Checkbox ${idx} updated to:`, value, typeof value);
+                                                row.problem = value;
+                                            }
+                                        "
+                                    />
+                                    <!-- แสดงค่าปัจจุบันเพื่อ debug -->
+                                    <span class="ml-2 text-xs text-gray-400"> ({{ row.problem ? 'checked' : 'unchecked' }}) </span>
                                 </td>
                                 <td class="border px-2 py-1">
                                     <input type="text" class="border rounded px-2 py-1 w-36" v-model="row.remark" />
                                 </td>
                                 <td class="border px-2 py-1 text-center">
-                                    <Button label="Delete" icon="pi pi-trash" severity="danger" style="width: auto" @click="removeRow(idx)" />
+                                    <Button 
+                                        label="Delete" 
+                                        icon="pi pi-trash" 
+                                        severity="danger" 
+                                        style="width: auto" 
+                                        @click="confirmDelete(idx, $event)" 
+                                    />
                                 </td>
                             </tr>
                         </tbody>
 
-                       <tfoot>
-    <tr>
-        <td colspan="8" class="text-left font-semibold py-2 pl-4">
-            Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
-        </td>
-    </tr>
-</tfoot>
+                        <tfoot>
+                            <tr>
+                                <td colspan="8" class="text-left font-semibold py-2 pl-4">Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
                 <div class="flex justify-end gap-2">
-                    <button class="px-4 py-2 bg-blue-500 text-white rounded" @click="addRow">+ Add Row</button>
+                    <button class="px-4 py-2 text-white rounded transition-all duration-200" :class="canAddRow ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" :disabled="!canAddRow" @click="canAddRow && addRow()">
+                        + Add Row
+                    </button>
                     <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
                     <ConfirmPopup></ConfirmPopup>
-                    <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2"></Button>
+                    <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading"></Button>
                 </div>
                 <div class="flex flex-col gap-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
                 </div>
             </div>
         </div>
-    </div> 
+    </div>
 </template>
