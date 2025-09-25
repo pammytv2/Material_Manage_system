@@ -3,10 +3,8 @@ import { ref, onMounted, reactive } from 'vue';
 import { ApiService } from '@/service/api.service';
 
 // If 'Receive' is a default export:
-import { IReceiveItem, ILotSplitData,ReceiveItem ,ReceiveStoreState} from '@/interfaces/receive.interfaces';
-
-
-
+import { IReceiveItem, ILotSplitData, ReceiveItem, ReceiveStoreState } from '@/interfaces/receive.interfaces';
+import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const default_state: ReceiveStoreState = {
     items: [],
@@ -84,7 +82,7 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
-          async updateLotSplit(lotSplitData: any) {
+        async updateLotSplit(lotSplitData: any) {
             this.loading = true;
             this.error = null;
 
@@ -140,6 +138,64 @@ const useReceiveStore = defineStore('receive', {
                 return data;
             } catch (err: any) {
                 this.error = err?.message || 'Failed to fetch material split';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async fetchItemList() {
+            this.loading = true;
+            this.error = null;
+
+            const url: string = `http://localhost:3002/material-receive/items`;
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch item list';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async fetchItem_by_itemNo(itemNo: string) {
+            this.loading = true;
+            this.error = null;
+            const url: string = `http://localhost:3002/material-receive/item/${itemNo}`;
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch item by itemNo';
+                return null;
+            }
+        },
+
+        async updateItemList(itemData: any) {
+            this.loading = true;
+            this.error = null;
+            const url = 'http://localhost:3002/material-receive/update-item-list';
+            try {
+                const result = await ApiService.post<any>(url, itemData);
+                return result;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to update item list';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async fetchUnitPacking() {
+            this.loading = true;
+            this.error = null;
+            const url = 'http://localhost:3002/material-receive/unit-packing';
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch unit packing';
                 return null;
             } finally {
                 this.loading = false;

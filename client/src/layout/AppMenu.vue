@@ -32,12 +32,13 @@ const model = ref<MenuItem[]>([
         icon: 'pi pi-fw pi-briefcase',
         to: '/pages',
         items: [
+            { label: 'Manage Material', icon: 'pi pi-fw pi-cog', to: '/manage-material' },
             {
                 label: 'Receive Material',
                 icon: 'pi pi-fw pi-download', // รับวัสดุ
                 to: '/uikit/Receive_Page'
             },
-       
+
             {
                 label: 'Manual Receive ',
                 icon: 'pi pi-fw pi-list', // รายการรับวัสดุ Manual
@@ -47,9 +48,8 @@ const model = ref<MenuItem[]>([
                 label: ' Material Split',
                 icon: 'pi pi-fw pi-share-alt', // แยกวัสดุ
                 to: '/materials-split'
-
             },
-             {
+            {
                 label: 'Return Material',
                 icon: 'pi pi-fw pi-upload', // คืนวัสดุ
                 to: '/documentation'

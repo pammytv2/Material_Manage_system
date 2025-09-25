@@ -1,8 +1,10 @@
 import { Injectable, Param } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { POReceipt_ICShipment } from 'shared/interfaces/mms-system/POReceipt_ICShipment';
-import { POReceipt_ICShipment_Detail } from 'shared/interfaces/mms-system/POReceipt_ICShipment_Detail';
+import { Item,ItemListResponse,Item_List_LotSplit } from 'shared/interfaces/mms-system/Item_List';
 import * as sql from 'mssql';
+
+
 
 @Injectable()
 export class MaterialReceiveService {
@@ -91,7 +93,7 @@ export class MaterialReceiveService {
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
-  ): Promise<any> {
+  ): Promise<Item_List_LotSplit[]> {
     // Log เพื่อ debug
     console.log('Received isProblem:', isProblem, 'Type:', typeof isProblem);
 
@@ -129,7 +131,7 @@ export class MaterialReceiveService {
   async lot_Split_BY_Rec_and_ItemNo(
     receiveno: string,
     itemNo: string,
-  ): Promise<any> {
+  ): Promise<Item_List_LotSplit[]> {
     const sqlQuery = `
     EXEC sp_Get_mat_lot_Split @ReceiveNo = @ReceptNumber, @ITEMNO = @ItemNo
   `;
@@ -149,7 +151,7 @@ export class MaterialReceiveService {
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
-  ): Promise<any> {
+  ): Promise<Item_List_LotSplit[]> {
     console.log(
       'Update Lot Split - ID:',
       id,
@@ -214,4 +216,107 @@ export class MaterialReceiveService {
       { name: 'EndDate', type: sql.VarChar, value: endDate },
     ]);
   } 
+
+  
+  async item_list(): Promise<Item[]> {
+    const sqlQuery = `
+         SELECT 
+        i.*, 
+        up.UnitPacking,
+        g.GroupmatName,
+        p.GroupProductName,
+        v.ITEMDesc,
+        v.TYPE,
+        v.VENDOR,
+        v.PROJECT,
+        v.CATEGORY,
+        v.PARTCHIP,
+        v.SPEC
+       
+        
+    FROM item_test1 i
+    LEFT JOIN view_item_accpac_all v ON i.ItemNo COLLATE Thai_100_CI_AI = v.ITEMNO COLLATE Thai_100_CI_AI
+    LEFT JOIN unit_packing up ON i.UnitPackingID = up.UnitPackingID
+    LEFT JOIN  groupmat_accpac g ON i.GroupMatID = g.GroupmatID
+    LEFT JOIN  group_product p ON  i.GProdID = p.GProdID
+    `
+    
+    ;
+    return await this.databaseService.query(sqlQuery);
+  }
+  async item_by_itemNo(itemNo: string): Promise<Item[]> {
+    const sqlQuery = ` SELECT 
+        i.*, 
+        up.UnitPacking,
+        g.GroupmatName,
+        p.GroupProductName,
+        v.ITEMDesc,
+        v.TYPE,
+        v.VENDOR,
+         v.PARTCHIP,
+        v.PROJECT,
+        v.CATEGORY,
+        v.SPEC
+       
+        
+    FROM item_test1 i
+    LEFT JOIN view_item_accpac_all v ON i.ItemNo COLLATE Thai_100_CI_AI = v.ITEMNO COLLATE Thai_100_CI_AI
+    LEFT JOIN unit_packing up ON i.UnitPackingID = up.UnitPackingID
+    LEFT JOIN  groupmat_accpac g ON i.GroupMatID = g.GroupmatID
+    LEFT JOIN  group_product p ON  i.GProdID = p.GProdID
+    
+     WHERE i.ITEMNO = @itemNo`;
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+    ]);
+        
+}
+
+async update_item_List(
+  itemNo: string,
+  Inactive: number,
+  LotSplit: number,
+  Packing: number,
+  Type2: number,
+  IQA: number,
+  ExpDate: number,
+  GroupMatID: number,
+  Min: number,
+  Max: number,
+  GProdID: number
+): Promise<ItemListResponse[]> {
+  const sqlQuery = `
+    EXEC sp_Get_Item
+      @itemNo = @ItemNo,
+      @Inactive = @Inactive,
+      @LotSplit = @LotSplit,
+      @Packing = @Packing,
+      @Type2 = @Type2,
+      @IQA = @IQA,
+      @ExpDate = @ExpDate,
+      @GroupMatID = @GroupMatID,
+      @Min = @Min,
+      @Max = @Max,
+      @GProdID = @GProdID
+  `;
+  return await this.databaseService.query(sqlQuery, [
+    { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+    { name: 'Inactive', type: sql.Int, value: Inactive },
+    { name: 'LotSplit', type: sql.Int, value: LotSplit },
+    { name: 'Packing', type: sql.Int, value: Packing },
+    { name: 'Type2', type: sql.Int, value: Type2 },
+    { name: 'IQA', type: sql.Int, value: IQA },
+    { name: 'ExpDate', type: sql.Int, value: ExpDate },
+    { name: 'GroupMatID', type: sql.Int, value: GroupMatID },
+    { name: 'Min', type: sql.Int, value: Min },
+    { name: 'Max', type: sql.Int, value: Max },
+    { name: 'GProdID', type: sql.Int, value: GProdID }
+  ]);
+}
+
+
+async unitpacking(): Promise<any> {
+  const sqlQuery = `EXEC sp_Get_Dropdown`;
+  return await this.databaseService.query(sqlQuery);
+}
 }

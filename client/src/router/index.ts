@@ -49,6 +49,12 @@ const routes: RouteRecordRaw[] = [
                 name: 'ManualReceiveList',
                 component: () => import('@/views/Receice/Manual.Receive.List_Page.vue')
             },
+            {
+                path: '/manage-material',
+                name: 'ManageMaterial',
+                component: () => import('@/views/Manage_Material/Manage.Material_Page.vue')
+
+            },
 
         
 
