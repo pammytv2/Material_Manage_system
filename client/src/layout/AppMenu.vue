@@ -3,7 +3,7 @@ import { ref, onMounted,computed} from 'vue';
 
 import AppMenuItem from './AppMenuItem.vue';
 import { useReceiveStore } from '@/stores/receive';
-import { S } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+
 
 // Define proper types for menu items
 interface MenuItem {
@@ -21,15 +21,15 @@ const receiveStore = useReceiveStore();
 const nullItemCount = ref<any>(0);
 
 onMounted(async () => {
-    const data = await receiveStore.fetchExamineNullItem();
+    const data = await receiveStore.fetchGetItem();
     // สมมติ data = [{ NullItemCount: 8 }]
     if (Array.isArray(data) && data.length > 0 && typeof data[0].NullItemCount === 'number') {
         nullItemCount.value = data[0].NullItemCount;
     }
-    console.log('NullItemCount:', nullItemCount.value);
+    console.log('NullItemCount1:', nullItemCount.value);
 });
 
-// ประกาศ type ของ nullItemCount เป็น ref<number>
+
 
 
 

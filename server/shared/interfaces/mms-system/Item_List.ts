@@ -39,7 +39,27 @@ interface Item_List_LotSplit {
     isProblem: boolean | string,
     lot_qty: number,
 }
-export type { Item, Item_List_LotSplit, ItemListResponse };
+
+
+
+interface CreateItem {
+  ItemNo: string;
+  Type2ID: number;
+  Packing: number;
+  UnitPackingID: number;
+  ZoneID: number;
+  GroupMatID: number;
+  LotSplit: number;
+  IQA: number;
+  ExpDate: number;
+}
+
+  
+
+export type { Item, Item_List_LotSplit, ItemListResponse, CreateItem };
+
+
+
 
 
 

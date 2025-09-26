@@ -319,4 +319,30 @@ async unitpacking(): Promise<any> {
   const sqlQuery = `EXEC sp_Get_Dropdown`;
   return await this.databaseService.query(sqlQuery);
 }
+
+// async insertdata(
+//   ItemNo: string,
+//   Type2ID: number,
+//   Packing: number,
+//   UnitPackingID: number,
+//   ZoneID: number,
+//   GroupMatID: number,
+//   LotSplit: number,
+//   IQA: number,
+//   ExpDate: number
+// ): Promise<any> {
+//   const sqlQuery = `
+//     EXEC sp_InsertData `;
+//   return await this.databaseService.query(sqlQuery, [
+//     { name: 'ItemNo', type: sql.VarChar, value: ItemNo },
+//     { name: 'Type2ID', type: sql.Int, value: Type2ID },
+//     { name: 'Packing', type: sql.Int, value: Packing },
+//     { name: 'UnitPackingID', type: sql.Int, value: UnitPackingID },
+//     { name: 'ZoneID', type: sql.Int, value: ZoneID },
+//     { name: 'GroupMatID', type: sql.Int, value: GroupMatID },
+//     { name: 'LotSplit', type: sql.Int, value: LotSplit },
+//     { name: 'IQA', type: sql.Int, value: IQA },
+//     { name: 'ExpDate', type: sql.Int, value: ExpDate }
+//   ]);
+// }
 }

@@ -7,9 +7,7 @@ import { filterMeta } from '@/interfaces/receive.interfaces';
 import { watch } from 'vue';
 import ConfirmPopup from 'primevue/confirmpopup';
 import { useToast } from 'primevue/usetoast';
-import { useConfirm } from 'primevue';
-import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
-import { item } from '@primeuix/themes/aura/breadcrumb';
+import { Drawer, useConfirm } from 'primevue';
 
 const loading = ref(false);
 const router = useRouter();
@@ -23,7 +21,9 @@ const selectedItems = ref<any[]>([]);
 const receiveStore = useReceiveStore();
 const unitPackingOptions = ref([]);
 const type2Options = ref([]);
+const inactiveOptions = ref([]);
 const groupProductOptions = ref([]);
+const zoneOptions = ref([]);
 const lotSplitOptions = ref([]);
 const iqaOptions = ref([]);
 const showMaterialDetailsDialog = ref(false);
@@ -74,30 +74,95 @@ onMounted(async () => {
     loading.value = true;
     try {
         const data = await receiveStore.fetchItemList();
-        const dropdowns = await receiveStore.fetchUnitPacking();
-        unitPackingOptions.value = dropdowns[0];
-        type2Options.value = dropdowns[1];
-        groupProductOptions.value = dropdowns[2];
-        lotSplitOptions.value = dropdowns[3];
-        iqaOptions.value = dropdowns[4];
-        expDateOptions.value = dropdowns[5];
         itemList.value = data;
 
-        const items = await receiveStore.fetchGetItem();
+        const items = await receiveStore.fetchExamineNullItem();
         if (items && items.length > 0) {
             newItems.value = items;
             showNewItemDialog.value = true;
         }
-        console.log('Fetched item list:', items); // เพิ่ม log เพื่อตรวจสอบข้อมูลที่ได้รับ
+
+        const iqaRaw = (await receiveStore.fetchIQA()) ?? [];
+        iqaOptions.value = iqaRaw.map((item) => ({
+            label: item.IQA_Name,
+            value: item.IQA_ID
+        }));
+
+        const lotSplitRaw = (await receiveStore.fetchLotSplit()) ?? [];
+        lotSplitOptions.value = lotSplitRaw.map((item) => ({
+            label: item.LotSplit_Name,
+            value: item.LotSplit_ID
+        }));
+
+        const expDateRaw = (await receiveStore.fetchExpData()) ?? [];
+        expDateOptions.value = expDateRaw.map((item) => ({
+            label: item.Exp_Name,
+            value: item.Exp_ID
+        }));
+
+        const zoneRaw = (await receiveStore.fetchZone()) ?? [];
+        zoneOptions.value = zoneRaw.map((item) => ({
+            label: item.ZoneName,
+            value: item.ZoneID
+        }));
+
+        const inactiveRaw = (await receiveStore.fetchInactiveItem()) ?? [];
+        inactiveOptions.value = inactiveRaw.map((item) => ({
+            label: item.Inactive_Name,
+            value: item.Inactive_ID
+        }));
+
+        const type2Raw = (await receiveStore.fetchType2()) ?? [];
+        type2Options.value = type2Raw.map((item) => ({
+            label: item.Type2Name,
+            value: item.Type2ID
+        }));
+
+        const groupmatRaw = (await receiveStore.fetchGroupProduct()) ?? [];
+        groupProductOptions.value = groupmatRaw.map((item) => ({
+            label: item.GroupProductName,
+            value: item.GProdID
+        }));
+
+        const unitRaw = (await receiveStore.fetchUnitPacking()) ?? [];
+        unitPackingOptions.value = unitRaw.map((item) => ({
+            label: item.UnitPacking,
+            value: item.UnitPackingID
+        }));
+
+        const groupMatRaw = (await receiveStore.fetchGroupMaterial()) ?? [];
+        groupMatRaw.value = groupMatRaw.map((item) => ({
+            label: item.GroupmatName,
+            value: item.GroupmatID
+        }));
     } finally {
         loading.value = false;
     }
+
+    console.log();
 });
 
 function getLotSplitStatusText(LotSplit: any) {
     if (LotSplit === true || LotSplit === 1 || LotSplit === '1') return 'Lot Required';
     if (LotSplit === false || LotSplit === 0 || LotSplit === '0') return 'No Lot Required';
     return 'Not Specified';
+}
+function getInactiveStatusText(Inactive: any) {
+    if (Inactive === true || Inactive === 1 || Inactive === '1') return 'Inactive';
+    if (Inactive === false || Inactive === 0 || Inactive === '0') return 'Active';
+    return 'Not Specified';
+}
+function getInactiveStatusClass(status: string) {
+    switch (status) {
+        case 'Inactive':
+            return 'p-tag p-tag-danger';
+        case 'Active':
+            return 'p-tag p-tag-success';
+            case 'Not Specified':
+                return 'p-tag p-tag-secondary';
+            default:
+                return 'p-tag';
+    }
 }
 
 function confirm(event) {
@@ -182,7 +247,7 @@ async function handleRowClick(row: any) {
         // ถ้า API คืนเป็น array ให้ใช้ item[0]
         selectedRow.value = Array.isArray(item) ? item[0] : (item ?? row);
         showDialog.value = true;
-        showMaterialDetailsDialog.value = true; 
+        showMaterialDetailsDialog.value = true;
     } finally {
         loading.value = false;
     }
@@ -192,11 +257,11 @@ async function Edit(row?: any) {
     if (row) {
         selectedRow.value = row;
         showEditMaterialDialog.value = true;
+        console.log('Editing row:', row); // เพิ่ม log เพื่อตรวจสอบข้อมูลที่ได้รับ
     } else {
         showEditMaterialDialog.value = false;
         selectedRow.value = null;
     }
-
 }
 async function saveLotSplit() {
     loading.value = true;
@@ -537,7 +602,18 @@ function clearFilter() {
                                 <b>Lot Split Status:</b>
                                 <div class="bg-gray-100 rounded p-2 mt-1">
                                     <span :class="getLotSplitStatusClass(getLotSplitStatusText(selectedRow.LotSplit))">
-                                        {{ getLotSplitStatusText(selectedRow.LotSplit) }}
+                                      <Dropdown v-model="selectedRow.LotSplit" :options="lotSplitOptions" optionLabel="label" optionValue="value" placeholder="Select Lot Split Status" class="w-full min-w-[200px] max-w-[350px]">
+                                          <template #option="slotProps">
+                                              <span :class="getLotSplitStatusClass(getLotSplitStatusText(slotProps.option.value))">
+                                                  {{ getLotSplitStatusText(slotProps.option.value) }}
+                                              </span>
+                                          </template>
+                                          <template #value="slotProps">
+                                              <span :class="getLotSplitStatusClass(getLotSplitStatusText(slotProps.value))">
+                                                  {{ getLotSplitStatusText(slotProps.value) }}
+                                              </span>
+                                          </template>
+                                      </Dropdown>
                                     </span>
                                 </div>
                             </div>
@@ -545,7 +621,18 @@ function clearFilter() {
                                 <b>IQA Status:</b>
                                 <div class="bg-gray-100 rounded p-2 mt-1">
                                     <span :class="getIQARequiredClass(getIQAStatusText(selectedRow.IQA))">
-                                        {{ getIQAStatusText(selectedRow.IQA) }}
+                                        <Dropdown v-model="selectedRow.IQA" :options="iqaOptions" optionLabel="label" optionValue="value" placeholder="Select IQA Status" class="w-full min-w-[200px] max-w-[350px]">
+                                            <template #option="slotProps">
+                                                <span :class="getIQARequiredClass(getIQAStatusText(slotProps.option.value))">
+                                                    {{ getIQAStatusText(slotProps.option.value) }}
+                                                </span>
+                                            </template>
+                                            <template #value="slotProps">
+                                                <span :class="getIQARequiredClass(getIQAStatusText(slotProps.value))">
+                                                    {{ getIQAStatusText(slotProps.value) }}
+                                                </span>
+                                            </template>
+                                        </Dropdown>
                                     </span>
                                 </div>
                             </div>
@@ -553,23 +640,44 @@ function clearFilter() {
                                 <b>Exp Date Status:</b>
                                 <div class="bg-gray-100 rounded p-2 mt-1">
                                     <span :class="getExpireDateStatusClass(getExpireDateStatusText(selectedRow.ExpDate))">
-                                        {{ getExpireDateStatusText(selectedRow.ExpDate) }}
+                                        <Dropdown v-model="selectedRow.ExpDate" :options="expDateOptions" optionLabel="label" optionValue="value" placeholder="Select Exp Date" class="w-full min-w-[200px] max-w-[350px]">
+                                            <template #option="slotProps">
+                                                <span :class="getExpireDateStatusClass(getExpireDateStatusText(slotProps.option.value))">
+                                                    {{ getExpireDateStatusText(slotProps.option.value) }}
+                                                </span>
+                                            </template>
+                                            <template #value="slotProps">
+                                                <span :class="getExpireDateStatusClass(getExpireDateStatusText(slotProps.value))">
+                                                    {{ getExpireDateStatusText(slotProps.value) }}
+                                                </span>
+                                            </template>
+                                        </Dropdown>
                                     </span>
                                 </div>
                                 <div class="mb-2">
                                     <b>Inactive:</b>
                                     <div class="bg-gray-100 rounded p-2 mt-1">
-                                        <Dropdown
-                                            v-model="selectedRow.Inactive"
-                                            :options="[
-                                                { label: 'Active', value: true },
-                                                { label: 'Inactive', value: false }
-                                            ]"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="Select Status"
-                                            class="w-full"
-                                        />
+                                       <span :class="getInactiveStatusClass(selectedRow.Inactive ? 'Inactive' : 'Active')">
+                                          <Dropdown 
+                                              v-model="selectedRow.Inactive" 
+                                              :options="inactiveOptions" 
+                                              optionLabel="label" 
+                                              optionValue="value" 
+                                              placeholder="Select Inactive Status" 
+                                              class="w-full min-w-[200px] max-w-[350px]"
+                                          >
+                                              <template #option="slotProps">
+                                                  <span :class="getInactiveStatusClass(slotProps.option.label)">
+                                                      {{ getInactiveStatusText(slotProps.option.value) }}
+                                                  </span>
+                                              </template>
+                                              <template #value="slotProps">
+                                                  <span :class="getInactiveStatusClass(slotProps.value === 1 ? 'Inactive' : 'Active')">
+                                                      {{ slotProps.value === 1 ? 'Inactive' : 'Active' }}
+                                                  </span>
+                                              </template>
+                                          </Dropdown>
+                                       </span> 
                                     </div>
                                 </div>
                             </div>
@@ -583,14 +691,14 @@ function clearFilter() {
                 </div>
             </Dialog>
 
-            <Dialog v-model:visible="showNewItemDialog" modal header="New Items" :style="{ width: '400px', height: '600px' }" :dismissableMask="true">
-                <template v-if="newItems.length">
-                    <DataTable :value="newItems" :rows="10" paginator>
-                        <Column field="ITEMNO" header="Item No" />
-                        <Column header="Actions" style="width: 100px">
-                            <template #body="{ data }">
-                                <div class="flex justify-end w-full">
-                                    <Button label="Edit" icon="pi pi-pencil" severity="warning" @click="Edit(data)" />
+ <Dialog v-model:visible="showNewItemDialog" modal header="New Items" :style="{ width: '400px', height: '600px' }" :dismissableMask="true">
+    <template v-if="newItems.length">
+        <DataTable :value="newItems" :rows="10" paginator>
+            <Column field="ITEMNO" header="Item No" />
+            <Column header="Actions" style="width: 100px">
+                <template #body="{ data }">
+                    <div class="flex justify-end w-full">
+                        <Button label="Edit" icon="pi pi-pencil" severity="warning" @click="Edit(data)" />
                                 </div>
                             </template>
                         </Column>
@@ -609,7 +717,7 @@ function clearFilter() {
                     <form class="p-4 space-y-4">
                         <div>
                             <label class="block font-bold mb-1">Item No</label>
-                            <InputText v-model="selectedRow.ItemNo" disabled class="w-full" />
+                            <InputText v-model="selectedRow.ITEMNO" placeholder="Item No" class="w-full" disabled />
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Type2</label>
@@ -617,7 +725,7 @@ function clearFilter() {
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Packing</label>
-                            <Dropdown v-model="selectedRow.Packing" :options="unitPackingOptions" optionLabel="label" optionValue="value" placeholder="Select Packing" class="w-full" />
+                            <InputText v-model="selectedRow.Packing" placeholder="Packing" class="w-full" />
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Unit Packing</label>
@@ -625,16 +733,13 @@ function clearFilter() {
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Zone</label>
-                            <InputText v-model="selectedRow.ZoneID" class="w-full" />
+                            <Dropdown v-model="selectedRow.ZoneID" :options="zoneOptions" optionLabel="label" optionValue="value" placeholder="Select Zone" class="w-full" />
                         </div>
                         <div>
                             <label class="block font-bold mb-1">Group Mat</label>
                             <Dropdown v-model="selectedRow.GroupMatID" :options="groupProductOptions" optionLabel="label" optionValue="value" placeholder="Select Group Mat" class="w-full" />
                         </div>
-                        <div>
-                            <label class="block font-bold mb-1">Create By</label>
-                            <InputText v-model="selectedRow.CreateBy" class="w-full" />
-                        </div>
+
                         <div>
                             <label class="block font-bold mb-1">Lot Split</label>
                             <Dropdown v-model="selectedRow.LotSplit" :options="lotSplitOptions" optionLabel="label" optionValue="value" placeholder="Select Lot Split" class="w-full" />
@@ -647,10 +752,6 @@ function clearFilter() {
                             <label class="block font-bold mb-1">Exp Date</label>
                             <Dropdown v-model="selectedRow.ExpDate" :options="expDateOptions" optionLabel="label" optionValue="value" placeholder="Select Exp Date" class="w-full" />
                         </div>
-                        <div>
-                            <Checkbox v-model="selectedRow.rawMode" binary />
-                            <label class="ml-2">Raw Mode</label>
-                        </div>
                     </form>
                 </template>
                 <template #footer>
@@ -661,8 +762,6 @@ function clearFilter() {
                     </div>
                 </template>
             </Dialog>
-
-
         </DataTable>
     </div>
 </template>

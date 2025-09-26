@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MaterialReceiveModule } from './apis/material_receive/material_receive.module';
-import { ManageMatModule } from './manage_mat/manage_mat.module';
+import { MaterialManageModule } from './apis/material_manage/material_manage.module';
 
 
 @Module({
@@ -22,8 +22,9 @@ import { ManageMatModule } from './manage_mat/manage_mat.module';
       },
     }),
      MaterialReceiveModule,
-     ManageMatModule
+     MaterialManageModule,
 
+    
   ],
   controllers: [AppController],
   providers: [AppService],
