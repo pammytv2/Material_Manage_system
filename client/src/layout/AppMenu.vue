@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-import { ref } from 'vue';
+import { ref, onMounted,computed} from 'vue';
 
 import AppMenuItem from './AppMenuItem.vue';
+import { useReceiveStore } from '@/stores/receive';
+import { S } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 // Define proper types for menu items
 interface MenuItem {
@@ -13,9 +15,25 @@ interface MenuItem {
     target?: string;
     class?: string;
     separator?: boolean;
+    badge?: any;
 }
+const receiveStore = useReceiveStore();
+const nullItemCount = ref<any>(0);
 
-const model = ref<MenuItem[]>([
+onMounted(async () => {
+    const data = await receiveStore.fetchExamineNullItem();
+    // สมมติ data = [{ NullItemCount: 8 }]
+    if (Array.isArray(data) && data.length > 0 && typeof data[0].NullItemCount === 'number') {
+        nullItemCount.value = data[0].NullItemCount;
+    }
+    console.log('NullItemCount:', nullItemCount.value);
+});
+
+// ประกาศ type ของ nullItemCount เป็น ref<number>
+
+
+
+const model = computed<MenuItem[]>(() => [
     {
         label: 'Home',
         items: [{ label: 'Dashboard', icon: 'pi pi-fw pi-home', to: '/' }]
@@ -32,11 +50,18 @@ const model = ref<MenuItem[]>([
         icon: 'pi pi-fw pi-briefcase',
         to: '/pages',
         items: [
-            { label: 'Manage Material', icon: 'pi pi-fw pi-cog', to: '/manage-material' },
+            { label: 'Manage Material',
+             icon: 'pi pi-fw pi-cog', 
+             to: '/manage-material' ,
+             badge:nullItemCount
+            
+            
+            },
             {
                 label: 'Receive Material',
                 icon: 'pi pi-fw pi-download', // รับวัสดุ
                 to: '/uikit/Receive_Page'
+                
             },
 
             {

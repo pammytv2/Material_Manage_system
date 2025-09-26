@@ -4,7 +4,6 @@ import { ApiService } from '@/service/api.service';
 
 // If 'Receive' is a default export:
 import { IReceiveItem, ILotSplitData, ReceiveItem, ReceiveStoreState } from '@/interfaces/receive.interfaces';
-import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const default_state: ReceiveStoreState = {
     items: [],
@@ -200,7 +199,38 @@ const useReceiveStore = defineStore('receive', {
             } finally {
                 this.loading = false;
             }
-        }
+        },
+
+        async fetchExamineNullItem() {
+            this.loading = true;
+            this.error = null;
+            const url = 'http://localhost:3002/material-receive/examine-null-item';
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch examine null item';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+          
+        },
+        async fetchGetItem() 
+        { 
+            this.loading = true;
+            this.error = null;
+            const url = 'http://localhost:3002/material-receive/get-new-item';
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch get new item';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+       }
     }
 });
 

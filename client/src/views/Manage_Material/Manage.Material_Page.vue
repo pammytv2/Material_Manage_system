@@ -9,19 +9,25 @@ import ConfirmPopup from 'primevue/confirmpopup';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue';
 import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { item } from '@primeuix/themes/aura/breadcrumb';
 
 const loading = ref(false);
 const router = useRouter();
 const confirmPopup = useConfirm();
 const toast = useToast();
+const showNewItemDialog = ref(false);
+const newItems = ref<any[]>([]);
 const showDialog = ref(false);
 const selectedRow = ref<any>(null);
+const selectedItems = ref<any[]>([]);
 const receiveStore = useReceiveStore();
 const unitPackingOptions = ref([]);
 const type2Options = ref([]);
 const groupProductOptions = ref([]);
 const lotSplitOptions = ref([]);
 const iqaOptions = ref([]);
+const showMaterialDetailsDialog = ref(false);
+const showEditMaterialDialog = ref(false);
 const expDateOptions = ref([]);
 
 const filters = ref<{
@@ -68,15 +74,21 @@ onMounted(async () => {
     loading.value = true;
     try {
         const data = await receiveStore.fetchItemList();
-        const dropdowns = await receiveStore. fetchUnitPacking();
-        unitPackingOptions.value = dropdowns[0]; // [{ UnitPackingID, UnitPacking }]
-        type2Options.value = dropdowns[1]; // [{ Type2ID, Type2Name }]
-        groupProductOptions.value = dropdowns[2]; // [{ GProdID, GroupProductName }]
-        lotSplitOptions.value = dropdowns[3]; // [{ LotSplit_ID, LotSplit_Name }]
-        iqaOptions.value = dropdowns[4]; // [{ IQA_ID, IQA_Name }]
+        const dropdowns = await receiveStore.fetchUnitPacking();
+        unitPackingOptions.value = dropdowns[0];
+        type2Options.value = dropdowns[1];
+        groupProductOptions.value = dropdowns[2];
+        lotSplitOptions.value = dropdowns[3];
+        iqaOptions.value = dropdowns[4];
         expDateOptions.value = dropdowns[5];
         itemList.value = data;
-        console.log('itemList:', itemList.value);
+
+        const items = await receiveStore.fetchGetItem();
+        if (items && items.length > 0) {
+            newItems.value = items;
+            showNewItemDialog.value = true;
+        }
+        console.log('Fetched item list:', items); // เพิ่ม log เพื่อตรวจสอบข้อมูลที่ได้รับ
     } finally {
         loading.value = false;
     }
@@ -163,16 +175,28 @@ function getExpireDateStatusClass(status: string) {
 async function handleRowClick(row: any) {
     loading.value = true;
     try {
-       
+        // ดึงข้อมูลล่าสุดจาก API ด้วย itemNo
         const item = await receiveStore.fetchItem_by_itemNo(row.ItemNo);
         console.log('Fetched item details:', item); // เพิ่ม log เพื่อตรวจสอบข้อมูลที่ได้รับ
 
         // ถ้า API คืนเป็น array ให้ใช้ item[0]
         selectedRow.value = Array.isArray(item) ? item[0] : (item ?? row);
         showDialog.value = true;
+        showMaterialDetailsDialog.value = true; 
     } finally {
         loading.value = false;
     }
+}
+
+async function Edit(row?: any) {
+    if (row) {
+        selectedRow.value = row;
+        showEditMaterialDialog.value = true;
+    } else {
+        showEditMaterialDialog.value = false;
+        selectedRow.value = null;
+    }
+
 }
 async function saveLotSplit() {
     loading.value = true;
@@ -239,6 +263,9 @@ function clearFilter() {
     </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">Material List</div>
+        <div class="flex justify-end">
+            <Button label="Add New Item" icon="pi pi-plus" @click="showNewItemDialog = true" severity="primary" class="mb-4" />
+        </div>
         <DataTable
             :value="itemList"
             v-model:filters="filters"
@@ -440,7 +467,7 @@ function clearFilter() {
                 </template>
             </Column>
             <!-- filepath: d:\Natchaphon\Material_Manage_system\client\src\views\Manage_Material\Manage.Material_Page.vue -->
-            <Dialog v-model:visible="showDialog" modal header="Material Details" :style="{ width: '50vw' }" :dismissableMask="true">
+            <Dialog v-model:visible="showMaterialDetailsDialog" modal header="Material Details" :style="{ width: '50vw' }" :dismissableMask="true">
                 <div v-if="selectedRow" class="p-4 rounded-lg shadow bg-white border border-gray-200">
                     <div class="flex flex-wrap gap-6">
                         <!-- ซ้าย -->
@@ -524,19 +551,11 @@ function clearFilter() {
                             </div>
                             <div class="mb-2">
                                 <b>Exp Date Status:</b>
-                               <div class="mb-2">
-    <b>Exp Date Status:</b>
-    <div class="bg-gray-100 rounded p-2 mt-1">
-        <Dropdown
-    v-model="selectedRow.ExpDate"
-    :options="expDateOptions"
-    optionLabel="Exp_Name"
-    optionValue="Exp_ID"
-    placeholder="Select Exp Date Status"
-    class="w-full"
-/>
-    </div>
-</div>
+                                <div class="bg-gray-100 rounded p-2 mt-1">
+                                    <span :class="getExpireDateStatusClass(getExpireDateStatusText(selectedRow.ExpDate))">
+                                        {{ getExpireDateStatusText(selectedRow.ExpDate) }}
+                                    </span>
+                                </div>
                                 <div class="mb-2">
                                     <b>Inactive:</b>
                                     <div class="bg-gray-100 rounded p-2 mt-1">
@@ -558,11 +577,92 @@ function clearFilter() {
                     </div>
                     <div class="flex justify-end gap-2 mt-6">
                         <Button label="Save" icon="pi pi-check" @click="confirm($event)" severity="success" :disabled="loading" />
-                        <Button label="Cancel" icon="pi pi-times" @click="showDialog = false" severity="secondary" outlined :disabled="loading" />
+                        <Button label="Cancel" icon="pi pi-times" @click="showMaterialDetailsDialog = false" severity="secondary" outlined :disabled="loading" />
                         <ConfirmPopup></ConfirmPopup>
                     </div>
                 </div>
             </Dialog>
+
+            <Dialog v-model:visible="showNewItemDialog" modal header="New Items" :style="{ width: '400px', height: '600px' }" :dismissableMask="true">
+                <template v-if="newItems.length">
+                    <DataTable :value="newItems" :rows="10" paginator>
+                        <Column field="ITEMNO" header="Item No" />
+                        <Column header="Actions" style="width: 100px">
+                            <template #body="{ data }">
+                                <div class="flex justify-end w-full">
+                                    <Button label="Edit" icon="pi pi-pencil" severity="warning" @click="Edit(data)" />
+                                </div>
+                            </template>
+                        </Column>
+                    </DataTable>
+                </template>
+                <template v-else>
+                    <div class="p-4 text-center">No new items found.</div>
+                </template>
+                <div class="flex justify-end mt-4">
+                    <Button label="Close" icon="pi pi-times" @click="showNewItemDialog = false" severity="secondary" outlined />
+                </div>
+            </Dialog>
+
+            <Dialog v-model:visible="showEditMaterialDialog" modal header="Edit Material" :style="{ width: '400px' }" :dismissableMask="true">
+                <template v-if="selectedRow">
+                    <form class="p-4 space-y-4">
+                        <div>
+                            <label class="block font-bold mb-1">Item No</label>
+                            <InputText v-model="selectedRow.ItemNo" disabled class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Type2</label>
+                            <Dropdown v-model="selectedRow.Type2" :options="type2Options" optionLabel="label" optionValue="value" placeholder="Select Type2" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Packing</label>
+                            <Dropdown v-model="selectedRow.Packing" :options="unitPackingOptions" optionLabel="label" optionValue="value" placeholder="Select Packing" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Unit Packing</label>
+                            <Dropdown v-model="selectedRow.UnitPackingID" :options="unitPackingOptions" optionLabel="label" optionValue="value" placeholder="Select Unit Packing" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Zone</label>
+                            <InputText v-model="selectedRow.ZoneID" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Group Mat</label>
+                            <Dropdown v-model="selectedRow.GroupMatID" :options="groupProductOptions" optionLabel="label" optionValue="value" placeholder="Select Group Mat" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Create By</label>
+                            <InputText v-model="selectedRow.CreateBy" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Lot Split</label>
+                            <Dropdown v-model="selectedRow.LotSplit" :options="lotSplitOptions" optionLabel="label" optionValue="value" placeholder="Select Lot Split" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">IQA</label>
+                            <Dropdown v-model="selectedRow.IQA" :options="iqaOptions" optionLabel="label" optionValue="value" placeholder="Select IQA" class="w-full" />
+                        </div>
+                        <div>
+                            <label class="block font-bold mb-1">Exp Date</label>
+                            <Dropdown v-model="selectedRow.ExpDate" :options="expDateOptions" optionLabel="label" optionValue="value" placeholder="Select Exp Date" class="w-full" />
+                        </div>
+                        <div>
+                            <Checkbox v-model="selectedRow.rawMode" binary />
+                            <label class="ml-2">Raw Mode</label>
+                        </div>
+                    </form>
+                </template>
+                <template #footer>
+                    <div class="flex justify-end gap-2 mt-6">
+                        <Button label="Save" icon="pi pi-check" @click="confirm($event)" severity="success" :disabled="loading" />
+                        <Button label="Cancel" icon="pi pi-times" @click="showEditMaterialDialog = false" severity="secondary" outlined :disabled="loading" />
+                        <ConfirmPopup></ConfirmPopup>
+                    </div>
+                </template>
+            </Dialog>
+
+
         </DataTable>
     </div>
 </template>

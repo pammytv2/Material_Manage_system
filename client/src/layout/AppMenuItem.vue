@@ -76,12 +76,18 @@ function checkActiveRoute(item) {
         <div v-if="root && item.visible !== false" class="layout-menuitem-root-text">{{ item.label }}</div>
         <a v-if="(!item.to || item.items) && item.visible !== false" :href="item.url" @click="itemClick($event, item)" :class="item.class" :target="item.target" tabindex="0">
             <i :class="item.icon" class="layout-menuitem-icon"></i>
-            <span class="layout-menuitem-text">{{ item.label }}</span>
+            <span class="layout-menuitem-text">
+                {{ item.label }}
+                <span v-if="item.badge" class="menu-badge">{{ item.badge }}</span>
+            </span>
             <i class="pi pi-fw pi-angle-down layout-submenu-toggler" v-if="item.items"></i>
         </a>
         <router-link v-if="item.to && !item.items && item.visible !== false" @click="itemClick($event, item)" :class="[item.class, { 'active-route': checkActiveRoute(item) }]" tabindex="0" :to="item.to">
             <i :class="item.icon" class="layout-menuitem-icon"></i>
-            <span class="layout-menuitem-text">{{ item.label }}</span>
+            <span class="layout-menuitem-text">
+                {{ item.label }}
+                <span v-if="item.badge" class="menu-badge">{{ item.badge }}</span>
+            </span>
             <i class="pi pi-fw pi-angle-down layout-submenu-toggler" v-if="item.items"></i>
         </router-link>
         <Transition v-if="item.items && item.visible !== false" name="layout-submenu">
@@ -92,4 +98,15 @@ function checkActiveRoute(item) {
     </li>
 </template>
 
-<style lang="scss" scoped></style>
+<style lang="scss" scoped>
+
+.menu-badge {
+    background: #f44336;
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 12px;
+    margin-left: 8px;
+    vertical-align: middle;
+}
+</style>

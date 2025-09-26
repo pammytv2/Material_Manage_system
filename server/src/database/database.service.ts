@@ -1,6 +1,6 @@
 
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as sql from 'mssql';
 import { ConfigService } from '@nestjs/config';
 import { databaseName } from './constant/database';
@@ -22,6 +22,45 @@ export class DatabaseService {
     const result = await request.query(sqlQuery);
     return result.recordset;
   }
+
+  public async executeStoredProcedure<T>(
+    database: string,
+    procedureName: string,
+    params?: { [key: string]: any },
+  ): Promise<T[]> {
+    let pool: sql.ConnectionPool;
+    try {
+      pool = await this.getConnection();
+      const request = pool.request();
+      if (params) {
+        Object.keys(params).forEach((key) => {
+          request.input(key, params[key]);
+        });
+      }
+      const result = await request.execute(procedureName);
+      return result.recordsets as T[];
+    } catch (error) {
+      this.logger.error(
+        `Stored Procedure Error for database ${database}:`,
+        error,
+      );
+
+      // ตรวจสอบว่าเป็นปัญหาเกี่ยวกับการเชื่อมต่อหรือไม่
+      if (
+        error.code === 'ESOCKET' ||
+        error.code === 'ETIMEOUT' ||
+        error.code === 'ECONNRESET'
+      ) {
+        this.logger.warn(
+          `Connection issue detected, removing pool for ${database}`,
+        );
+        this.pools.delete(database);
+      }
+
+      throw new InternalServerErrorException('Procedure Execution Failed');
+    }
+  }
+
   [x: string]: any;
   constructor(private readonly configService: ConfigService) {}
   async getConnection(): Promise<sql.ConnectionPool> {
