@@ -49,31 +49,12 @@ export class MaterialManageController {
   async getAllInactiveItem() {
     return this.materialManageService.getAllInactiveItem();
   }
-  // @Post('new-item')
-  // async createNewItem(@Body() createItem: any) {
-  //   const {
-  //     ItemNo,
-  //     Type2ID,
-  //     Packing,
-  //     UnitPackingID,
-  //     ZoneID,
-  //     GroupMatID,
-  //     LotSplit,
-  //     IQA,
-  //     ExpDate,
-  //   } = createItem;
-  //   return this.materialManageService.INSERT_New_Item(
-  //     ItemNo,
-  //     Type2ID,
-  //     Packing,
-  //     UnitPackingID,
-  //     ZoneID,
-  //     GroupMatID,
-  //     LotSplit,
-  //     IQA,
-  //     ExpDate,
-  //   );
-  // }
+
+@Post('add-item')
+async createItem(@Body() body: CreateItem) {
+  console.log('Received body:', body); // ต้อง log ได้ object ที่มี ItemNo
+  return this.materialManageService.addItem(body);
+}
 
 
 

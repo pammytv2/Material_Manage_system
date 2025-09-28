@@ -9,6 +9,7 @@ import ConfirmPopup from 'primevue/confirmpopup';
 import { useToast } from 'primevue/usetoast';
 import { Drawer, useConfirm } from 'primevue';
 
+
 const loading = ref(false);
 const router = useRouter();
 const confirmPopup = useConfirm();
@@ -81,6 +82,7 @@ onMounted(async () => {
             newItems.value = items;
             showNewItemDialog.value = true;
         }
+
 
         const iqaRaw = (await receiveStore.fetchIQA()) ?? [];
         iqaOptions.value = iqaRaw.map((item) => ({
@@ -263,6 +265,45 @@ async function Edit(row?: any) {
         selectedRow.value = null;
     }
 }
+
+async function addNewItem() {
+    confirmPopup.require({
+        message: 'Are you sure you want to save this new item?',
+        icon: 'pi pi-exclamation-triangle',
+        acceptLabel: 'Save',
+        rejectLabel: 'Cancel',
+        accept: async () => {
+            loading.value = true;
+            try {
+                // สมมุติ selectedRow คือข้อมูลที่กรอกใน Dialog
+                const additem = {
+                    ItemNo: selectedRow.value.ItemNo || selectedRow.value.ITEMNO || '',
+                    Type2ID: selectedRow.value.Type2,
+                    Packing: selectedRow.value.Packing,
+                    UnitPackingID: selectedRow.value.UnitPackingID,
+                    ZoneID: selectedRow.value.ZoneID,
+                    GroupMatID: selectedRow.value.GroupMatID,
+                    LotSplit: selectedRow.value.LotSplit,
+                    IQA: selectedRow.value.IQA,
+                    ExpDate: selectedRow.value.ExpDate,
+                };
+                console.log('Payload for new item:', additem); // เพิ่ม log เพื่อตรวจสอบ payload
+                const result = await receiveStore.updateItemList(additem);
+                if (result !== undefined && result !== null) {
+                    toast.add({ severity: 'success', summary: 'Success', detail: 'Add New item successful', life: 3000 });
+                    // รีเซตตาราง: ดึงข้อมูลใหม่
+                    const data = await receiveStore.fetchItemList();
+                    itemList.value = data;
+                } else {
+                    toast.add({ severity: 'error', summary: 'Error', detail: 'Add New item failed', life: 3000 });
+                }
+            } finally {
+                loading.value = false;
+            }
+        }
+    });
+}
+
 async function saveLotSplit() {
     loading.value = true;
     try {
@@ -756,7 +797,7 @@ function clearFilter() {
                 </template>
                 <template #footer>
                     <div class="flex justify-end gap-2 mt-6">
-                        <Button label="Save" icon="pi pi-check" @click="confirm($event)" severity="success" :disabled="loading" />
+                        <Button label="Save" icon="pi pi-check" @click="addNewItem" severity="success" :disabled="loading" />
                         <Button label="Cancel" icon="pi pi-times" @click="showEditMaterialDialog = false" severity="secondary" outlined :disabled="loading" />
                         <ConfirmPopup></ConfirmPopup>
                     </div>

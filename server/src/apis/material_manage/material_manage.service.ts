@@ -4,7 +4,7 @@ import {
   Item,
   ItemListResponse,
   Item_List_LotSplit,
-  CreateItem
+  CreateItem,
 } from 'shared/interfaces/mms-system/Item_List';
 import { DatabaseService } from '../../database/database.service';
 import * as sql from 'mssql';
@@ -66,32 +66,21 @@ export class MaterialManageService {
     const sqlQuery = `SELECT * FROM lot_status_Inactive`;
     console.log(sqlQuery);
     return await this.databaseService.query(sqlQuery);
-
   }
 
-//   async INSERT_New_Item(  
-//   ItemNo: string,
-//   Type2ID: number,
-//   Packing: number,
-//   UnitPackingID: number,
-//   ZoneID: number,
-//   GroupMatID: number,
-//   LotSplit: number,
-//   IQA: number,
-//   ExpDate: number,
-// ): Promise<CreateItem[]> {
-//   const sqlQuery = `EXEC sp_InsertData`;
-//     return await this.databaseService.query(sqlQuery, [
-//       {name:'ItemNo', type: sql.VarChar, value: ItemNo},
-//       {name:'Type2ID', type: sql.Int, value: Type2ID},
-//       {name:'Packing', type: sql.Int, value: Packing},
-//       {name:'UnitPackingID', type: sql.Int, value: UnitPackingID},
-//       {name:'ZoneID', type: sql.Int, value: ZoneID},
-//       {name:'GroupMatID', type: sql.Int, value: GroupMatID},
-//       {name:'LotSplit', type: sql.Int, value: LotSplit},
-//       {name:'IQA', type: sql.Int, value: IQA},
-//       {name:'ExpDate', type: sql.Int, value: ExpDate},
-     
-//     ]);
-// }
+  async addItem(item: CreateItem): Promise<any> {
+    console.log('Received item:', item);
+    const sqlQuery = `EXEC sp_InsertData @ItemNo = @ITEMNO, @Type2ID = @Type2ID, @Packing = @Packing, @UnitPackingID = @UnitPackingID, @ZoneID = @ZoneID, @GroupMatID = @GroupMatID, @LotSplit = @LotSplit, @IQA = @IQA, @ExpDate = @ExpDate`;
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ItemNo', type: sql.VarChar, value: item.ItemNo },
+      { name: 'Type2ID', type: sql.Int, value: item.Type2ID },
+      { name: 'Packing', type: sql.Int, value: item.Packing },
+      { name: 'UnitPackingID', type: sql.Int, value: item.UnitPackingID },
+      { name: 'ZoneID', type: sql.Int, value: item.ZoneID },
+      { name: 'GroupMatID', type: sql.Int, value: item.GroupMatID },
+      { name: 'LotSplit', type: sql.Int, value: item.LotSplit },
+      { name: 'IQA', type: sql.Int, value: item.IQA },
+      { name: 'ExpDate', type: sql.Int, value: item.ExpDate },
+    ]);
+  }
 }

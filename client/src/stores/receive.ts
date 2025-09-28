@@ -4,6 +4,7 @@ import { ApiService } from '@/service/api.service';
 
 // If 'Receive' is a default export:
 import { IReceiveItem, ILotSplitData, ReceiveItem, ReceiveStoreState } from '@/interfaces/receive.interfaces';
+import { item } from '@primeuix/themes/aura/breadcrumb';
 
 const default_state: ReceiveStoreState = {
     items: [],
@@ -364,12 +365,12 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
-        async fetchInsertItem() {
+        async fetchInsertItem(additem: any) {
             this.loading = true;
             this.error = null;
-            const url = 'http://localhost:3002/material-manage/new-item';
+            const url = 'http://localhost:3002/material-manage/add-item';
             try {
-                const data = await ApiService.post<any>(url);
+                const data = await ApiService.post<any>(url, additem);
                 return data;
             } catch (err: any) {
                 this.error = err?.message || 'Failed to insert new item';
