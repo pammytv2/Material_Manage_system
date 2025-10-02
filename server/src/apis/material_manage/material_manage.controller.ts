@@ -7,18 +7,12 @@ import type { CreateItem } from 'shared/interfaces/mms-system/Item_List';
 export class MaterialManageController {
   constructor(private readonly materialManageService: MaterialManageService) {}
 
-  @Get('unit-packing')
-  async getAllUnitPacking() {
-    return this.materialManageService.unitpacking();
-  }
+
   @Get('type2')
   async getAllType2() {
     return this.materialManageService.type2();
   }
-  @Get('group-product')
-  async getAllGroupProduct() {
-    return this.materialManageService.findAll_Group_Product();
-  }
+
   @Get('lot-split')
   async getAllLotSplit() {
     return this.materialManageService.findAll_LotSplit();
@@ -41,10 +35,7 @@ export class MaterialManageController {
   async getAllZone() {
     return this.materialManageService.findAll_zone();
   }
-  @Get('group-material')
-  async getAllGroupMaterial() {
-    return this.materialManageService.findAll_Group_Material();
-  }
+
   @Get('inactive-item')
   async getAllInactiveItem() {
     return this.materialManageService.getAllInactiveItem();
@@ -55,9 +46,29 @@ async createItem(@Body() body: CreateItem) {
   console.log('Received body:', body); // ต้อง log ได้ object ที่มี ItemNo
   return this.materialManageService.addItem(body);
 }
-
+@Get('itemnewdetail/:ItemNo')
+async getItemNewDetail(@Param('ItemNo') ItemNo: string) {
+  return this.materialManageService.itemnewdetail(ItemNo);
 
 
 }
 
+@Get('itemType2')
+async getItemItemType2() {
+  return this.materialManageService.itemType2();
+}
+@Get('item_type_update')
+async getItemItemType() {
+  return this.materialManageService.item_type_update(); 
+}
 
+@Post('update-item')
+async updateItem(@Body() body: CreateItem) {
+  console.log('Received body for update:', body); // ต้อง log ได้ object ที่มี ItemNo
+  return this.materialManageService.updateItem_new(body);
+}
+@Get('active-update-item')
+async activeUpdateItem() {
+  return this.materialManageService.activeUpdateItem();
+}
+}

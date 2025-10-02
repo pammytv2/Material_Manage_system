@@ -143,6 +143,7 @@ export class MaterialReceiveController {
       Min,
       Max,
       GProdID,
+      ZoneID,
     } = itemData;
     return await this.materialReceiveService.update_item_List(
       itemNo,
@@ -156,6 +157,7 @@ export class MaterialReceiveController {
       Min,
       Max,
       GProdID,
+      ZoneID,
     );
   }
 

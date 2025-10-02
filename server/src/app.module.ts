@@ -4,6 +4,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { MaterialReceiveModule } from './apis/material_receive/material_receive.module';
 import { MaterialManageModule } from './apis/material_manage/material_manage.module';
+import { MaterialReceiveManualModule } from './apis/material_receive_manual/material_receive_manual.module';
 
 
 @Module({
@@ -23,6 +24,8 @@ import { MaterialManageModule } from './apis/material_manage/material_manage.mod
     }),
      MaterialReceiveModule,
      MaterialManageModule,
+     MaterialReceiveManualModule,
+     
 
     
   ],

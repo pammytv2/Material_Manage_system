@@ -30,7 +30,7 @@ const routes: RouteRecordRaw[] = [
             {
                 path: '/receive-manual',
                 name: 'ReceiveManual',
-                component: () => import('@/views/Receice/Receive.Manual_Page.vue')
+                component: () => import('@/views/Receice_Manual/Receive.Manual_Page.vue')
             },
             {
                 path: '/materials-split',
@@ -47,7 +47,7 @@ const routes: RouteRecordRaw[] = [
             {
                 path: '/manual-receive-list',
                 name: 'ManualReceiveList',
-                component: () => import('@/views/Receice/Manual.Receive.List_Page.vue')
+                component: () => import('@/views/Receice_Manual/Manual.Receive.List_Page.vue')
             },
             {
                 path: '/manage-material',

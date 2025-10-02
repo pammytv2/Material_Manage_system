@@ -186,7 +186,7 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
-         async fetchLotSplit() {
+        async fetchLotSplit() {
             this.loading = true;
             this.error = null;
             const url = 'http://localhost:3002/material-manage/lot-split';
@@ -199,25 +199,22 @@ const useReceiveStore = defineStore('receive', {
             } finally {
                 this.loading = false;
             }
-         },
-         async fetchExpData() {
+        },
+        async fetchExpData() {
             this.loading = true;
             this.error = null;
             const url = 'http://localhost:3002/material-manage/exp-data';
             try {
                 const data = await ApiService.get<any>(url);
                 return data;
-            }
-            catch (err: any) {
+            } catch (err: any) {
                 this.error = err?.message || 'Failed to fetch exp daya';
                 return null;
-            }
-            finally {
+            } finally {
                 this.loading = false;
             }
-
-         },
-         async fetchIQA() {
+        },
+        async fetchIQA() {
             this.loading = true;
             this.error = null;
             const url = 'http://localhost:3002/material-manage/iqa';
@@ -232,20 +229,6 @@ const useReceiveStore = defineStore('receive', {
             }
         },
 
-        async fetchUnitPacking() {
-            this.loading = true;
-            this.error = null;
-            const url = 'http://localhost:3002/material-manage/unit-packing';
-            try {
-                const data = await ApiService.get<any>(url);
-                return data;
-            } catch (err: any) {
-                this.error = err?.message || 'Failed to fetch unit packing';
-                return null;
-            } finally {
-                this.loading = false;
-            }
-        },
         async fetchType2() {
             this.loading = true;
             this.error = null;
@@ -261,50 +244,7 @@ const useReceiveStore = defineStore('receive', {
             }
         },
 
-         async fetchGroupProduct() {
-            this.loading = true;
-            this.error = null;
-            const url = 'http://localhost:3002/material-manage/group-product';
-            try {
-                const data = await ApiService.get<any>(url);
-                return data;
-            } catch (err: any) {
-                this.error = err?.message || 'Failed to fetch group product';
-                return null;
-            } finally {
-                this.loading = false;
-            }
-        },
-        async fetchGroupProduct1() {
-            this.loading = true;
-            this.error = null;
-            const url = 'http://localhost:3002/material-manage/group-material';
-            try {
-                const data = await ApiService.get<any>(url);
-                return data;
-            } catch (err: any) {
-                this.error = err?.message || 'Failed to fetch group product';
-                return null;
-            } finally {
-                this.loading = false;
-            }
-        },
-        async fetchGroupMaterial() {
-            this.loading = true;
-            this.error = null;
-            const url = 'http://localhost:3002/material-manage/group-material';
-            try {
-                const data = await ApiService.get<any>(url);
-                return data;
-            }
-            catch (err: any) {
-                this.error = err?.message || 'Failed to fetch group material';
-                return null;
-            } finally {
-                this.loading = false;
-            }
-        },
-         async fetchZone() {
+        async fetchZone() {
             this.loading = true;
             this.error = null;
             const url = 'http://localhost:3002/material-manage/zone';
@@ -317,12 +257,11 @@ const useReceiveStore = defineStore('receive', {
             } finally {
                 this.loading = false;
             }
-            
         },
         async fetchInactiveItem() {
             this.loading = true;
             this.error = null;
-            
+
             const url = 'http://localhost:3002/material-manage/inactive-item';
             try {
                 const data = await ApiService.get<any>(url);
@@ -334,7 +273,6 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
-
 
         async fetchExamineNullItem() {
             this.loading = true;
@@ -378,13 +316,75 @@ const useReceiveStore = defineStore('receive', {
             } finally {
                 this.loading = false;
             }
-        
+        },
 
-       
-        
+        async fetchnewItem(itemNo: string) {
+            this.loading = true;
+            this.error = null;
+            const url = `http://localhost:3002/material-manage/itemnewdetail/${itemNo}`; 
+            try {
+                const data = await ApiService.get<any>(url);
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch new item';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
 
-    },
+       async fetchUpdateItem_Type() {
+    this.loading = true;
+    this.error = null;
+    const url = 'http://localhost:3002/material-manage/item_type_update';
+    try {
+        const result = await ApiService.get<any>(url);
+        return result;
+    } catch (err: any) {
+        this.error = err?.message || 'Failed to update item type';
+        return null;
+    } finally {
+        this.loading = false;
+    }
+},
+
+async fetchUpdateItem_New(additem: any) {
+
+    this.loading = true;
+    this.error = null;
+    const url = 'http://localhost:3002/material-manage/update-item';
+    try {
+        const result = await ApiService.post<any>(url, additem);
+        return result;
+    } catch (err: any) {
+        this.error = err?.message || 'Failed to update item new';
+        return null;
+    } finally {
+        this.loading = false;
+    }
+},
+
+
+async fetchItemactiveUpdate() {
+    this.loading = true;
+    this.error = null;
+    const url = 'http://localhost:3002/material-manage/active-update-item';
+    try {
+        const data = await ApiService.get<any>(url);
+        return data;
+    } catch (err: any) {
+        this.error = err?.message || 'Failed to fetch inactive item';
+        return null;
+    } finally {
+        this.loading = false;
+    }
 }
-});
+
+}}
+);
+
+
+
+
 
 export { useReceiveStore };

@@ -25,6 +25,8 @@ onMounted(async () => {
     // สมมติ data = [{ NullItemCount: 8 }]
     if (Array.isArray(data) && data.length > 0 && typeof data[0].NullItemCount === 'number') {
         nullItemCount.value = data[0].NullItemCount;
+    } else {
+        nullItemCount.value = 0;
     }
     console.log('NullItemCount1:', nullItemCount.value);
 });

@@ -46,6 +46,8 @@ interface CreateItem {
   ItemNo: string;
   Type2ID: number;
   Packing: number;
+  Min: number;
+  Max: number;
   UnitPackingID: number;
   ZoneID: number;
   GroupMatID: number;

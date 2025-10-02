@@ -1,10 +1,12 @@
 import { Injectable, Param } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { POReceipt_ICShipment } from 'shared/interfaces/mms-system/POReceipt_ICShipment';
-import { Item,ItemListResponse,Item_List_LotSplit } from 'shared/interfaces/mms-system/Item_List';
+import {
+  Item,
+  ItemListResponse,
+  Item_List_LotSplit,
+} from 'shared/interfaces/mms-system/Item_List';
 import * as sql from 'mssql';
-
-
 
 @Injectable()
 export class MaterialReceiveService {
@@ -41,10 +43,7 @@ export class MaterialReceiveService {
   }
 
   // Sync RecD_ICH
-  async syncData_Detail(
-    receiptNumber: string,
-  
-  ): Promise<any> {
+  async syncData_Detail(receiptNumber: string): Promise<any> {
     // Sync data
     const syncQuery = `
       SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE ReceptNumber = @ReceptNumber
@@ -197,7 +196,11 @@ export class MaterialReceiveService {
     ]);
   }
 
-  async delete_LotSplit(receiveno: string, itemNo: string, lotNo: string): Promise<any> {
+  async delete_LotSplit(
+    receiveno: string,
+    itemNo: string,
+    lotNo: string,
+  ): Promise<any> {
     const sqlQuery = `
     DELETE FROM mat_lot_Split WHERE  ReceiveNo = @ReceptNumber AND ITEMNO = @ItemNo AND lot_no = @LotNo
   `;
@@ -210,21 +213,47 @@ export class MaterialReceiveService {
 
   async material_split(startDate: string, endDate: string): Promise<any> {
     const sqlQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
-    
+
     return await this.databaseService.query(sqlQuery, [
       { name: 'StartDate', type: sql.VarChar, value: startDate },
       { name: 'EndDate', type: sql.VarChar, value: endDate },
     ]);
-  } 
+  }
 
-  
   async item_list(): Promise<Item[]> {
     const sqlQuery = `
          SELECT 
-        i.*, 
-        up.UnitPacking,
-        g.GroupmatName,
-        p.GroupProductName,
+        i.*,        
+        t.Type2Name,
+        z.ZoneCode,
+        v.ITEMDesc,
+        v.TYPE,
+        v.UNIT,
+        v.SECTIONGROUP,
+        v.GROUPMAT,
+        v.VENDOR,
+        v.PROJECT,
+        v.CATEGORY,
+        v.PARTCHIP,
+        v.SPEC
+       
+        
+    FROM item_test1 i
+    LEFT JOIN view_item_accpac_all v ON i.ItemNo COLLATE Thai_100_CI_AI = v.ITEMNO COLLATE Thai_100_CI_AI
+    LEFT JOIN  type2 t ON i.Type2ID = t.Type2ID
+    LEFT JOIN storage_zone z ON i.ZoneID = z.ZoneID 
+    `;
+
+    return await this.databaseService.query(sqlQuery);
+  }
+  async item_by_itemNo(itemNo: string): Promise<Item[]> {
+    const sqlQuery = ` SELECT 
+        i.*,
+        t.Type2Name,
+        z.ZoneCode,
+        v.UNIT,
+        v.GROUPMAT,
+        v.SECTIONGROUP,
         v.ITEMDesc,
         v.TYPE,
         v.VENDOR,
@@ -236,56 +265,32 @@ export class MaterialReceiveService {
         
     FROM item_test1 i
     LEFT JOIN view_item_accpac_all v ON i.ItemNo COLLATE Thai_100_CI_AI = v.ITEMNO COLLATE Thai_100_CI_AI
-    LEFT JOIN unit_packing up ON i.UnitPackingID = up.UnitPackingID
-    LEFT JOIN  groupmat_accpac g ON i.GroupMatID = g.GroupmatID
-    LEFT JOIN  group_product p ON  i.GProdID = p.GProdID
-    `
+    LEFT JOIN  type2 t ON i.Type2ID = t.Type2ID
+    LEFT JOIN storage_zone z ON i.ZoneID = z.ZoneID 
     
-    ;
-    return await this.databaseService.query(sqlQuery);
-  }
-  async item_by_itemNo(itemNo: string): Promise<Item[]> {
-    const sqlQuery = ` SELECT 
-        i.*, 
-        up.UnitPacking,
-        g.GroupmatName,
-        p.GroupProductName,
-        v.ITEMDesc,
-        v.TYPE,
-        v.VENDOR,
-         v.PARTCHIP,
-        v.PROJECT,
-        v.CATEGORY,
-        v.SPEC
-       
-        
-    FROM item_test1 i
-    LEFT JOIN view_item_accpac_all v ON i.ItemNo COLLATE Thai_100_CI_AI = v.ITEMNO COLLATE Thai_100_CI_AI
-    LEFT JOIN unit_packing up ON i.UnitPackingID = up.UnitPackingID
-    LEFT JOIN  groupmat_accpac g ON i.GroupMatID = g.GroupmatID
-    LEFT JOIN  group_product p ON  i.GProdID = p.GProdID
+   
     
      WHERE i.ITEMNO = @itemNo`;
     return await this.databaseService.query(sqlQuery, [
       { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
     ]);
-        
-}
+  }
 
-async update_item_List(
-  itemNo: string,
-  Inactive: number,
-  LotSplit: number,
-  Packing: number,
-  Type2: number,
-  IQA: number,
-  ExpDate: number,
-  GroupMatID: number,
-  Min: number,
-  Max: number,
-  GProdID: number
-): Promise<ItemListResponse[]> {
-  const sqlQuery = `
+  async update_item_List(
+    itemNo: string,
+    Inactive: number,
+    LotSplit: number,
+    Packing: number,
+    Type2: number,
+    IQA: number,
+    ExpDate: number,
+    GroupMatID: number,
+    Min: number,
+    Max: number,
+    GProdID: number,
+    ZoneID: number,
+  ): Promise<ItemListResponse[]> {
+    const sqlQuery = `
     EXEC sp_Get_Item
       @itemNo = @ItemNo,
       @Inactive = @Inactive,
@@ -297,52 +302,27 @@ async update_item_List(
       @GroupMatID = @GroupMatID,
       @Min = @Min,
       @Max = @Max,
-      @GProdID = @GProdID
+      @GProdID = @GProdID,
+      @ZoneID = @ZoneID
   `;
-  return await this.databaseService.query(sqlQuery, [
-    { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
-    { name: 'Inactive', type: sql.Int, value: Inactive },
-    { name: 'LotSplit', type: sql.Int, value: LotSplit },
-    { name: 'Packing', type: sql.Int, value: Packing },
-    { name: 'Type2', type: sql.Int, value: Type2 },
-    { name: 'IQA', type: sql.Int, value: IQA },
-    { name: 'ExpDate', type: sql.Int, value: ExpDate },
-    { name: 'GroupMatID', type: sql.Int, value: GroupMatID },
-    { name: 'Min', type: sql.Int, value: Min },
-    { name: 'Max', type: sql.Int, value: Max },
-    { name: 'GProdID', type: sql.Int, value: GProdID }
-  ]);
-}
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+      { name: 'Inactive', type: sql.Int, value: Inactive },
+      { name: 'LotSplit', type: sql.Int, value: LotSplit },
+      { name: 'Packing', type: sql.Int, value: Packing },
+      { name: 'Type2', type: sql.Int, value: Type2 },
+      { name: 'IQA', type: sql.Int, value: IQA },
+      { name: 'ExpDate', type: sql.Int, value: ExpDate },
+      { name: 'GroupMatID', type: sql.Int, value: GroupMatID },
+      { name: 'Min', type: sql.Int, value: Min },
+      { name: 'Max', type: sql.Int, value: Max },
+      { name: 'GProdID', type: sql.Int, value: GProdID },
+      { name: 'ZoneID', type: sql.Int, value: ZoneID },
+    ]);
+  }
 
-
-async unitpacking(): Promise<any> {
-  const sqlQuery = `EXEC sp_Get_Dropdown`;
-  return await this.databaseService.query(sqlQuery);
-}
-
-// async insertdata(
-//   ItemNo: string,
-//   Type2ID: number,
-//   Packing: number,
-//   UnitPackingID: number,
-//   ZoneID: number,
-//   GroupMatID: number,
-//   LotSplit: number,
-//   IQA: number,
-//   ExpDate: number
-// ): Promise<any> {
-//   const sqlQuery = `
-//     EXEC sp_InsertData `;
-//   return await this.databaseService.query(sqlQuery, [
-//     { name: 'ItemNo', type: sql.VarChar, value: ItemNo },
-//     { name: 'Type2ID', type: sql.Int, value: Type2ID },
-//     { name: 'Packing', type: sql.Int, value: Packing },
-//     { name: 'UnitPackingID', type: sql.Int, value: UnitPackingID },
-//     { name: 'ZoneID', type: sql.Int, value: ZoneID },
-//     { name: 'GroupMatID', type: sql.Int, value: GroupMatID },
-//     { name: 'LotSplit', type: sql.Int, value: LotSplit },
-//     { name: 'IQA', type: sql.Int, value: IQA },
-//     { name: 'ExpDate', type: sql.Int, value: ExpDate }
-//   ]);
-// }
+  async unitpacking(): Promise<any> {
+    const sqlQuery = `EXEC sp_Get_Dropdown`;
+    return await this.databaseService.query(sqlQuery);
+  }
 }
