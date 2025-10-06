@@ -7,6 +7,7 @@ import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { filterMeta } from '@/interfaces/receive.interfaces';
 
 const loading = ref(false);
+const syncProgress = ref(0); // <-- add for progress bar
 const router = useRouter();
 const receiveStore = useReceiveStore();
 // const loading = receiveStore.loading;
@@ -35,19 +36,18 @@ async function handleRowClick(receipt: any) {
     const RecReceiveDate = receipt.ReciveDate;
     const VendorName = receipt.VendorName;
 
+    loading.value = true; // เริ่มแสดง overlay loading
+
+    // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
+    await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
+
+    loading.value = false; // ปิด overlay loading หลังข้อมูลเข้า DB
+
+    // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
     router.push({
         path: `/uikit/Receive_Detail/${receiveNumber}`,
         query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
     });
-
-    console.log('Row clicked:', receipt);
-
-    console.log('Row clicked1:', receiveNumber);
-
-    // receiveStore.getComponents(receiveNumber, StatusRecIC);
-    console.log('StatusRecIC:', StatusRecIC);
-
-    console.log('receiveStore:', receiveStore);
 }
 const allReceiveList = computed(() => receiveStore.items);
 
@@ -94,7 +94,24 @@ async function onDateSearch() {
     const end = endDate.value.replace(/-/g, '');
     loading.value = true;
     await receiveStore.syncItems(start, end);
+    console.log('Filtered List:', filteredReceiveList.value);
     loading.value = false;
+}
+
+async function syncMaterials() {
+    loading.value = true;
+    syncProgress.value = 0;
+    const total = filteredReceiveList.value.length;
+    let count = 0;
+    for (const item of filteredReceiveList.value) {
+        const receiveNo = item.ReceptNumber?.toString();
+        const StatusRecIC = item.StatusRecIC?.toString();
+        await receiveStore.fetchSyncReceiveDetail(receiveNo, StatusRecIC);
+        count++;
+        syncProgress.value = Math.round((count / total) * 100);
+    }
+    loading.value = false;
+    syncProgress.value = 0;
 }
 
 function clearFilter() {
@@ -138,6 +155,14 @@ function formatDate(dateString: string) {
                     >
                         Sync Date
                     </button>
+                    <button
+                        type="button"
+                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-0"
+                        @click="async () => { await syncMaterials(); }"
+                    >
+                        Sync Materials ALL
+                    </button>
+
                   
                 </div>
             </div>
@@ -186,13 +211,6 @@ function formatDate(dateString: string) {
             </template>
 
             <template #empty>No data found.</template>
-            <template #loading>
-                <div class="flex justify-center items-center py-8">
-                    <i class="pi pi-spin pi-spinner text-2xl mr-2" />
-                    กำลังโหลดข้อมูล...
-                </div>
-            </template>
-
             <Column field="ReceptNumber" header="Receive Number" sortable>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive number" />
@@ -225,11 +243,42 @@ function formatDate(dateString: string) {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
-            <Column field="CountOrder" header="Item Count" sortable>
+            <Column field="CountOrder" header="Material Count" sortable>
                 <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count order" />
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by material count" />
                 </template>
-            </Column>
+            </Column>   
+
+  
+            
         </DataTable>
+        <!-- Loading overlay for normal loading -->
+        <div
+            v-if="loading && syncProgress === 0"
+            class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
+            style="backdrop-filter: blur(2px); z-index: 1000;"
+        >
+            <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
+                <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
+            </div>
+        </div>
+        <!-- Loading bar overlay for syncMaterials -->
+        <div
+            v-if="syncProgress > 0"
+            class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
+            style="backdrop-filter: blur(2px); z-index: 1001;"
+        >
+            <div class="flex flex-col items-center w-80">
+                <span class="text-white text-xl mb-4">Sync Materials กำลังดำเนินการ...</span>
+                <div class="w-full bg-gray-700 rounded h-6 overflow-hidden mb-2">
+                    <div
+                        class="bg-green-500 h-6 transition-all duration-300"
+                        :style="{ width: syncProgress + '%' }"
+                    ></div>
+                </div>
+                <span class="text-white">{{ syncProgress }}%</span>
+            </div>
+        </div>
     </div>
 </template>

@@ -8,6 +8,7 @@ import { useReceiveStore } from '@/stores/receive';
 import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
 import { useRoute } from 'vue-router';
 import { item } from '@primeuix/themes/aura/breadcrumb';
+import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/fn_recive';
 
 const receiveStore = useReceiveStore();
 const router = useRouter();
@@ -16,8 +17,7 @@ const confirmPopup = useConfirm();
 const loading = ref(false);
 const route = useRoute();
 
-// const receiveNumber = route.params.receiveNumber;
-
+ 
 
 // Dialog state
 const isDialogOpen = ref(false);
@@ -62,27 +62,27 @@ const rowLotSplitQtys = ref<{ [key: string]: number }>({});
 // ฟังก์ชันสำหรับคำนวณและอัปเดต Lot Split QTY ของแต่ละแถว
 async function updateRowLotSplitQtys() {
     const lotSplitQtys: { [key: string]: number } = {};
-    
+
     for (const row of tableRows.value) {
         const key = `${row.itemNo}_${row.no}`;
-        
+
         try {
             // ดึงข้อมูล Lot Split ที่มีอยู่
             const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
                 receiveno: receiveNumber.value,
                 itemNo: row.itemNo || ''
             } as any);
-            
+
             // นับจำนวน Lot ที่แบ่ง (จำนวน records/items) ไม่ใช่รวม quantity
             const lotCount = existingLotSplits?.length || 0;
-            
+
             lotSplitQtys[key] = lotCount;
         } catch (error) {
             console.error('Error calculating lot split qty:', error);
             lotSplitQtys[key] = 0;
         }
     }
-    
+
     rowLotSplitQtys.value = lotSplitQtys;
 }
 
@@ -95,14 +95,14 @@ function getRowLotSplitQty(data: any): number {
 // ฟังก์ชันสำหรับคำนวณและอัปเดต Balance QTY ของแต่ละแถว
 async function updateRowBalanceQtys() {
     const balances: { [key: string]: number } = {};
-    
+
     for (const row of tableRows.value) {
         const key = `${row.itemNo}_${row.no}`;
         balances[key] = await calculateRowBalanceQtyWithLot(row);
     }
-    
+
     rowBalanceQtys.value = balances;
-    
+
     // อัปเดต Lot Split QTY พร้อมกัน
     await updateRowLotSplitQtys();
 }
@@ -138,13 +138,13 @@ async function saveLotSplit() {
         return;
     }
 
-    const validLotRows = lotRows.value.filter(lotRow => lotRow.lotNo && lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0);
+    const validLotRows = lotRows.value.filter((lotRow) => lotRow.lotNo && lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0);
     if (validLotRows.length === 0) {
         toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please fill in Lot No and Take Out Qty for at least one row', life: 3000 });
         return;
     }
 
-    const lotSplitPromises = validLotRows.map(lotRow => {
+    const lotSplitPromises = validLotRows.map((lotRow) => {
         // Ensure value is boolean before converting to 1/0
         const payload = {
             ItemNo: currentRow?.itemNo || '',
@@ -167,18 +167,17 @@ async function saveLotSplit() {
             return receiveStore.createLotSplit(payload);
         }
     });
-    
 
     try {
         loading.value = true;
         const results = await Promise.all(lotSplitPromises);
-        const allSuccess = results.every(result => result !== null && result !== undefined);
+        const allSuccess = results.every((result) => result !== null && result !== undefined);
         if (allSuccess) {
             toast.add({ severity: 'success', summary: 'Success', detail: 'Lot split data saved successfully', life: 3000 });
-            
+
             // อัปเดต Balance QTY ใหม่หลังจากบันทึกสำเร็จ
             await updateRowBalanceQtys();
-            
+
             closeEditDialog(true);
         } else {
             toast.add({ severity: 'error', summary: 'Error', detail: 'Some lot split data failed to save', life: 3000 });
@@ -190,10 +189,8 @@ async function saveLotSplit() {
     }
 }
 
-
 // สำหรับ scroll กลับไปยังตาราง Detail
 onMounted(async () => {
-
     const receiveNumber = (route.query.receiptNumber as string) || (route.params.receiveNumber as string);
     const InvoiceNumber = (route.query.InvoiceNumber as string) || '';
     const RecReceiveDate = (route.query.RecReceiveDate as string) || '';
@@ -208,7 +205,7 @@ onMounted(async () => {
     console.log('lotStatusIQA:', lotStatusIQA.value);
     console.log('receiveNumber:', receiveNumber);
     console.log('lotStatusIQA length:', lotStatusIQA.value.length);
-    
+
     console.log('InvoiceNumber:', InvoiceNumber);
     console.log('RecReceiveDate:', RecReceiveDate);
     console.log('VendorName:', VendorName);
@@ -234,11 +231,9 @@ onMounted(async () => {
                 lotSplit: row.LotSplit ?? '',
                 ExpDate: row.ExpDate ?? '',
                 IQA: row.IQA ?? ''
-
-                
             }))
         };
-        
+
         // คำนวณ Balance QTY สำหรับแต่ละแถว
         await updateRowBalanceQtys();
     }
@@ -269,14 +264,15 @@ function calculateBalanceQty() {
         return 0;
     }
 
-    return Math.max(receiveQty - totalTakeOutQty, 0);
+    // ปัดเศษให้เหลือ 2 ตำแหน่ง
+    return Number((receiveQty - totalTakeOutQty).toFixed(2));
 }
 
 function calculateRowBalanceQty(data: any) {
     // คำนวณ Balance QTY สำหรับแต่ละแถวใน DataTable
     const receiveQty = parseFloat(data.receiveQty || '0') || 0;
     const returnQty = parseFloat(data.returnQty || '0') || 0;
-    
+
     // Balance = Receive - Return - Total Lot Split Qty
     return Math.max(receiveQty - returnQty, 0);
 }
@@ -286,18 +282,19 @@ async function calculateRowBalanceQtyWithLot(data: any) {
     try {
         const receiveQty = parseFloat(data.receiveQty || '0') || 0;
         const returnQty = parseFloat(data.returnQty || '0') || 0;
-        
+
         // ดึงข้อมูล Lot Split ที่มีอยู่
         const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
             receiveno: receiveNumber.value,
             itemNo: data.itemNo || ''
         } as any);
-        
+
         // คำนวณจำนวนที่แบ่งไปแล้ว
-        const totalLotSplitQty = existingLotSplits?.reduce((sum: number, lot: any) => {
-            return sum + (parseFloat(lot.lot_qty || '0') || 0);
-        }, 0) || 0;
-        
+        const totalLotSplitQty =
+            existingLotSplits?.reduce((sum: number, lot: any) => {
+                return sum + (parseFloat(lot.lot_qty || '0') || 0);
+            }, 0) || 0;
+
         // Balance = Receive - Return - Total Lot Split Qty
         return Math.max(receiveQty - returnQty - totalLotSplitQty, 0);
     } catch (error) {
@@ -315,19 +312,14 @@ const canAddRow = computed(() => {
 function color_BalanceQty(data: any) {
     const balanceQty = getRowBalanceQty(data);
     if (balanceQty === 0) {
-        return 'bg-green-200 text-green-700 font-semibold px-2 py-1 rounded'; 
+        return 'bg-green-200 text-green-700 font-semibold px-2 py-1 rounded';
     } else if (balanceQty > 0) {
-        return 'bg-yellow-200 text-yellow-700 font-semibold px-2 py-1 rounded'; 
+        return 'bg-yellow-200 text-yellow-700 font-semibold px-2 py-1 rounded';
     }
-    return ''; 
+    return '';
 }
 
-function getIQAStatusText(iqa: number | string | null | undefined) {
-    if (iqa === 0 || iqa === '0') return 'No IQA Required';
-    if (iqa === 1 || iqa === '1') return 'IQA Required';
-    if (iqa === 2 || iqa === '2' || iqa === null || iqa === undefined || iqa === '') return 'Not Specified';
-    return 'Not Specified';
-}
+
 function canEditIQA(iqa: number | string | null | undefined) {
     // สามารถแก้ไขได้เมื่อค่าเป็น Not Specified (2, '2', null, undefined, หรือ '')
     return iqa === 2 || iqa === '2' || iqa === null || iqa === undefined || iqa === '';
@@ -358,18 +350,6 @@ function updateIQAValue(data: any, val: string) {
     }
 }
 
-function getIQARequiredClass(text: string) {
-    switch (text) {
-        case 'IQA Required':
-            return 'bg-red-100 text-red-700 font-semibold transition-colors duration-200 px-2 py-1 rounded';
-        case 'No IQA Required':
-            return 'bg-green-100 text-green-700 font-semibold transition-colors duration-200 px-2 py-1 rounded';
-        case 'Not Specified':
-            return 'bg-amber-100 text-amber-700 font-semibold transition-colors duration-200 px-2 py-1 rounded border border-amber-300';
-        default:
-            return 'bg-white text-gray-900 transition-colors duration-200 px-2 py-1 rounded border';
-    }
-}
 
 function getIQAStatusClass(status: number | string) {
     // รับค่า lotStatusIQAResponse จาก API
@@ -400,23 +380,8 @@ function getIQAStatusClass(status: number | string) {
     }
 }
 
-function getLotSplitStatusText(lotSplit: number | string) {
-    if (lotSplit === 0 || lotSplit === '0') return 'No Lot Required';
-    if (lotSplit === 1 || lotSplit === '1') return 'Lot Required';
-    return 'Not Specified';
-}
-function getLotSplitStatusClass(status: string) {
-    switch (status) {
-        case 'Lot Required':
-            return 'bg-red-100 text-red-700 font-semibold transition-colors duration-200';
-        case 'No Lot Required':
-            return 'bg-green-100 text-green-700 font-semibold transition-colors duration-200';
-        case 'Not Specified':
-            return 'bg-gray-100 text-gray-700 font-semibold transition-colors duration-200';
-        default:
-            return 'bg-white text-gray-900 transition-colors duration-200';
-    }
-}
+
+
 
 // Lot rows state for dialog (แยกแต่ละแถว)
 
@@ -438,67 +403,70 @@ function expireDateEnd(date: string) {
 async function openEditDialog(rowIndex: number) {
     dialogRowIndex.value = rowIndex;
     const currentRow = tableRows.value[rowIndex];
-    
+
     try {
         loading.value = true;
-        
+
         // ดึงข้อมูล Lot Split ที่มีอยู่แล้วจาก API
         const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
             receiveno: receiveNumber.value,
             itemNo: currentRow?.itemNo || ''
         } as any);
-        
+
         console.log('Existing Lot Splits:', existingLotSplits);
-        
+
         // แปลงข้อมูลจาก API เป็นรูปแบบที่ใช้ใน Dialog
         if (existingLotSplits && existingLotSplits.length > 0) {
             lotRows.value = existingLotSplits.map((row: any) => ({
                 id: row.id, // เพิ่ม id สำหรับ update
                 no: '',
                 lotNo: row.lot_no || '',
-                qty: row.lot_qty || '',
+                qty: parseFloat(row.lot_qty || '0') || 0, // แปลงเป็น number
                 unit: row.lot_unit || currentRow?.unit || '',
                 expireDate: row.exp_date ? new Date(row.exp_date).toISOString().split('T')[0] : '',
-                takeOutQty: row.lot_qty || '',
+                takeOutQty: parseFloat(row.lot_qty || '0') || 0, // แปลงเป็น number สำหรับ decimal
                 problem: !!row.isProblem, // แปลง 1/0 เป็น boolean
                 remark: row.remark || ''
             }));
         } else {
             // ถ้าไม่มีข้อมูลเก่า ให้สร้าง row ว่างใหม่
-            lotRows.value = [{
+            lotRows.value = [
+                {
+                    id: null, // ไม่มี id = ข้อมูลใหม่
+                    no: '',
+                    lotNo: '',
+                    qty: 0, // เปลี่ยนเป็น number ตาม interface
+                    unit: currentRow?.unit || '',
+                    expireDate: '',
+                    takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
+                    problem: false,
+                    remark: ''
+                }
+            ];
+        }
+    } catch (error) {
+        console.error('Error fetching lot split data:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load existing lot split data',
+            life: 3000
+        });
+
+        // ถ้าเกิด error ให้สร้าง row ว่างใหม่
+        lotRows.value = [
+            {
                 id: null, // ไม่มี id = ข้อมูลใหม่
                 no: '',
                 lotNo: '',
-                qty: '',
+                qty: 0, // เปลี่ยนเป็น number ตาม interface
                 unit: currentRow?.unit || '',
                 expireDate: '',
-                takeOutQty: '',
+                takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
                 problem: false,
                 remark: ''
-            }];
-        }
-        
-    } catch (error) {
-        console.error('Error fetching lot split data:', error);
-        toast.add({ 
-            severity: 'error', 
-            summary: 'Error', 
-            detail: 'Failed to load existing lot split data', 
-            life: 3000 
-        });
-        
-        // ถ้าเกิด error ให้สร้าง row ว่างใหม่
-        lotRows.value = [{
-            id: null, // ไม่มี id = ข้อมูลใหม่
-            no: '',
-            lotNo: '',
-            qty: '',
-            unit: currentRow?.unit || '',
-            expireDate: '',
-            takeOutQty: '',
-            problem: false,
-            remark: ''
-        }];
+            }
+        ];
     } finally {
         loading.value = false;
         isDialogOpen.value = true;
@@ -509,7 +477,7 @@ async function closeEditDialog(save = false) {
     if (save && dialogRowIndex.value !== null) {
         // เซฟกลับไปที่ allLotRows
         allLotRows[dialogRowIndex.value] = lotRows.value.map((row) => ({ ...row }));
-        
+
         // อัปเดต Balance QTY ใหม่หลังจากบันทึก Lot Split
         await updateRowBalanceQtys();
     }
@@ -525,7 +493,7 @@ async function closeEditDialog(save = false) {
 }
 
 function addRow() {
- let unit = '';
+    let unit = '';
     if (dialogRowIndex.value !== null) {
         unit = tableRows.value[dialogRowIndex.value]?.unit || '';
     }
@@ -534,11 +502,11 @@ function addRow() {
         id: null, // ไม่มี id = ข้อมูลใหม่
         no: '',
         lotNo: '',
-        qty: '',
+        qty: 0, // เปลี่ยนเป็น number ตาม interface
         unit,
         expireDate: '',
-        takeOutQty: '',
-        problem: false, 
+        takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
+        problem: false,
         remark: ''
     };
     lotRows.value.push(newRow);
@@ -546,41 +514,41 @@ function addRow() {
 
 async function removeRow(index: number) {
     const lotRow = lotRows.value[index];
-    
+
     // ถ้า row มี id แสดงว่าเป็นข้อมูลที่มีอยู่ในฐานข้อมูล ต้องลบจริง
     if (lotRow.id) {
         try {
             loading.value = true;
-            
+
             // เรียก API delete
             const deleteResult = await receiveStore.Delete_LotSplit({
                 receiveno: receiveNumber.value,
                 itemNo: dialogRowIndex.value !== null ? tableRows.value[dialogRowIndex.value]?.itemNo || '' : '',
                 lotNo: lotRow.lotNo
             } as any);
-            
+
             // ถือว่าสำเร็จถ้าไม่มี error throw (ไม่ต้องเช็ค deleteResult)
-            toast.add({ 
-                severity: 'success', 
-                summary: 'Success', 
-                detail: 'Lot split deleted successfully', 
-                life: 3000 
+            toast.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Lot split deleted successfully',
+                life: 3000
             });
-            
+
             // ลบ row จาก array
             lotRows.value.splice(index, 1);
-            
+
             // อัปเดต Balance QTY ใหม่
             if (dialogRowIndex.value !== null) {
                 await updateRowBalanceQtys();
             }
         } catch (error) {
             console.error('Error deleting lot split:', error);
-            toast.add({ 
-                severity: 'error', 
-                summary: 'Error', 
-                detail: `Failed to delete lot split: ${String(error)}`, 
-                life: 3000 
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: `Failed to delete lot split: ${String(error)}`,
+                life: 3000
             });
         } finally {
             loading.value = false;
@@ -595,12 +563,10 @@ async function removeRow(index: number) {
 
 function confirmDelete(index: number, event?: Event) {
     const lotRow = lotRows.value[index];
-    
+
     confirmPopup.require({
         target: event?.target as HTMLElement,
-        message: lotRow.id 
-            ? `Are you sure you want to delete Lot ${lotRow.lotNo}? This will permanently remove it from the database.`
-            : 'Are you sure you want to remove this row?',
+        message: lotRow.id ? `Are you sure you want to delete Lot ${lotRow.lotNo}? This will permanently remove it from the database.` : 'Are you sure you want to remove this row?',
         icon: 'pi pi-exclamation-triangle',
         rejectProps: {
             label: 'Cancel',
@@ -613,7 +579,7 @@ function confirmDelete(index: number, event?: Event) {
         },
         accept: async () => {
             await removeRow(index);
-        },
+        }
     });
 }
 
@@ -783,9 +749,8 @@ function clearFilter() {
 
             <Column field="balanceQty" header="Wait Split(QTY)" sortable>
                 <template #body="{ data }">
-                    <!-- จำนวนที่เหลือหลังจากแบ่ง Lot ไปแล้ว (Balance QTY) -->
                     <span :class="color_BalanceQty(data)">
-                        {{ getRowBalanceQty(data) }}
+                        {{ getRowBalanceQty(data).toFixed(2) }}
                     </span>
                 </template>
             </Column>
@@ -890,7 +855,7 @@ function clearFilter() {
                             <tr>
                                 <th class="border px-2 py-1">No</th>
                                 <th class="border px-2 py-1">Lot No</th>
-                               
+
                                 <th class="border px-2 py-1">TAKE OUT QTY</th>
                                 <th class="border px-2 py-1">EXPIRE DATE</th>
                                 <th class="border px-2 py-1">have a problem?</th>
@@ -907,28 +872,32 @@ function clearFilter() {
                                 <td class="border px-2 py-1">
                                     <input type="text" class="border rounded px-2 py-1 w-24" placeholder="Lot No" v-model="row.lotNo" />
                                 </td>
-                                
+
                                 <td class="border px-2 py-1">
                                     <input
                                         type="number"
                                         min="0"
                                         :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
                                         class="border rounded px-2 py-1 w-16"
-                                        placeholder="0"
-                                        v-model="row.takeOutQty"
-                                        step="any"
+                                        placeholder="0.00"
+                                        v-model.number="row.takeOutQty"
+                                        step="0.01"
                                         @input="
                                             (() => {
                                                 if (dialogRowIndex !== null) {
-                                                    // รวม takeOutQty ทุกแถว
+                                                    // แปลงค่าเป็น number และจัดการกรณีที่เป็น string หรือ null
+                                                    const currentValue = parseFloat(String(row.takeOutQty || '0')) || 0;
+                                                    row.takeOutQty = currentValue;
+
                                                     const totalTakeOutQty = lotRows.reduce((sum, r) => {
                                                         return sum + (parseFloat(String(r.takeOutQty || '0')) || 0);
                                                     }, 0);
                                                     const receiveQty = parseFloat(String(tableRows[dialogRowIndex].receiveQty || '0')) || 0;
+
                                                     if (totalTakeOutQty > receiveQty) {
-                                                        // ปรับค่า row.takeOutQty ให้ไม่เกิน receiveQty - (sum ของแถวอื่น)
-                                                        const otherRowsSum = totalTakeOutQty - (parseFloat(String(row.takeOutQty || '0')) || 0);
-                                                        row.takeOutQty = Math.max(receiveQty - otherRowsSum, 0).toString();
+                                                        const otherRowsSum = totalTakeOutQty - currentValue;
+                                                        const maxAllowed = Math.max(receiveQty - otherRowsSum, 0);
+                                                        row.takeOutQty = Number(maxAllowed.toFixed(2));
                                                         toast.add({ severity: 'warn', summary: 'Warning', detail: 'Take Out Qty รวมทุกแถวห้ามเกิน Receive Qty', life: 2000 });
                                                     }
                                                 }
@@ -959,13 +928,7 @@ function clearFilter() {
                                     <input type="text" class="border rounded px-2 py-1 w-36" v-model="row.remark" />
                                 </td>
                                 <td class="border px-2 py-1 text-center">
-                                    <Button 
-                                        label="Delete" 
-                                        icon="pi pi-trash" 
-                                        severity="danger" 
-                                        style="width: auto" 
-                                        @click="confirmDelete(idx, $event)" 
-                                    />
+                                    <Button label="Delete" icon="pi pi-trash" severity="danger" style="width: auto" @click="confirmDelete(idx, $event)" />
                                 </td>
                             </tr>
                         </tbody>

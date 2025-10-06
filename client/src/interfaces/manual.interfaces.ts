@@ -5,7 +5,7 @@ interface receiveForm
         receiveDate: string | number;
         ItemCount: number | string ;
         InvoiceNo?: string | number;
-        VDCODE?: string | number | null;
+        VDCODE?: string | { code: string; name?: string };
         VDNAME?: string ;
 
     }

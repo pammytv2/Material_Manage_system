@@ -5,6 +5,7 @@ import { reactive } from 'vue';
 interface IReceiveItem {
     ReceptNumbar: string;
     ReceptNumber: string;
+    StatusRecIC: string;
     ReciveDate: string;
     Countoder: number;
     ImportDate: Date;
@@ -70,10 +71,10 @@ interface LotRow {
     id?: number | null;
     no: string;
     lotNo: string;
-    qty: string;
+    qty:  number;
     unit: string;
     expireDate: string;
-    takeOutQty?: string | number;
+    takeOutQty?: number;
     problem?: boolean ;
     remark?: string;
 }

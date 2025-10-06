@@ -7,6 +7,7 @@ import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { filterMeta } from '@/interfaces/receive.interfaces';
 
 const loading = ref(false);
+const ReceptNumber = ref('');
 const router = useRouter();
 const receiveStore = useReceiveStore();
 // const loading = receiveStore.loading;
@@ -71,9 +72,8 @@ const filteredReceiveList = computed(() => {
     if (searchQuery.value) {
         const q = searchQuery.value.trim().toLowerCase();
         list = list.filter((item) => {
-            const receive = (item.ReceptNumbar || '').toLowerCase();
-            const invoice = (item.InveiceNumbar || '').toLowerCase();
-            // ค้นหาทั้งแบบ contains และ startsWith
+            const receive = (item.ReceptNumber || '').toLowerCase();
+            const invoice = (item.InvoiceNumber || '').toLowerCase();
             return receive.includes(q) || invoice.includes(q) || receive.startsWith(q) || invoice.startsWith(q);
         });
     }
@@ -84,7 +84,11 @@ const filteredReceiveList = computed(() => {
     if (endDate.value) {
         list = list.filter((item) => item.ReciveDate <= endDate.value.replace(/-/g, ''));
     }
-    return list;
+    // เพิ่ม MaterialDivisionStatus ให้แต่ละ row
+    return list.map(row => ({
+        ...row,
+        MaterialDivisionStatus: getMaterialDivisionStatus(row)
+    }));
 });
 
 async function onDateSearch() {
@@ -94,9 +98,15 @@ async function onDateSearch() {
     const end = endDate.value.replace(/-/g, '');
     loading.value = true;
     await receiveStore.fetchMaterialSplit(start, end);
+
     loading.value = false;
 }
-
+const receiveItems = computed(() =>
+    receiveStore.item_split.map(row => ({
+        ...row,
+        MaterialDivisionStatus: getMaterialDivisionStatus(row)
+    }))
+);
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -109,6 +119,13 @@ function clearFilter() {
     };
 }
 
+function getMaterialDivisionStatus(row: any) {
+    if (row.total_split_qty === 0) return 'none';
+    if (row.total_split_qty === row.total_received_qty) return 'complete';
+    if (row.total_split_qty > 0 && row.total_split_qty < row.total_received_qty) return 'partial';
+    return 'none';
+}
+
 function formatDate(dateString: string) {
     const year = dateString.substring(0, 4);
     const month = dateString.substring(4, 6);
@@ -116,7 +133,17 @@ function formatDate(dateString: string) {
     return `${year}-${month}-${day}`;
 }
 
-// ไม่ต้องเรียก API ใน onMounted เพราะ store จะจัดการให้
+onMounted(async () => {
+    try {
+        loading.value = true;
+        await receiveStore.fetchReceiveItems(ReceptNumber.value);
+        console.log('Fetched items for ReceptNumber:', ReceptNumber.value);
+    } catch (error) {
+        console.error('Error in onMounted:', error);
+    } finally {
+        loading.value = false;
+    }
+});
 </script>
 
 <template>
@@ -138,7 +165,6 @@ function formatDate(dateString: string) {
                     >
                         Search
                     </button>
-                  
                 </div>
             </div>
         </form>
@@ -212,6 +238,28 @@ function formatDate(dateString: string) {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
+            <Column field="MaterialDivisionStatus" header="Material Division Status" sortable>
+        <template #body="{ data }">
+            <span v-if="data.MaterialDivisionStatus === 'complete'" class="text-green-600 font-semibold">แบ่งครบแล้ว</span>
+            <span v-else-if="data.MaterialDivisionStatus === 'partial'" class="text-yellow-600 font-semibold">แบ่งบางส่วน</span>
+            <span v-else class="text-red-600 font-semibold">ยังไม่แบ่ง</span>
+        </template>
+        <template #filter="{ filterModel }">
+            <Dropdown
+                v-model="filterModel.value"
+                :options="[
+                    { label: 'แบ่งครบแล้ว', value: 'complete' },
+                    { label: 'แบ่งบางส่วน', value: 'partial' },
+                    { label: 'ยังไม่แบ่ง', value: 'none' }
+                ]"
+                placeholder="เลือกสถานะการแบ่ง"
+                class="p-column-filter"
+                optionLabel="label"
+                optionValue="value"
+                showClear
+            />
+        </template>
+    </Column>
             <Column field="CountOrder" header="Item Count" sortable>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count order" />

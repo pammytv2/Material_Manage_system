@@ -23,8 +23,16 @@ export class MaterialReceiveManualService {
   const poString = PONUMBER.join(',');
   request.input('PONUMBER', sql.VarChar, poString);
   request.input('VDCODE', sql.VarChar, VDCODE);
-  const result = await request.execute('sp_Receive_Material');
+  const result = await request.execute('sp_Receive_Material_Manual');
   return result.recordsets;
 }
-  }
+
+async getItemList_spec(): Promise<any[]> {
+  const sqlQuery = `
+            SELECT  ItemNo,SPEC FROM view_manual_no_po`;
+  return await this.databaseService.query(sqlQuery);
+
+
+}
+}
 

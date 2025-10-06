@@ -21,6 +21,10 @@ export class MaterialReceiveManualController {
     const poNumbersArray = PONUMBER ? PONUMBER.split(',').map(s => s.trim()) : [];
     return await this.materialReceiveManualService.getItemList_manual(poNumbersArray, VDCODE);
   }
+  @Get('item-list-spec')
+  async getItemList_spec() {
+    return await this.materialReceiveManualService.getItemList_spec();
+  }
 
   
 }

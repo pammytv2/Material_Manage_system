@@ -20,39 +20,39 @@ const routes: RouteRecordRaw[] = [
             {
                 path: '/uikit/Receive_Page',
                 name: 'Receive_Page',
-                component: () => import('@/views/Receice/Receive_mat_Page.vue')
+                component: () => import('@/components/Receice/Receive_mat_Page.vue')
             },
             {
                 path: '/uikit/Receive_Detail/:receiveNumber',
                 name: 'Receive_Detail',
-                component: () => import('@/views/Receice/Receive.Detail_Page.vue')
+                component: () => import('@/components/Receice/Receive.Detail_Page.vue')
             },
             {
                 path: '/receive-manual',
                 name: 'ReceiveManual',
-                component: () => import('@/views/Receice_Manual/Receive.Manual_Page.vue')
+                component: () => import('@/components/Receice_Manual/Receive.Manual_Page.vue')
             },
             {
                 path: '/materials-split',
                 name: 'MaterialsSplit',
-                component: () => import('@/views/Split_Materials/Materials.Split_Page.vue')
+                component: () => import('@/components/Split_Materials/Materials.Split_Page.vue')
 
             },
             {
                 path: '/materials-split-detail/:receiveNumber',
                 name: 'MaterialsSplitDetail',
-                component: () => import('@/views/Split_Materials/Materials.Split_Delail_Page.vue')
+                component: () => import('@/components/Split_Materials/Materials.Split_Delail_Page.vue')
 
             },
             {
                 path: '/manual-receive-list',
                 name: 'ManualReceiveList',
-                component: () => import('@/views/Receice_Manual/Manual.Receive.List_Page.vue')
+                component: () => import('@/components/Receice_Manual/Manual.Receive.List_Page.vue')
             },
             {
                 path: '/manage-material',
                 name: 'ManageMaterial',
-                component: () => import('@/views/Manage_Material/Manage.Material_Page.vue')
+                component: () => import('@/components/Manage_Material/Manage.Material_Page.vue')
 
             },
 

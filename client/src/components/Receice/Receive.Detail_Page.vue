@@ -7,15 +7,15 @@ import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
 import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
 import { useRoute } from 'vue-router';
-
+import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/fn_recive';
 
 const receiveStore = useReceiveStore();
 const router = useRouter();
 const toast = useToast();
+
 const loading = ref(false);
 const route = useRoute();
 
-// const receiveNumber = route.params.receiveNumber;
 
 // Dialog state
 const isDialogOpen = ref(false);
@@ -227,43 +227,7 @@ async function calculateRowBalanceQtyWithLot(data: any) {
 }
 
 
-function getIQAStatusText(iqa: number | string | null | undefined) {
-    if (iqa === 0 || iqa === '0') return 'No IQA Required';
-    if (iqa === 1 || iqa === '1') return 'IQA Required';
-    if (iqa === 2 || iqa === '2' || iqa === null || iqa === undefined || iqa === '') return 'Not Specified';
-    return 'Not Specified';
-}
 
-function getIQARequiredClass(text: string) {
-    switch (text) {
-        case 'IQA Required':
-            return 'bg-red-100 text-red-700 font-semibold transition-colors duration-200 px-2 py-1 rounded';
-        case 'No IQA Required':
-            return 'bg-green-100 text-green-700 font-semibold transition-colors duration-200 px-2 py-1 rounded';
-        case 'Not Specified':
-            return 'bg-amber-100 text-amber-700 font-semibold transition-colors duration-200 px-2 py-1 rounded border border-amber-300';
-        default:
-            return 'bg-white text-gray-900 transition-colors duration-200 px-2 py-1 rounded border';
-    }
-}
-
-function getLotSplitStatusText(lotSplit: number | string) {
-    if (lotSplit === 0 || lotSplit === '0') return 'No Lot Required';
-    if (lotSplit === 1 || lotSplit === '1') return 'Lot Required';
-    return 'Not Specified';
-}
-function getLotSplitStatusClass(status: string) {
-    switch (status) {
-        case 'Lot Required':
-            return 'bg-red-100 text-red-700 font-semibold transition-colors duration-200';
-        case 'No Lot Required':
-            return 'bg-green-100 text-green-700 font-semibold transition-colors duration-200';
-        case 'Not Specified':
-            return 'bg-gray-100 text-gray-700 font-semibold transition-colors duration-200';
-        default:
-            return 'bg-white text-gray-900 transition-colors duration-200';
-    }
-}
 
 // Lot rows state for dialog (แยกแต่ละแถว)
 

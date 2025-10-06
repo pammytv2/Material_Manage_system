@@ -217,7 +217,7 @@ function confirmAddNewItem(event: MouseEvent) {
     }
     confirmPopup.require({
         target: event.target as HTMLElement,
-        message: 'Are you sure you want to save this new item?',
+        message: 'Are you sure you want to save this new material?',
         icon: 'pi pi-exclamation-triangle',
         rejectProps: {
             label: 'Cancel',
@@ -498,7 +498,7 @@ function rowStyleNA(row: any) {
                 <label for="inactive">Inactive</label>
             </div>
             <Button label="Refresh" icon="pi pi-refresh" @click="refreshAllPage" severity="secondary" class="mb-4 mr-2" />
-            <Button label="Add New Item" icon="pi pi-plus" @click="showNewItemDialog = true" severity="primary" class="mb-4" />
+            <Button label="Add New Material" icon="pi pi-plus" @click="showNewItemDialog = true" severity="primary" class="mb-4" />
         </div>
         <DataTable
             :value="filteredItemList"
@@ -562,23 +562,9 @@ function rowStyleNA(row: any) {
                     <InputText v-model="filterModel.value" type="text" placeholder="Search by Type" />
                 </template>
             </Column>
-            <Column field="Type2Name" header="Type2" sortable style="min-width: 8rem" :filterFunction="customFilterFunction">
-                <template #body="{ data }">
-                    {{ data.Type2Name ?? 'N/A' }}
-                </template>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" placeholder="Search by Type2" />
-                </template>
-            </Column>
-            <Column field="UNIT" header="Unit" sortable style="min-width: 8rem" :filterFunction="customFilterFunction">
-                <template #body="{ data }">
-                    {{ data.UNIT ?? 'N/A' }}
-                </template>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" placeholder="Search by Unit" />
-                </template>
-            </Column>
-
+            <Column :field="(data: any) => data.Type2Name ?? 'N/A'" header="Type2" sortable style="min-width: 8rem" />
+                <Column :field="(data: any) => data.UNIT ?? 'N/A'" header="Unit" sortable style="min-width: 8rem" />
+           
             <Column field="PARTCHIP" header="Part Chip" sortable style="min-width: 8rem" :filterFunction="customFilterFunction">
                 <template #body="{ data }">
                     {{ data.PARTCHIP ?? 'N/A' }}
@@ -910,7 +896,7 @@ function rowStyleNA(row: any) {
                 </div>
             </Dialog>
 
-            <Dialog v-model:visible="showNewItemDialog" modal header="New Items" :style="{ width: '400px', height: '600px' }" :dismissableMask="true">
+            <Dialog v-model:visible="showNewItemDialog" modal header="New Material" :style="{ width: '400px', height: '600px' }" :dismissableMask="true">
                 <template v-if="newItems.length">
                     <DataTable :value="newItems" :rows="10" paginator>
                         <Column field="ITEMNO" header="Item No" />
@@ -1003,5 +989,6 @@ function rowStyleNA(row: any) {
                 </template>
             </Dialog>
         </DataTable>
+        
     </div>
 </template>

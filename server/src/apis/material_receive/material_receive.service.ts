@@ -25,6 +25,20 @@ export class MaterialReceiveService {
       { name: 'receiptNumber', type: sql.VarChar, value: receiptNumber },
     ]);
   }
+ 
+ async syncRecD (receiceNumbde:string , StatusRecIC:string): Promise<any> {
+  const sqlQuery = `EXEC sp_Sync_RecD_ICD @ReceptNumber = @receiceNumbde, @StatusRecIC = @StatusRecIC`;
+  await this.databaseService.query(sqlQuery, [
+    { name: 'receiceNumbde', type: sql.NVarChar, value: receiceNumbde },
+    { name: 'StatusRecIC', type: sql.NVarChar, value: StatusRecIC },
+  ]);
+  const selectQuery = `SELECT * FROM dbo.accpac_sync_poreceipt_icshipment_detail WHERE ReceptNumber = @ReceptNumber`;
+  return await this.databaseService.query(selectQuery, [
+    { name: 'ReceptNumber', type: sql.VarChar, value: receiceNumbde },
+    { name: 'StatusRecIC', type: sql.VarChar, value: StatusRecIC },
+  ]);
+ }
+
 
   // Sync RecH_ICH
   async syncRecHICH(startDate: string, endDate: string): Promise<any> {
@@ -40,6 +54,13 @@ export class MaterialReceiveService {
       { name: 'StartDate', type: sql.VarChar, value: startDate },
       { name: 'EndDate', type: sql.VarChar, value: endDate },
     ]);
+  }
+
+   async syncneeddate(): Promise<any> {
+    const sqlQuery = `
+    EXEC sp_Sync_needdate
+  `;
+    return await this.databaseService.query(sqlQuery);
   }
 
   // Sync RecD_ICH
@@ -123,7 +144,7 @@ export class MaterialReceiveService {
       { name: 'ExpDate', type: sql.Date, value: exp_date },
       { name: 'Remark', type: sql.NVarChar, value: remark },
       { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
-      { name: 'LotQty', type: sql.Int, value: lot_qty },
+      { name: 'LotQty', type: sql.Decimal(18,2), value: lot_qty },
     ]);
   }
 
@@ -192,7 +213,7 @@ export class MaterialReceiveService {
       { name: 'ExpDate', type: sql.Date, value: exp_date },
       { name: 'Remark', type: sql.NVarChar, value: remark },
       { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
-      { name: 'LotQty', type: sql.Int, value: lot_qty },
+      { name: 'LotQty', type: sql.Decimal(18,2), value: lot_qty },
     ]);
   }
 
@@ -321,8 +342,18 @@ export class MaterialReceiveService {
     ]);
   }
 
+  async view_item(ReceptNumber: string): Promise<Item[]> {
+    const sqlQuery = `SELECT * FROM view_item_lotsplit  where ReceptNumber = @ReceptNumber`;
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'ReceptNumber', type: sql.NVarChar, value: ReceptNumber },
+    ]);
+
+  }
+
   async unitpacking(): Promise<any> {
     const sqlQuery = `EXEC sp_Get_Dropdown`;
     return await this.databaseService.query(sqlQuery);
   }
+
+
 }

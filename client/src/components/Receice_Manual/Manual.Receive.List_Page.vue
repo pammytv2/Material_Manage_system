@@ -49,9 +49,6 @@ const filters = ref({
 // }
 
 // View detail
-function viewDetail(receiveNumber: string) {
-    router.push(`/manual-receive-detail/${receiveNumber}`);
-}
 
 // Create new manual receive
 function createNew() {

@@ -160,11 +160,24 @@ export class MaterialReceiveController {
       ZoneID,
     );
   }
-
+@Get('syncReceiveDetail/:receiveNo')
+async syncReceiveDetail(
+  @Param('receiveNo') receiveNo: string,
+  @Query('StatusRecIC') StatusRecIC: string,
+): Promise<any> {
+  return await this.materialReceiveService.syncRecD(receiveNo, StatusRecIC);
+}
   @Get('unit-packing')
   async unitpacking(): Promise<any> {
     return await this.materialReceiveService.unitpacking();
   }
+
+@Get('view-item')
+async view_item(
+  @Query('ReceptNumber') ReceptNumber: string,
+): Promise<any> {
+  return await this.materialReceiveService.view_item(ReceptNumber);
+}
 
 
   
