@@ -26,5 +26,10 @@ export class MaterialReceiveManualController {
     return await this.materialReceiveManualService.getItemList_spec();
   }
 
+  @Get('location')
+  async getLocation() {
+    return await this.materialReceiveManualService.getLocation();
+  }
+
   
 }

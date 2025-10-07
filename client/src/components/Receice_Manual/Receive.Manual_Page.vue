@@ -11,6 +11,8 @@ import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const receiveStore_manual = useReceiveStore_manual();
 const itemNoOptions = ref<{ label: string; value: string }[]>([]);
+const locationList = ref<{ label: string; value: string }[]>([]);
+const filteredLocationOptions = ref<{ label: string; value: string }[]>([]);
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
@@ -62,6 +64,14 @@ function removeItem(index: number) {
     receiveItems.value.splice(index, 1);
 }
 
+function filterLocationOptions(event: { query: string }) {
+    if (!event.query) {
+        filteredLocationOptions.value = locationList.value.slice(0, 10);
+        return;
+    }
+    filteredLocationOptions.value = locationList.value.filter((option) => `[${option.value}] ${option.label}`.toLowerCase().includes(event.query.toLowerCase()));
+}
+
 const isFormValid = computed(() => {
     if (!receiveForm.value.PoNumber) {
         return false;
@@ -85,7 +95,8 @@ async function saveReceive() {
     }
 
     const receiveData = {
-        ...receiveForm,
+        ...receiveForm.value,
+        InvoiceNo: receiveForm.value.InvoiceNo, // Include Invoice No for saving to DB
         items: receiveItems.value.filter((item) => item.itemNo && Number(item.receiveQty) > 0)
     };
 
@@ -93,6 +104,9 @@ async function saveReceive() {
         loading.value = true;
 
         console.log('Manual Receive Data:', receiveData);
+        
+        // Here you would call the API to save to database
+        // await receiveStore_manual.saveManualReceive(receiveData);
 
         toast.add({
             severity: 'success',
@@ -145,12 +159,20 @@ function goBack() {
 onMounted(async () => {
     const response = await receiveStore_manual.fetchVDCODE();
     const itemList = await receiveStore_manual.fetchItemList_spec();
+    const locationRaw = await receiveStore_manual.fetchLocation();
+
     vdcodeSuggestions.value = response ?? [];
     // แสดง ItemNo และ SPEC ใน dropdown
     itemNoOptions.value = (itemList ?? []).map((item) => ({
         label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
         value: item.ItemNo.trim()
     }));
+    locationList.value = (locationRaw ?? []).map(loc => ({
+        // label: loc.LOCATION?.trim() ?? '',
+        value: loc.LOCATION?.trim() ?? ''
+    }));
+    console.log('locationList:', locationList.value);
+    console.log('itemNoOptions:', itemNoOptions.value);
     loading.value = false;
 });
 // เพิ่มตัวแปรสำหรับเก็บ PO Header
@@ -160,16 +182,13 @@ async function searchItemListManual() {
     try {
         const poNumbers = receiveForm.value.receiveNumberList;
         const vdcode =
-    typeof receiveForm.value.VDCODE === 'string'
-        ? receiveForm.value.VDCODE
-        : typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null && 'code' in receiveForm.value.VDCODE
-            ? receiveForm.value.VDCODE.code
-            : '';
+            typeof receiveForm.value.VDCODE === 'string' ? receiveForm.value.VDCODE : typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null && 'code' in receiveForm.value.VDCODE ? receiveForm.value.VDCODE.code : '';
+        const invoiceNumber = String(receiveForm.value.InvoiceNo ?? '');
 
+        console.log('Searching Item List (Manual) with PO Numbers:', poNumbers, 'VDCODE:', vdcode, 'InvoiceNumber:', invoiceNumber);
 
-        console.log('Searching Item List (Manual) with PO Numbers:', poNumbers, 'and VDCODE:', vdcode);
-        
-        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode);
+        // Only search for items, don't save Invoice No to DB yet
+        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
         console.log('Fetched Item List (Manual):', result);
 
         // เก็บ PO Header (array แรก)
@@ -179,11 +198,11 @@ async function searchItemListManual() {
         const itemsArray = Array.isArray(result) && result.length > 1 ? result[1] : [];
         receiveItems.value = itemsArray.map((item: any) => ({
             itemNo: item.ITEMNO?.trim() ?? '',
-            description: '', // ถ้ามี field description ให้ใส่, ถ้าไม่มีให้เว้นไว้
+           description: Array.isArray(item.ITEMDesc) ? item.ITEMDesc.join(', ').trim() : (item.ITEMDesc?.trim() ?? ''),
             unit: item.UNIT?.trim() ?? '',
-            Quantity: item.Qty ?? 0,
+            Quantity: item.RQRECEIVED ?? 0,
             unitCost: item.UNITCOST ?? 0,
-            InvoiceNo: receiveForm.value.InvoiceNo,
+            InvoiceNo: receiveForm.value.InvoiceNo, // Keep for display but don't save to DB yet
             PoNumber: item.PORHSEQ,
             vdcode: item.VDCODE?.trim() ?? '',
             vdname: item.VDNAME?.trim() ?? ''
@@ -192,7 +211,7 @@ async function searchItemListManual() {
         receiveForm.value.ItemCount = receiveItems.value.length;
 
         console.log('PO Header:', poHeader.value);
-        console.log('poNumbers:', poNumbers, 'vdcode:', vdcode);
+        console.log('poNumbers:', poNumbers, 'vdcode:', vdcode, 'InvoiceNumber:', invoiceNumber);
         console.log('PO Items:', receiveItems.value);
     } catch (error) {
         toast.add({
@@ -227,7 +246,17 @@ const noPoItem = ref({
     invoiceNo: ''
 });
 const showNoPoForm = ref(false);
+const filteredItemNoOptions = ref<{ label: string; value: string }[]>([]);
 
+function filterItemNoOptions(event: { query: string }) {
+    if (!event.query) {
+        filteredItemNoOptions.value = itemNoOptions.value.slice(0, 2059);
+        return;
+    }
+    filteredItemNoOptions.value = itemNoOptions.value
+        .filter((option) => option.label.toLowerCase().includes(event.query.toLowerCase()))
+        .slice(0, 2059);
+}
 function addNoPoItem() {
     if (!noPoItem.value.itemNo || !noPoItem.value.location || !noPoItem.value.vdcode || !noPoItem.value.invoiceNo) {
         toast.add({
@@ -259,73 +288,101 @@ function addNoPoItem() {
     };
     showNoPoForm.value = false;
 }
+const grandTotal = computed(() =>
+    receiveItems.value.reduce((sum, item) => {
+        const qty = Number(item.receiveQty) || 0;
+        const cost = Number(item.unitCost) || 0;
+        return sum + qty * cost;
+    }, 0)
+);
 </script>
 
 <template>
     <div class="card mb-6">
-        <Button icon="pi pi-arrow-left" @click="goBack" severity="secondary" outlined />
-        <div class="flex items-center gap-4 mb-4">
-            <div class="text-2xl font-bold">Manual Receive</div>
+        <Button icon="pi pi-arrow-left" @click="goBack" severity="secondary" outlined class="mb-4" />
+        <div class="flex items-center gap-4 mb-6">
+            <div class="text-xl sm:text-2xl font-bold">Manual Receive</div>
         </div>
 
         <!-- Header Information -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <div class="flex items-center gap-2 mb-2">
-                <div class="w-full fmax-w-60 gap-2 mt-2">
-                    <label for="InvoiceNo" class="block font-bold mb-1 min-w-[90px]">Invoice Number</label>
-                    <InputText
-                        :modelValue="String(receiveForm.InvoiceNo ?? '')"
-                        @update:modelValue="(val) => (receiveForm.InvoiceNo = String(val))"
-                        placeholder="Invoice Number"
-                        class="w-full"
-                        style="min-width: 350px; max-width: 100%; height: 40px"
-                        :inputStyle="{ minHeight: '40px', fontSize: '1rem' }"
-                    />
-                </div>
-                <div class="w-full fmax-w-60 gap-2 mt-2">
-                    <label for="PoNumber" class="block font-bold mb-1 min-w-[100px]">Po Number</label>
-                    <Chips v-model="receiveForm.receiveNumberList" separator="," addOnBlur placeholder="Po Number" class="w-full" style="min-width: 350px; max-width: 100%" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" />
-                </div>
-                <div class="w-full fmax-w-60 gap-2 mt-2">
-                    <label for="VDCODE" class="block font-bold mb-1 min-w-[90px]">VDCODE</label>
-                    <AutoComplete
-                        v-model="receiveForm.VDCODE"
-                        :suggestions="vdcodeSuggestions"
-                        @complete="searchVDCODE"
-                        placeholder="Search or select VDCODE"
-                        class="w-full"
-                        dropdown
-                        :optionLabel="(item) => `[${item.code}] ${item.name}`"
-                        :optionValue="(item) => item.code"
-                        :inputStyle="{ whiteSpace: 'normal', wordBreak: 'break-word', minHeight: '40px', width: '350px' }"
-                        :panelStyle="{ minWidth: '350px', maxWidth: '100%' }"
-                    >
-                        <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 350px">
-                                <span class="font-semibold">[{{ slotProps.option.code }}]</span>
-                                <span class="ml-2">{{ slotProps.option.name }}</span>
-                            </div>
-                        </template>
-                    </AutoComplete>
-                </div>
-                <div class="mt-8">
-                    <Button label="search" icon="pi pi-search" severity="success" @click="searchItemListManual" outlined style="background-color: #22c55e; color: #fff" />
-                </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div class="space-y-2">
+                <label for="InvoiceNo" class="block font-bold text-sm">Invoice Number</label>
+                <InputText
+                    :modelValue="String(receiveForm.InvoiceNo ?? '')"
+                    @update:modelValue="(val) => (receiveForm.InvoiceNo = String(val))"
+                    placeholder="Invoice Number"
+                    class="w-full"
+                    :inputStyle="{ minHeight: '40px', fontSize: '1rem' }"
+                />
+            </div>
+            <div class="space-y-2">
+                <label for="PoNumber" class="block font-bold text-sm">Po Number</label>
+                <Chips 
+                    v-model="receiveForm.receiveNumberList" 
+                    separator="," 
+                    addOnBlur 
+                    placeholder="Po Number" 
+                    class="w-full" 
+                    :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" 
+                />
+            </div>
+            <div class="space-y-2">
+                <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
+                <AutoComplete
+                    v-model="receiveForm.VDCODE"
+                    :suggestions="vdcodeSuggestions"
+                    @complete="searchVDCODE"
+                    placeholder="Search or select VDCODE"
+                    class="w-full"
+                    dropdown
+                    :optionLabel="(item) => `[${item.code}] ${item.name}`"
+                    :optionValue="(item) => item.code"
+                    :inputStyle="{ whiteSpace: 'normal', wordBreak: 'break-word', minHeight: '40px' }"
+                    :panelStyle="{ minWidth: '300px', maxWidth: '100%' }"
+                >
+                    <template #option="slotProps">
+                        <div style="white-space: normal; word-break: break-word; max-width: 300px">
+                            <span class="font-semibold">[{{ slotProps.option.code }}]</span>
+                            <span class="ml-2">{{ slotProps.option.name }}</span>
+                        </div>
+                    </template>
+                </AutoComplete>
             </div>
         </div>
-        <Button label="Add Item (No PO)" icon="pi pi-plus" severity="info" outlined @click="showNoPoForm = !showNoPoForm" />
+        
+        <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <Button 
+                label="search" 
+                icon="pi pi-search" 
+                severity="success" 
+                @click="searchItemListManual" 
+                outlined 
+                style="background-color: #22c55e; color: #fff" 
+                class="w-full sm:w-auto"
+            />
+            <Button 
+                label="Add Item (No PO)" 
+                icon="pi pi-plus" 
+                severity="info" 
+                outlined 
+                @click="showNoPoForm = !showNoPoForm" 
+                class="w-full sm:w-auto"
+            />
+        </div>
+
         <div v-if="showNoPoForm" class="mt-4 p-4 border rounded bg-gray-50">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                 <div>
                     <label class="block font-bold mb-1 text-sm">Invoice No</label>
                     <InputText v-model="noPoItem.invoiceNo" placeholder="Invoice No" class="w-full" />
                 </div>
                 <div>
-                    <label class="block font-bold mb-1">Item No</label>
+                    <label class="block font-bold mb-1 text-sm">Item No</label>
                     <AutoComplete
                         v-model="noPoItem.itemNo"
-                        :suggestions="itemNoOptions"
-                        @complete="() => {}"
+                        :suggestions="filteredItemNoOptions"
+                        @complete="filterItemNoOptions"
                         placeholder="Search or select Item No"
                         class="w-full"
                         dropdown
@@ -333,7 +390,7 @@ function addNoPoItem() {
                         :optionValue="(item) => item.value"
                     >
                         <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 350px">
+                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
                                 <span class="font-semibold">{{ slotProps.option.value }}</span>
                                 <span class="ml-2">{{ slotProps.option.label.split(' - ')[1] }}</span>
                             </div>
@@ -341,13 +398,27 @@ function addNoPoItem() {
                     </AutoComplete>
                 </div>
                 <div>
-                    <label class="block font-bold mb-1">Location</label>
-                    <InputText v-model="noPoItem.location" placeholder="Location" class="w-full" />
+                    <label class="block font-bold mb-1 text-sm">Location</label>
+                    <AutoComplete
+                        v-model="noPoItem.location"
+                        :suggestions="filteredLocationOptions"
+                        @complete="filterLocationOptions"
+                        placeholder="Search or select Location"
+                        class="w-full"
+                        dropdown
+                        :optionLabel="(item) => `[${item.value}] ${item.label}`"
+                        :optionValue="(item) => item.value"
+                    >
+                        <template #option="slotProps">
+                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
+                                <span class="font-semibold">[{{ slotProps.option.value }}]</span>
+                                <span class="ml-2">{{ slotProps.option.label }}</span>
+                            </div>
+                        </template>
+                    </AutoComplete>
                 </div>
-            </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-                <div>
-                    <label class="block font-bold mb-1">VDCODE</label>
+                <div class="md:col-span-2 lg:col-span-1">
+                    <label class="block font-bold mb-1 text-sm">VDCODE</label>
                     <AutoComplete
                         v-model="noPoItem.vdcode"
                         :suggestions="vdcodeSuggestions"
@@ -359,7 +430,7 @@ function addNoPoItem() {
                         :optionValue="(item) => item.code"
                     >
                         <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 350px">
+                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
                                 <span class="font-semibold">[{{ slotProps.option.code }}]</span>
                                 <span class="ml-2">{{ slotProps.option.name }}</span>
                             </div>
@@ -367,15 +438,14 @@ function addNoPoItem() {
                     </AutoComplete>
                 </div>
             </div>
-            <div class="flex gap-2 mt-2">
-                <Button label="Add" icon="pi pi-check" severity="success" @click="addNoPoItem" />
-                <Button label="Cancel" icon="pi pi-times" severity="danger" outlined @click="showNoPoForm = false" />
+            <div class="flex flex-col sm:flex-row gap-2 mt-4">
+                <Button label="Add" icon="pi pi-check" severity="success" @click="addNoPoItem" class="w-full sm:w-auto" />
+                <Button label="Cancel" icon="pi pi-times" severity="danger" outlined @click="showNoPoForm = false" class="w-full sm:w-auto" />
             </div>
         </div>
     </div>
 
     <div class="mb-6">
-        <div class="font-semibold text-xl mb-4">Manual Receive List</div>
         <DataTable
             :value="receiveItems"
             v-model:filters="filters"
@@ -391,26 +461,28 @@ function addNoPoItem() {
             :globalFilterFields="['itemNo', 'description', 'unit', 'receiveQty']"
             class="p-datatable-sm mb-6"
             responsiveLayout="scroll"
+            :scrollable="true"
+            scrollHeight="flex"
         >
             <template #header>
-                <div class="flex justify-between">
-                    <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
-                    <IconField>
+                <div class="font-semibold text-lg sm:text-xl mb-4">Manual Receive List</div>
+                <div class="flex flex-col sm:flex-row justify-between gap-4">
+                    <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" class="w-full sm:w-auto" />
+                    <IconField class="w-full sm:w-auto">
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Keyword Search" />
+                        <InputText v-model="filters['global'].value" placeholder="Keyword Search" class="w-full sm:w-auto" />
                     </IconField>
                 </div>
             </template>
 
-
-    
-
-            <Column field="itemNo" header="Item No" sortable style="width: auto">
+            <Column field="itemNo" header="Item No" sortable style="min-width: 120px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputText v-model="slotProps.data.itemNo" placeholder="Item No" class="w-full text-sm" size="small" />
+                        <span class="font-medium">
+                            {{ slotProps.data.itemNo }}
+                        </span>
                     </template>
                 </template>
                 <template #filter="{ filterModel }">
@@ -419,12 +491,28 @@ function addNoPoItem() {
                     </template>
                 </template>
             </Column>
-
-
-            <Column field="Quantity" header="Quantity" sortable style="width: auto">
+            
+            <Column field="description" header="Description" sortable style="min-width: 500px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputNumber v-model="slotProps.data.Quantity" :min="0" placeholder="Qty" class="w-full"   :disabled="true" />
+                        <span class="font-medium">
+                            {{ slotProps.data.description }}
+                        </span>
+                    </template>
+                </template>
+                <template #filter="{ filterModel }">
+                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
+                        <InputText v-model="filterModel.value" type="text" class="p-column-filter text-sm" placeholder="Search by description" />
+                    </template>
+                </template>
+            </Column>
+
+            <Column field="Quantity" header="Quantity" sortable style="min-width: 100px">
+                <template #body="slotProps">
+                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
+                       <span class="font-medium">
+                            {{ slotProps.data.Quantity.toLocaleString()}}
+                        </span>
                     </template>
                 </template>
                 <template #filter="{ filterModel }">
@@ -433,10 +521,11 @@ function addNoPoItem() {
                     </template>
                 </template>
             </Column>
-            <Column field="receiveQty" header="Receive Qty" sortable style="width: auto">
+            <!-- slotProps.data.Quantity -->
+            <Column field="receiveQty" header="Receive Qty" sortable style="min-width: 120px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputNumber v-model="slotProps.data.receiveQty" :min="0" placeholder="Qty" class="w-full" />
+                        <InputNumber v-model="slotProps.data.receiveQty" :min="0" placeholder="Qty" class="w-full" :format="true" :useGrouping="true" />
                     </template>
                 </template>
                 <template #filter="{ filterModel }">
@@ -445,10 +534,13 @@ function addNoPoItem() {
                     </template>
                 </template>
             </Column>
-            <Column field="Unit Cost" header="Unit Cost" sortable style="width: auto">
+            
+            <Column field="Unit Cost" header="Unit Cost" sortable style="min-width: 120px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputNumber v-model="slotProps.data.unitCost" :min="0" placeholder="Unit Cost" class="w-full" />
+                        <span class="font-medium">
+                            {{ slotProps.data.unitCost.toLocaleString() }}
+                        </span>
                     </template>
                 </template>
                 <template #filter="{ filterModel }">
@@ -457,11 +549,28 @@ function addNoPoItem() {
                     </template>
                 </template>
             </Column>
-
-            <Column field="Unit" header="Unit" sortable style="width: auto">
+            
+            <Column field="Extended Cost" header="Extended Cost" sortable style="min-width: 130px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputText v-model="slotProps.data.unit" placeholder="Unit" class="w-full text-sm" size="small" />
+                        <span class="font-medium">
+                            {{ ((Number(slotProps.data.receiveQty) || 0) * (Number(slotProps.data.unitCost) || 0)).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB
+                        </span>
+                    </template>
+                </template>
+                <template #filter="{ filterModel }">
+                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
+                        <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by extended cost" />
+                    </template>
+                </template>
+            </Column>
+
+            <Column field="Unit" header="Unit" sortable style="min-width: 80px">
+                <template #body="slotProps">
+                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
+                        <span class="font-medium">
+                            {{ slotProps.data.unit }}
+                        </span>
                     </template>
                 </template>
                 <template #filter="{ filterModel }">
@@ -471,13 +580,29 @@ function addNoPoItem() {
                 </template>
             </Column>
         </DataTable>
+        
+        <div class="flex justify-end mt-4">
+            <span class="font-bold text-base sm:text-lg">Receipt Subtotal: {{ grandTotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB</span>
+        </div>
     </div>
 
-    <!-- Form for items without PO -->
-
-    <div class="flex justify-end gap-2">
-        <Button label="Cancel" @click="goBack" severity="danger" outlined style="background-color: #dc3545; color: #fff" />
+    <div class="flex flex-col sm:flex-row justify-end gap-4">
+        <Button 
+            label="Cancel" 
+            @click="goBack" 
+            severity="danger" 
+            outlined 
+            style="background-color: #dc3545; color: #fff" 
+            class="w-full sm:w-auto order-2 sm:order-1"
+        />
         <ConfirmDialog />
-        <Button label="Save Receive" @click="confirmSave" :loading="loading" :disabled="!isFormValid || loading" icon="pi pi-save" />
+        <Button 
+            label="Save Receive" 
+            @click="confirmSave" 
+            :loading="loading" 
+            :disabled="!isFormValid || loading" 
+            icon="pi pi-save" 
+            class="w-full sm:w-auto order-1 sm:order-2"
+        />
     </div>
 </template>

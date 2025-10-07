@@ -7,6 +7,7 @@ interface receiveForm
         InvoiceNo?: string | number;
         VDCODE?: string | { code: string; name?: string };
         VDNAME?: string ;
+        location?: string | { code: string; name?: string  };
 
     }
 
@@ -18,6 +19,7 @@ interface receiveItems {
         lotNo: string | number;
         expireDate: string | number;
         remark: string | number;
+        unitCost: string | number;
         iqaRequired: boolean;
         lotRequired: boolean;
 }

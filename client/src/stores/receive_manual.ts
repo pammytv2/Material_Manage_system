@@ -52,13 +52,14 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 return null;
             }
         },
-        async fetchItemList_manual(PONUMBER: string[], VDCODE: string | { code: string }) {
+        async fetchItemList_manual(PONUMBER: string[], VDCODE: string | { code: string }, InvoiceNumber?: string) {
             try {
                 this.loading = true;
                 this.error = null;
                 const poString = PONUMBER.join(',');
                 const vdcode = typeof VDCODE === 'string' ? VDCODE : VDCODE.code ?? '';
-                const url = `${api}/material-receive-manual/item-list-manual?PONUMBER=${encodeURIComponent(poString)}&VDCODE=${encodeURIComponent(vdcode)}`;
+                // const invoiceNumber = InvoiceNumber || '';
+                const url = `${api}/material-receive-manual/item-list-manual?PONUMBER=${encodeURIComponent(poString)}&VDCODE=${encodeURIComponent(vdcode)}}`;
                 const response = await ApiService.get<any>(url);
                 this.items = response;
                 return response;
@@ -70,7 +71,24 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 }
                 return null;
             }
-        }
+        },
+        async fetchLocation() {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/location`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to sync items';
+                }
+                return null;
+            }   
+        },
     }
 });
 export { useReceiveStore_manual };
