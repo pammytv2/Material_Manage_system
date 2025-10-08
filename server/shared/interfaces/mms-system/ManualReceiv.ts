@@ -7,4 +7,15 @@ interface ManualReceive {
     remark: string,
     items: any[]
 }   
-export type { ManualReceive };
+
+interface Item_manual {
+    itemNo: string;
+    ReceiveQty: number;
+    receiptNumber: string;
+    InvoiceNumber: string;
+    ReceiptNumber: string;
+    VendorCode: string;
+    VendorName: string;
+}
+export type { ManualReceive, Item_manual };
+

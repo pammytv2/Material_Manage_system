@@ -8,11 +8,28 @@ import { FilterMatchMode } from '@primevue/core/api';
 import type { receiveForm, receiveItems } from '@/interfaces/manual.interfaces';
 import { useReceiveStore_manual } from '@/stores/receive_manual';
 import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { item } from '@primeuix/themes/aura/contextmenu';
+import Dialog from 'primevue/dialog';
 
 const receiveStore_manual = useReceiveStore_manual();
 const itemNoOptions = ref<{ label: string; value: string }[]>([]);
 const locationList = ref<{ label: string; value: string }[]>([]);
 const filteredLocationOptions = ref<{ label: string; value: string }[]>([]);
+const filteredItemNoOptions = ref<{ label: string; value: string }[]>([]);
+
+function filterItemNoOptions(event: { query: string }) {
+    if (!event.query) {
+        filteredItemNoOptions.value = itemNoOptions.value.slice(0, 10);
+        return;
+    }
+    filteredItemNoOptions.value = itemNoOptions.value
+        .map(option => {
+            // ตัด undefined ออกจาก label เช่น "[SMTVI] undefined" ให้เหลือแค่ "[SMTVI]"
+            const label = option.label.replace(/\sundefined$/, '');
+            return { ...option, label };
+        })
+        .filter(option => option.label.toLowerCase().includes(event.query.toLowerCase()));
+}
 const router = useRouter();
 const toast = useToast();
 const confirm = useConfirm();
@@ -36,6 +53,7 @@ const receiveForm = ref<receiveForm>({
     receiveDate: '',
     ItemCount: 0,
     InvoiceNo: ''
+
     // VDCODE: '',
 });
 
@@ -73,13 +91,11 @@ function filterLocationOptions(event: { query: string }) {
 }
 
 const isFormValid = computed(() => {
-    if (!receiveForm.value.PoNumber) {
-        return false;
-    }
 
+    
+    const hasPo = !!receiveForm.value.PoNumber || (Array.isArray(receiveForm.value.receiveNumberList) && receiveForm.value.receiveNumberList.length > 0);
     const hasValidItems = receiveItems.value.some((item) => item.itemNo && Number(item.receiveQty) > 0);
-
-    return hasValidItems;
+    return hasPo && hasValidItems;
 });
 
 // Save receive data
@@ -87,6 +103,7 @@ async function saveReceive() {
     if (!isFormValid.value) {
         toast.add({
             severity: 'warn',
+            
             summary: 'Validation Error',
             detail: 'Please fill in all required fields',
             life: 3000
@@ -94,20 +111,17 @@ async function saveReceive() {
         return;
     }
 
-    const receiveData = {
-        ...receiveForm.value,
-        InvoiceNo: receiveForm.value.InvoiceNo, // Include Invoice No for saving to DB
-        items: receiveItems.value.filter((item) => item.itemNo && Number(item.receiveQty) > 0)
-    };
 
     try {
         loading.value = true;
 
-        console.log('Manual Receive Data:', receiveData);
-        
+         const itemsToUpdate = receiveItems.value.map(item => ({
+            ItemNo: item.itemNo,
+            ReceiveQty: Number(item.receiveQty)
+        }));
+        const invoiceNumber = String(receiveForm.value.InvoiceNo ?? '');
         // Here you would call the API to save to database
-        // await receiveStore_manual.saveManualReceive(receiveData);
-
+       await receiveStore_manual.updateReceiveItems(itemsToUpdate, invoiceNumber);
         toast.add({
             severity: 'success',
             summary: 'Success',
@@ -116,9 +130,7 @@ async function saveReceive() {
         });
 
         // กลับไปหน้า Receive List
-        setTimeout(() => {
-            router.push('/uikit/receive-material');
-        }, 1000);
+
     } catch (error) {
         console.error('Error saving manual receive:', error);
         toast.add({
@@ -164,7 +176,7 @@ onMounted(async () => {
     vdcodeSuggestions.value = response ?? [];
     // แสดง ItemNo และ SPEC ใน dropdown
     itemNoOptions.value = (itemList ?? []).map((item) => ({
-        label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
+        label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,  
         value: item.ItemNo.trim()
     }));
     locationList.value = (locationRaw ?? []).map(loc => ({
@@ -188,7 +200,7 @@ async function searchItemListManual() {
         console.log('Searching Item List (Manual) with PO Numbers:', poNumbers, 'VDCODE:', vdcode, 'InvoiceNumber:', invoiceNumber);
 
         // Only search for items, don't save Invoice No to DB yet
-        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
+        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode);
         console.log('Fetched Item List (Manual):', result);
 
         // เก็บ PO Header (array แรก)
@@ -205,7 +217,8 @@ async function searchItemListManual() {
             InvoiceNo: receiveForm.value.InvoiceNo, // Keep for display but don't save to DB yet
             PoNumber: item.PORHSEQ,
             vdcode: item.VDCODE?.trim() ?? '',
-            vdname: item.VDNAME?.trim() ?? ''
+            vdname: item.VDNAME?.trim() ?? '',
+            receiveQty: item.ReceiveQty ?? 0 // Initialize receiveQty to 0,
         }));
 
         receiveForm.value.ItemCount = receiveItems.value.length;
@@ -245,18 +258,16 @@ const noPoItem = ref({
     vdcode: '',
     invoiceNo: ''
 });
-const showNoPoForm = ref(false);
-const filteredItemNoOptions = ref<{ label: string; value: string }[]>([]);
+const noPoItems = ref<any[]>([]);
+const showNoPoDialog = ref(false);
 
-function filterItemNoOptions(event: { query: string }) {
-    if (!event.query) {
-        filteredItemNoOptions.value = itemNoOptions.value.slice(0, 2059);
-        return;
-    }
-    filteredItemNoOptions.value = itemNoOptions.value
-        .filter((option) => option.label.toLowerCase().includes(event.query.toLowerCase()))
-        .slice(0, 2059);
+function openNoPoDialog() {
+    showNoPoDialog.value = true;
 }
+function closeNoPoDialog() {
+    showNoPoDialog.value = false;
+}
+
 function addNoPoItem() {
     if (!noPoItem.value.itemNo || !noPoItem.value.location || !noPoItem.value.vdcode || !noPoItem.value.invoiceNo) {
         toast.add({
@@ -267,14 +278,8 @@ function addNoPoItem() {
         });
         return;
     }
-    receiveItems.value.push({
-        ...noPoItem.value,
-        lotNo: '',
-        expireDate: '',
-        remark: '',
-        iqaRequired: false,
-        lotRequired: false
-    });
+    // Add to noPoItems array
+    noPoItems.value.push({ ...noPoItem.value });
     // reset form
     noPoItem.value = {
         itemNo: '',
@@ -286,8 +291,14 @@ function addNoPoItem() {
         vdcode: '',
         invoiceNo: ''
     };
-    showNoPoForm.value = false;
+    // ไม่ปิด Dialog
 }
+
+// Remove No PO item row
+function removeNoPoItem(index: number) {
+    noPoItems.value.splice(index, 1);
+}
+
 const grandTotal = computed(() =>
     receiveItems.value.reduce((sum, item) => {
         const qty = Number(item.receiveQty) || 0;
@@ -361,89 +372,18 @@ const grandTotal = computed(() =>
                 style="background-color: #22c55e; color: #fff" 
                 class="w-full sm:w-auto"
             />
-            <Button 
-                label="Add Item (No PO)" 
-                icon="pi pi-plus" 
-                severity="info" 
-                outlined 
-                @click="showNoPoForm = !showNoPoForm" 
-                class="w-full sm:w-auto"
-            />
-        </div>
-
-        <div v-if="showNoPoForm" class="mt-4 p-4 border rounded bg-gray-50">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                <div>
-                    <label class="block font-bold mb-1 text-sm">Invoice No</label>
-                    <InputText v-model="noPoItem.invoiceNo" placeholder="Invoice No" class="w-full" />
-                </div>
-                <div>
-                    <label class="block font-bold mb-1 text-sm">Item No</label>
-                    <AutoComplete
-                        v-model="noPoItem.itemNo"
-                        :suggestions="filteredItemNoOptions"
-                        @complete="filterItemNoOptions"
-                        placeholder="Search or select Item No"
-                        class="w-full"
-                        dropdown
-                        :optionLabel="(item) => item.label"
-                        :optionValue="(item) => item.value"
-                    >
-                        <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
-                                <span class="font-semibold">{{ slotProps.option.value }}</span>
-                                <span class="ml-2">{{ slotProps.option.label.split(' - ')[1] }}</span>
-                            </div>
-                        </template>
-                    </AutoComplete>
-                </div>
-                <div>
-                    <label class="block font-bold mb-1 text-sm">Location</label>
-                    <AutoComplete
-                        v-model="noPoItem.location"
-                        :suggestions="filteredLocationOptions"
-                        @complete="filterLocationOptions"
-                        placeholder="Search or select Location"
-                        class="w-full"
-                        dropdown
-                        :optionLabel="(item) => `[${item.value}] ${item.label}`"
-                        :optionValue="(item) => item.value"
-                    >
-                        <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
-                                <span class="font-semibold">[{{ slotProps.option.value }}]</span>
-                                <span class="ml-2">{{ slotProps.option.label }}</span>
-                            </div>
-                        </template>
-                    </AutoComplete>
-                </div>
-                <div class="md:col-span-2 lg:col-span-1">
-                    <label class="block font-bold mb-1 text-sm">VDCODE</label>
-                    <AutoComplete
-                        v-model="noPoItem.vdcode"
-                        :suggestions="vdcodeSuggestions"
-                        @complete="searchVDCODE"
-                        placeholder="Search or select VDCODE"
-                        class="w-full"
-                        dropdown
-                        :optionLabel="(item) => `[${item.code}] ${item.name}`"
-                        :optionValue="(item) => item.code"
-                    >
-                        <template #option="slotProps">
-                            <div style="white-space: normal; word-break: break-word; max-width: 300px">
-                                <span class="font-semibold">[{{ slotProps.option.code }}]</span>
-                                <span class="ml-2">{{ slotProps.option.name }}</span>
-                            </div>
-                        </template>
-                    </AutoComplete>
-                </div>
-            </div>
-            <div class="flex flex-col sm:flex-row gap-2 mt-4">
-                <Button label="Add" icon="pi pi-check" severity="success" @click="addNoPoItem" class="w-full sm:w-auto" />
-                <Button label="Cancel" icon="pi pi-times" severity="danger" outlined @click="showNoPoForm = false" class="w-full sm:w-auto" />
-            </div>
-        </div>
+        
+        <Button 
+            label="Add Item (No PO)" 
+            icon="pi pi-plus" 
+            severity="info" 
+            outlined 
+            @click="openNoPoDialog" 
+            class="w-full sm:w-auto"
+        />
     </div>
+          
+        </div>
 
     <div class="mb-6">
         <DataTable
@@ -586,6 +526,132 @@ const grandTotal = computed(() =>
         </div>
     </div>
 
+   
+
+    <Dialog 
+        v-model:visible="showNoPoDialog" 
+        modal 
+        header="Add Item (No PO)" 
+        :style="{ width: '90vw', maxWidth: '1200px', height: '80vh', maxHeight: '50vh' }"
+        contentStyle="height: 65vh; overflow-y: auto;"
+    >
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block font-bold mb-1 text-sm">Invoice Number</label>
+                <InputText v-model="noPoItem.invoiceNo" placeholder="Invoice No" class="w-full" />
+            </div>
+            <div>
+                <label class="block font-bold mb-1 text-sm">Item No</label>
+                <AutoComplete
+                    v-model="noPoItem.itemNo"
+                    :suggestions="filteredItemNoOptions"
+                    @complete="filterItemNoOptions"
+                    placeholder="Search or select Item No"
+                    class="w-full"
+                    dropdown
+                    :optionLabel="(item) => item.label"
+                    :optionValue="(item) => item.value"
+                >
+                    <template #option="slotProps">
+                        <div style="white-space: normal; word-break: break-word; max-width: 300px">
+                            <span class="font-semibold">{{ slotProps.option.value }}</span>
+                            <span class="ml-2">{{ slotProps.option.label.split(' - ')[1] }}</span>
+                        </div>
+                    </template>
+                </AutoComplete>
+            </div>
+            <div>
+                <label class="block font-bold mb-1 text-sm">Location</label>
+                <AutoComplete
+                    v-model="noPoItem.location"
+                    :suggestions="filteredLocationOptions"
+                    @complete="filterLocationOptions"
+                    placeholder="Search or select Location"
+                    class="w-full"
+                    dropdown
+                    :optionLabel="(item) => `[${item.value}] ${item.label}`"
+                    :optionValue="(item) => item.value"
+                >
+                    <template #option="slotProps">
+                        <div style="white-space: normal; word-break: break-word; max-width: 300px">
+                            <span class="font-semibold">[{{ slotProps.option.value }}]</span>
+                            <span class="ml-2">{{ slotProps.option.label }}</span>
+                        </div>
+                    </template>
+                </AutoComplete>
+            </div>
+            <div class="md:col-span-2 lg:col-span-1">
+                <label class="block font-bold mb-1 text-sm">VDCODE</label>
+                <AutoComplete
+                    v-model="noPoItem.vdcode"
+                    :suggestions="vdcodeSuggestions"
+                    @complete="searchVDCODE"
+                    placeholder="Search or select VDCODE"
+                    class="w-full"
+                    dropdown
+                    :optionLabel="(item) => `[${item.code}] ${item.name}`"
+                    :optionValue="(item) => item.code"
+                >
+                    <template #option="slotProps">
+                        <div style="white-space: normal; word-break: break-word; max-width: 300px">
+                            <span class="font-semibold">[{{ slotProps.option.code }}]</span>
+                            <span class="ml-2">{{ slotProps.option.name }}</span>
+                        </div>
+                    </template>
+                </AutoComplete>
+            </div>
+        </div>
+   
+        <div class="flex flex-col sm:flex-row gap-2 mt-4 mb-4">
+            <Button label="Add" icon="pi pi-check" severity="success" @click="addNoPoItem" class="w-full sm:w-auto" />
+            <Button label="Close" icon="pi pi-times" severity="danger" outlined @click="closeNoPoDialog" class="w-full sm:w-auto" />
+        </div>
+        <DataTable :value="noPoItems" showGridlines responsiveLayout="scroll" class="p-datatable-sm mb-4">
+            <Column field="itemNo" header="Item No" style="min-width: 120px" />
+            <Column field="description" header="Description" style="min-width: 250px" />
+            <Column field="location" header="Location" style="min-width: 120px" />
+            <Column field="unitCost" header="Unit Cost" style="min-width: 100px">
+                <template #body="slotProps">
+                    <InputNumber v-model="slotProps.data.unitCost" :min="0" class="w-full" />
+                </template>
+            </Column>
+            <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
+                <template #body="slotProps">
+                    <InputNumber v-model="slotProps.data.receiveQty" :min="0" class="w-full" />
+                </template>
+            </Column>
+            <Column field="Unit" header="Unit" style="min-width: 80px">
+                <template #body="slotProps">
+                    <InputText v-model="slotProps.data.unit" class="w-full" />
+                </template>
+            </Column>
+            <Column header="Action" style="min-width: 80px">
+                <template #body="slotProps">
+                    <Button icon="pi pi-trash" severity="danger" outlined @click="removeNoPoItem(slotProps.index)" />
+                </template>
+            </Column>
+        </DataTable>
+         <div class="flex flex-col sm:flex-row justify-end gap-4">
+        <Button 
+            label="Cancel" 
+            @click="goBack" 
+            severity="danger" 
+            outlined 
+            style="background-color: #dc3545; color: #fff" 
+            class="w-full sm:w-auto order-2 sm:order-1"
+        />
+        <ConfirmDialog />
+        <Button 
+            label="Save Receive No Po" 
+            @click="confirmSave" 
+            :loading="loading" 
+            
+            icon="pi pi-save" 
+            class="w-full sm:w-auto order-1 sm:order-2"
+        />
+    </div>
+    </Dialog>
+
     <div class="flex flex-col sm:flex-row justify-end gap-4">
         <Button 
             label="Cancel" 
@@ -600,7 +666,7 @@ const grandTotal = computed(() =>
             label="Save Receive" 
             @click="confirmSave" 
             :loading="loading" 
-            :disabled="!isFormValid || loading" 
+            
             icon="pi pi-save" 
             class="w-full sm:w-auto order-1 sm:order-2"
         />

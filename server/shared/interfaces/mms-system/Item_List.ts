@@ -13,7 +13,15 @@ interface Item {
   CATEGORY?: string;
   SPEC?: string;
   GROUPMAT?: string;
+  ReceiveQty: number;
+  PORHSEQ: string;
+  ReceiptNumber: string;
+  InvoiceNumber: string;
+  VendorCode: string;
+  VendorName: string;
+  
 }
+
 
 
 interface ItemListResponse {

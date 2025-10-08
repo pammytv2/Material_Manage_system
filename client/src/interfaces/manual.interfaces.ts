@@ -22,6 +22,7 @@ interface receiveItems {
         unitCost: string | number;
         iqaRequired: boolean;
         lotRequired: boolean;
+        ReceiveQty: number | string;
 }
 
 
