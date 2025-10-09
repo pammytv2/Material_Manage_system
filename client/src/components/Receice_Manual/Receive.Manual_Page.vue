@@ -180,7 +180,7 @@ onMounted(async () => {
         value: item.ItemNo.trim()
     }));
     locationList.value = (locationRaw ?? []).map(loc => ({
-        // label: loc.LOCATION?.trim() ?? '',
+        label: `[${loc.LOCATION?.trim() ?? ''}] ${loc.LOCATIONNAME?.trim() ?? ''}`,
         value: loc.LOCATION?.trim() ?? ''
     }));
     console.log('locationList:', locationList.value);
@@ -200,7 +200,7 @@ async function searchItemListManual() {
         console.log('Searching Item List (Manual) with PO Numbers:', poNumbers, 'VDCODE:', vdcode, 'InvoiceNumber:', invoiceNumber);
 
         // Only search for items, don't save Invoice No to DB yet
-        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode);
+        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
         console.log('Fetched Item List (Manual):', result);
 
         // เก็บ PO Header (array แรก)
@@ -248,7 +248,65 @@ function clearFilter() {
     };
 }
 
-const noPoItem = ref({
+
+    
+
+async function saveNoPoItems() {
+    if (!noPoItems.value.length) {
+        console.log('Validation Error: noPoItems.value =', noPoItems.value); 
+        toast.add({
+            severity: 'warn',
+            summary: 'Validation Error',
+            detail: 'Please add at least one No PO item',
+            life: 3000
+        });
+        return;
+    }
+    try {
+        loading.value = true;
+        // Build payload for API
+        const itemsPayload = noPoItems.value.map(item => ({
+            ItemNo: item.itemNo,
+            ReceiveQty: Number(item.receiveQty),
+            InvoiceNo: item.invoiceNo,
+            VDCODE: item.vdcode
+        }));
+        // Extract VDCODE and invoiceNumber from the first item (or adjust as needed)
+        const VDCODE = itemsPayload[0]?.VDCODE ?? '';
+        const invoiceNumber = itemsPayload[0]?.InvoiceNo ?? '';
+        await receiveStore_manual.fetchInsertNoPoItem(VDCODE, invoiceNumber, itemsPayload[0]?.ReceiveQty ?? 0, itemsPayload[0]?.ItemNo ?? '');
+        console.log( 'No PO items saved:', itemsPayload);
+
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'No PO items saved successfully',
+            life: 3000
+        });
+        showNoPoDialog.value = false;
+        noPoItems.value = [];
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to save No PO items',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
+}
+interface NoPoItemType {
+    itemNo: string | { label: string; value: string };
+    description: string;
+    unit: string;
+    receiveQty: number;
+    unitCost: number;
+    location: string | { label: string; value: string };
+    vdcode: string | { code: string; name: string };
+    invoiceNo: string;
+}
+const noPoItem = ref<NoPoItemType>({
     itemNo: '',
     description: '',
     unit: '',
@@ -266,6 +324,18 @@ function openNoPoDialog() {
 }
 function closeNoPoDialog() {
     showNoPoDialog.value = false;
+    // รีเซ็ตข้อมูลใน Dialog
+    noPoItem.value = {
+        itemNo: '',
+        description: '',
+        unit: '',
+        receiveQty: 0,
+        unitCost: 0,
+        location: '',
+        vdcode: '',
+        invoiceNo: ''
+    };
+    noPoItems.value = [];
 }
 
 function addNoPoItem() {
@@ -278,20 +348,44 @@ function addNoPoItem() {
         });
         return;
     }
-    // Add to noPoItems array
-    noPoItems.value.push({ ...noPoItem.value });
-    // reset form
-    noPoItem.value = {
-        itemNo: '',
-        description: '',
-        unit: '',
-        receiveQty: 0,
-        unitCost: 0,
-        location: '',
-        vdcode: '',
-        invoiceNo: ''
-    };
-    // ไม่ปิด Dialog
+    const itemNoStr = typeof noPoItem.value.itemNo === 'object' && noPoItem.value.itemNo !== null && 'value' in noPoItem.value.itemNo
+        ? noPoItem.value.itemNo.value
+        : String(noPoItem.value.itemNo);
+    const locationStr = typeof noPoItem.value.location === 'object' && noPoItem.value.location !== null && 'value' in noPoItem.value.location
+        ? noPoItem.value.location.value
+        : String(noPoItem.value.location);
+
+    receiveStore_manual.fetchItemList_lotSplit(itemNoStr, locationStr).then((lotSplitData) => {
+        // ใช้ lotSplitData[0] เพราะ API ส่งมาเป็น array
+        const apiData = Array.isArray(lotSplitData) ? lotSplitData[0] : lotSplitData;
+        if (!apiData) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'No item data found from API',
+                life: 3000
+            });
+            return;
+        }
+        noPoItem.value.description = apiData.ITEMDesc ?? '';
+        noPoItems.value.push({
+            ...noPoItem.value,
+            description: apiData.ITEMDesc ?? '',
+            unit: apiData.UNIT ?? '',
+            unitCost: apiData.RECENTCOST ?? 0,
+            location: apiData.LOCATION ?? noPoItem.value.location
+        });
+        noPoItem.value = {
+            itemNo: '',
+            description: '',
+            unit: '',
+            receiveQty: 0,
+            unitCost: 0,
+            location: '',
+            vdcode: '',
+            invoiceNo: noPoItem.value.invoiceNo // เก็บ Invoice No ไว้
+        };
+    });
 }
 
 // Remove No PO item row
@@ -604,15 +698,55 @@ const grandTotal = computed(() =>
    
         <div class="flex flex-col sm:flex-row gap-2 mt-4 mb-4">
             <Button label="Add" icon="pi pi-check" severity="success" @click="addNoPoItem" class="w-full sm:w-auto" />
-            <Button label="Close" icon="pi pi-times" severity="danger" outlined @click="closeNoPoDialog" class="w-full sm:w-auto" />
+            
         </div>
         <DataTable :value="noPoItems" showGridlines responsiveLayout="scroll" class="p-datatable-sm mb-4">
-            <Column field="itemNo" header="Item No" style="min-width: 120px" />
-            <Column field="description" header="Description" style="min-width: 250px" />
-            <Column field="location" header="Location" style="min-width: 120px" />
+            <Column field="Invoice Number" header="Invoice Number" style="min-width: 150px">
+                <template #body="slotProps">
+                    <span>
+                        {{ slotProps.data.invoiceNo }}
+                    </span>
+                   
+                </template>
+            </Column>
+            <Column field="itemNo" header="Item No" style="min-width: 120px">
+                <template #body="slotProps">
+                    <span>
+                        <!-- ถ้าเป็น object ให้แสดง value -->
+                        {{ typeof slotProps.data.itemNo === 'object' && slotProps.data.itemNo !== null && 'value' in slotProps.data.itemNo ? slotProps.data.itemNo.value : slotProps.data.itemNo }}
+                    </span>
+                </template>
+            </Column>
+           <Column field="Vdcode" header="Vdcode" style="min-width: 120px">
+    <template #body="slotProps">
+        <span>
+            {{
+                typeof slotProps.data.vdcode === 'object' && slotProps.data.vdcode !== null && 'code' in slotProps.data.vdcode
+                    ? slotProps.data.vdcode.code
+                    : slotProps.data.vdcode || slotProps.data.VDCODE
+            }}
+        </span>
+    </template>
+</Column>
+            <Column field="description" header="Description" style="min-width: 250px">
+                <template #body="slotProps">
+                    <span>
+                        {{ slotProps.data.description }}
+                    </span>
+                </template>
+            </Column>
+            <Column field="location" header="Location" style="min-width: 120px">
+                <template #body="slotProps">
+                    <span>
+                        {{ typeof slotProps.data.location === 'object' && slotProps.data.location !== null && 'value' in slotProps.data.location ? slotProps.data.location.value : slotProps.data.location }}
+                    </span>
+                </template>
+            </Column>
             <Column field="unitCost" header="Unit Cost" style="min-width: 100px">
                 <template #body="slotProps">
-                    <InputNumber v-model="slotProps.data.unitCost" :min="0" class="w-full" />
+                    <span>
+                        {{ slotProps.data.unitCost.toLocaleString() }}
+                    </span>
                 </template>
             </Column>
             <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
@@ -620,9 +754,18 @@ const grandTotal = computed(() =>
                     <InputNumber v-model="slotProps.data.receiveQty" :min="0" class="w-full" />
                 </template>
             </Column>
+            <Column field="Extended Cost" header="Extended Cost" style="min-width: 100px">
+                <template #body="slotProps">
+                    <span>
+                       {{ ((Number(slotProps.data.receiveQty) || 0) * (Number(slotProps.data.unitCost) || 0)).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB
+                    </span>
+                </template>
+            </Column>
             <Column field="Unit" header="Unit" style="min-width: 80px">
                 <template #body="slotProps">
-                    <InputText v-model="slotProps.data.unit" class="w-full" />
+                    <span>
+                        {{ slotProps.data.unit}}
+                    </span>
                 </template>
             </Column>
             <Column header="Action" style="min-width: 80px">
@@ -634,7 +777,7 @@ const grandTotal = computed(() =>
          <div class="flex flex-col sm:flex-row justify-end gap-4">
         <Button 
             label="Cancel" 
-            @click="goBack" 
+            @click="closeNoPoDialog" 
             severity="danger" 
             outlined 
             style="background-color: #dc3545; color: #fff" 
@@ -643,7 +786,7 @@ const grandTotal = computed(() =>
         <ConfirmDialog />
         <Button 
             label="Save Receive No Po" 
-            @click="confirmSave" 
+            @click="saveNoPoItems" 
             :loading="loading" 
             
             icon="pi pi-save" 

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Post } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import {
   Item,
@@ -8,6 +8,7 @@ import {
 
 import { Item_manual } from 'shared/interfaces/mms-system/ManualReceiv';
 import * as sql from 'mssql';
+import * as request from 'supertest';
 
 @Injectable()
 export class MaterialReceiveManualService {
@@ -29,7 +30,25 @@ export class MaterialReceiveManualService {
     const poString = PONUMBER.join(',');
     request.input('PONUMBER', sql.VarChar, poString);
     request.input('VDCODE', sql.VarChar, VDCODE);
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     const result = await request.execute('sp_Receive_Material_Manual');
+    return result.recordsets;
+  }
+  async PostItemList_manual(
+   VDCODE: string,
+   invoiceNumber: string,
+   ReceiveQty: number,
+   itemNo: string,
+   LOCATION: string
+  ): Promise<any[]> {
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('VDCODE', sql.VarChar, VDCODE);
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    request.input('ReceiveQty', sql.Decimal, ReceiveQty);
+    request.input('itemNo', sql.VarChar, itemNo);
+    request.input('LOCATION', sql.VarChar, LOCATION);
+    const result = await request.execute('sp_Insert_Manual');
     return result.recordsets;
   }
 
@@ -85,17 +104,23 @@ export class MaterialReceiveManualService {
     }
   }
 
-  async insertNoPoItems(VDCODE: string, invoiceNumber: string): Promise<void> {
+
+
+  async insertNoPoItems(VDCODE: string, invoiceNumber: string, ReceiveQty: number, itemNo: string): Promise<any> {
     const pool = await this.databaseService.getConnection();
     const transaction = pool.transaction();
     await transaction.begin();
-
     const request = transaction.request();
     request.input('VDCODE', sql.VarChar, VDCODE);
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    request.input('ReceiveQty', sql.Decimal, ReceiveQty);
+    request.input('itemNo', sql.VarChar, itemNo); // Assuming itemNo is passed as a string
     const result = await request.execute('sp_Insert_Manual');
+    await transaction.commit();
     return result.recordsets;
   }
+
+
 
   async getNoPoItems(ItemNo: string , LOCATION: string): Promise<any[]> {
     const sqlQuery = `
@@ -107,4 +132,14 @@ export class MaterialReceiveManualService {
     const result = await request.query(sqlQuery);
     return result.recordset;
   }
+//   async getitemNoPoDesc(ItemNo: string,LOCATION: string): Promise<any[]> {
+//   const sqlQuery = `
+//           SELECT  RECENTCOST, UNIT, ITEMDesc  FROM [dbo].[view_manual_no_po] WHERE ItemNo = @ItemNo AND LOCATION = @LOCATION`;
+//   const pool = await this.databaseService.getConnection();
+//   const request = pool.request();
+//   request.input('ItemNo', sql.VarChar, ItemNo);
+//   request.input('LOCATION', sql.VarChar, LOCATION);
+//   const result = await request.query(sqlQuery);
+//   return result.recordset;
+// }
 }
