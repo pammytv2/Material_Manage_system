@@ -33,6 +33,8 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     this.error = 'Failed to sync items';
                 }
                 return null;
+            } finally {
+                this.loading = false;
             }
         },
         async fetchItemList_spec() {
@@ -50,6 +52,8 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     this.error = 'Failed to sync items';
                 }
                 return null;
+            } finally {
+                this.loading = false;
             }
         },
         async fetchItemList_manual(PONUMBER: string[], VDCODE: string | { code: string }, invoiceNumber?: string) {
@@ -57,7 +61,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 this.loading = true;
                 this.error = null;
                 const poString = PONUMBER.join(',');
-                const vdcode = typeof VDCODE === 'string' ? VDCODE : VDCODE.code ?? '';
+                const vdcode = typeof VDCODE === 'string' ? VDCODE : (VDCODE.code ?? '');
                 const url = `${api}/material-receive-manual/item-list-manual?PONUMBER=${encodeURIComponent(poString)}&VDCODE=${encodeURIComponent(vdcode)}&invoiceNumber=${encodeURIComponent(invoiceNumber ?? '')}`;
                 const response = await ApiService.get<any>(url);
                 this.items = response;
@@ -69,6 +73,8 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     this.error = 'Failed to sync items';
                 }
                 return null;
+            } finally {
+                this.loading = false;
             }
         },
         async fetchLocation() {
@@ -86,104 +92,140 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     this.error = 'Failed to sync items';
                 }
                 return null;
-            }   
+            } finally {
+                this.loading = false;
+            }
         },
 
-       async updateReceiveItems(items: { ItemNo: string; ReceiveQty: number }[], invoiceNumber: string) {
-        try {
-            this.loading = true;
-            this.error = null;
-            const url = `${api}/material-receive-manual/update-receive-items`;
-            const payload = {
-                items,
-                invoiceNumber
-            };
-            const response = await ApiService.put<any>(url, payload);
-            this.loading = false;
-            return response;
-        } catch (error) {
-            this.loading = false;
-            if (error instanceof Error) {
-                this.error = error.message;
-            } else {
-                this.error = 'Failed to update receive items';
+        async updateReceiveItems(items: { ItemNo: string; ReceiveQty: number }[], invoiceNumber: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url = `${api}/material-receive-manual/update-receive-items`;
+                const payload = {
+                    items,
+                    invoiceNumber
+                };
+                const response = await ApiService.put<any>(url, payload);
+                this.loading = false;
+                return response;
+            } catch (error) {
+                this.loading = false;
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to update receive items';
+                }
+                return null;
             }
-            return null;
-        }
-    },
+        },
 
-    async insertNoPoItems(items: { ItemNo: string; ReceiveQty: number; InvoiceNo: string; VDCODE: string }[], VDCODE: string, invoiceNumber: string) {
-        try {
-            this.loading = true;
-            this.error = null;
-            const url = `${api}/material-receive-manual/update-receive-items NO_PO`;
-            const payload = {
-                items,
-                VDCODE,
-                invoiceNumber
-            };
-            const response = await ApiService.put<any>(url, payload);
-            this.loading = false;
-            return response;
-        } catch (error) {
-            this.loading = false;
-            if (error instanceof Error) {
-                this.error = error.message;
-            } else {
-                this.error = 'Failed to update NO_PO items';
+        async insertNoPoItems(items: { ItemNo: string; ReceiveQty: number; InvoiceNo: string; VDCODE: string }[], VDCODE: string, invoiceNumber: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url = `${api}/material-receive-manual/update-receive-items NO_PO`;
+                const payload = {
+                    items,
+                    VDCODE,
+                    invoiceNumber
+                };
+                const response = await ApiService.put<any>(url, payload);
+                this.loading = false;
+                return response;
+            } catch (error) {
+                this.loading = false;
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to update NO_PO items';
+                }
+                return null;
             }
-            return null;
-        }
-    },
+        },
 
-
-    async fetchItemList_lotSplit(ItemNo: string , location: string) {
-        try {
-            this.loading = true;
-            this.error = null;
-            const url: string = `${api}/material-receive-manual/item-list-lot-split/${encodeURIComponent(ItemNo)}/${encodeURIComponent(location)}`;
-            const response = await ApiService.get<any>(url);
-            this.items = response;
-            return response;
-        } catch (error) {
-            this.loading = false;
-            if (error instanceof Error) {
-                this.error = error.message;
-            } else {
-                this.error = 'Failed to fetch item list lot split';
+        async fetchItemList_lotSplit(ItemNo: string, location: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/item-list-lot-split/${encodeURIComponent(ItemNo)}/${encodeURIComponent(location)}`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                this.loading = false;
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to fetch item list lot split';
+                }
+                return null;
             }
-            return null;
-        }
-    },
+        },
 
-    async fetchInsertNoPoItem(VDCODE: string, invoiceNumber: string, ReceiveQty: number, itemNo: string) {
-        try {
-            this.loading = true;
-            this.error = null;
-            const url = `${api}/material-receive-manual/insert-no-po-items`;
-            const payload = {
-                VDCODE,
-                invoiceNumber,
-                ReceiveQty,
-                itemNo
-            };
-            const response = await ApiService.post<any>(url, payload);
-            this.loading = false;
-            return response;
-        } catch (error) {
-            this.loading = false;
-            if (error instanceof Error) {
-                this.error = error.message;
-            } else {
-                this.error = 'Failed to insert NO_PO item';
+        async fetchInsertNoPoItem(VENDORCODE: string, invoiceNumber: string, ReceiveQty: number, itemNo: string, LOCATION: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url = `${api}/material-receive-manual/insert-no-po-items_Post`;
+                const payload = {
+                    VendorCode: VENDORCODE, // <-- change key to VendorCode
+                    invoiceNumber,
+                    ReceiveQty,
+                    itemNo,
+                    LOCATION
+                };
+                const response = await ApiService.post<any>(url, payload);
+                this.loading = false;
+                return response;
+            } catch (error) {
+                this.loading = false;
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to insert NO_PO item';
+                }
+                return null;
             }
-            return null;
+        },
+        async showItem_manual() {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/show-itemmanual`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to get items show-itemmanual';
+                }
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async showItem_manual_detail(invoiceNumber: string, PONUMBER: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/showItem_manual_detail?invoiceNumber=${encodeURIComponent(invoiceNumber)}&PONUMBER=${encodeURIComponent(PONUMBER)}`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to get items showItem_manual_detail';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
         }
     }
-    
-
-}
 });
 export { useReceiveStore_manual };
-
-

@@ -91,13 +91,26 @@ async insertNoPoItems(
 
   @Post('insert-no-po-items_Post')
   async insertNoPoItems_post(
-    @Body('VDCODE') VDCODE: string,
+    @Body('VendorCode') VendorCode: string, // <-- change param name
     @Body('invoiceNumber') invoiceNumber: string,
     @Body('LOCATION') LOCATION: string,
     @Body('ReceiveQty') ReceiveQty: number,
     @Body('itemNo') itemNo: string,
   ) {
-    return await this.materialReceiveManualService.PostItemList_manual(VDCODE, invoiceNumber, ReceiveQty, itemNo, LOCATION);
+    return await this.materialReceiveManualService.PostItemList_manual(VendorCode, invoiceNumber, ReceiveQty, itemNo, LOCATION); // <-- pass VendorCode
   }
 
+ @Get('show-itemmanual')
+  async showItemmanual() {
+    return await this.materialReceiveManualService.showItem_manual();
+
 }
+@Get('showItem_manual_detail')
+  async showItem_manual_detail(
+    @Query('invoiceNumber') invoiceNumber: string,
+    @Query('PONUMBER') PONUMBER: string
+  ) {
+    return await this.materialReceiveManualService.showItem_manual_detail(invoiceNumber, PONUMBER);
+  }
+}
+

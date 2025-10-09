@@ -35,15 +35,15 @@ export class MaterialReceiveManualService {
     return result.recordsets;
   }
   async PostItemList_manual(
-   VDCODE: string,
-   invoiceNumber: string,
-   ReceiveQty: number,
-   itemNo: string,
-   LOCATION: string
+    VENDORCODE: string, // <-- change param name
+    invoiceNumber: string,
+    ReceiveQty: number,
+    itemNo: string,
+    LOCATION: string,
   ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
-    request.input('VDCODE', sql.VarChar, VDCODE);
+    request.input('VendorCode', sql.VarChar, VENDORCODE); // <-- change to 'VendorCode'
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     request.input('ReceiveQty', sql.Decimal, ReceiveQty);
     request.input('itemNo', sql.VarChar, itemNo);
@@ -104,9 +104,12 @@ export class MaterialReceiveManualService {
     }
   }
 
-
-
-  async insertNoPoItems(VDCODE: string, invoiceNumber: string, ReceiveQty: number, itemNo: string): Promise<any> {
+  async insertNoPoItems(
+    VDCODE: string,
+    invoiceNumber: string,
+    ReceiveQty: number,
+    itemNo: string,
+  ): Promise<any> {
     const pool = await this.databaseService.getConnection();
     const transaction = pool.transaction();
     await transaction.begin();
@@ -120,9 +123,7 @@ export class MaterialReceiveManualService {
     return result.recordsets;
   }
 
-
-
-  async getNoPoItems(ItemNo: string , LOCATION: string): Promise<any[]> {
+  async getNoPoItems(ItemNo: string, LOCATION: string): Promise<any[]> {
     const sqlQuery = `
             SELECT * FROM [dbo].[view_manual_no_po] WHERE ItemNo = @ItemNo AND LOCATION = @LOCATION `;
     const pool = await this.databaseService.getConnection();
@@ -132,14 +133,29 @@ export class MaterialReceiveManualService {
     const result = await request.query(sqlQuery);
     return result.recordset;
   }
-//   async getitemNoPoDesc(ItemNo: string,LOCATION: string): Promise<any[]> {
-//   const sqlQuery = `
-//           SELECT  RECENTCOST, UNIT, ITEMDesc  FROM [dbo].[view_manual_no_po] WHERE ItemNo = @ItemNo AND LOCATION = @LOCATION`;
-//   const pool = await this.databaseService.getConnection();
-//   const request = pool.request();
-//   request.input('ItemNo', sql.VarChar, ItemNo);
-//   request.input('LOCATION', sql.VarChar, LOCATION);
-//   const result = await request.query(sqlQuery);
-//   return result.recordset;
-// }
+
+  async showItem_manual(): Promise<any[]> {
+    const sqlQuery = `
+    SELECT DISTINCT  InvoiceNumber, PoNumber,VendorCode,VendorName FROM  [dbo].[accpac_sync_poreceipt_icshipment_detail]
+    WHERE Ismanual = 1;`;
+    return await this.databaseService.query(sqlQuery);
+  }
+  
+  async showItem_manual_detail(invoiceNumber: string, poString?: string): Promise<any[]> {
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    let sqlQuery = `
+      SELECT * FROM [dbo].[accpac_sync_poreceipt_icshipment_detail]
+      WHERE InvoiceNumber = @InvoiceNumber
+    `;
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+
+    if (poString) {
+      sqlQuery += ' OR PoNumber = @PONUMBER';
+      request.input('PONUMBER', sql.VarChar, poString);
+    }
+
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+  }
 }

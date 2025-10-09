@@ -4,6 +4,7 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
 import { FilterMatchMode } from '@primevue/core/api';
+import { useReceiveStore_manual } from '@/stores/receive_manual';
 
 const receiveStore = useReceiveStore();
 const router = useRouter();
@@ -11,6 +12,7 @@ const toast = useToast();
 const loading = ref(false);
 const manualReceives = ref([]);
 const selectedRows = ref([]);
+const receiveStore_manual = useReceiveStore_manual();
 
 // Filters for DataTable
 const filters = ref({
@@ -22,34 +24,42 @@ const filters = ref({
     vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-// Load manual receives list
-// async function loadManualReceives() {
-//     try {
-//         loading.value = true;
-//         const data = await receiveStore.getManualReceiveList();
-//         manualReceives.value = data || [];
+function onRowClick(event: any) {
+    const invoiceNumber = event.data.InvoiceNumber;
+    const poNumber = event.data.PoNumber;
+    // เรียก API เพื่อเตรียมข้อมูล detail (ถ้าต้องการ preload)
+    // await receiveStore_manual.showItem_manual_detail(invoiceNumber, poNumber);
+    // ส่งไปหน้า Receive.Manual_Page.vue พร้อม query
+    router.push({
+        path: '/receive-manual',
+        query: {
+            invoiceNumber,
+            poNumber
+        }
+    });
+}
 
-//         toast.add({
-//             severity: 'success',
-//             summary: 'Success',
-//             detail: `Loaded ${manualReceives.value.length} manual receive records`,
-//             life: 3000
-//         });
-//     } catch (error: any) {
-//         console.error('Error loading manual receives:', error);
-//         toast.add({
-//             severity: 'error',
-//             summary: 'Error',
-//             detail: 'Failed to load manual receive list',
-//             life: 3000
-//         });
-//     } finally {
-//         loading.value = false;
-//     }
-// }
+async function loadManualReceives() {
+    loading.value = true;
+    try {
+        const data = await receiveStore_manual.showItem_manual();
+        manualReceives.value = data || [];
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to load manual receive list',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
+}
 
-// View detail
-
+onMounted(() => {
+    loadManualReceives();
+    console.log('Manual Receives:', manualReceives.value);
+});
 // Create new manual receive
 function createNew() {
     router.push('/receive-manual');
@@ -81,19 +91,17 @@ function refreshAllPage() {
     window.location.reload();
 }
 
-onMounted(() => {
-    // loadManualReceives();
-});
+
 </script>
 
 <template>
-    <div class="card">
-        <div class="flex items-center justify-between mb-6">
+   <div class="flex flex-col items-center bg-transparent w-full ">
+    <div class="card w-full max-w-full mx-auto px-2 mt-12">
+        <div class="flex items-center justify-between  mb-6 ">
             <div class="text-2xl font-bold">Manual Receive List</div>
             <div class="flex gap-2">
-            <Button type="button" icon="pi pi-refresh" label="Refresh" @click="refreshAllPage" severity="secondary"  />
-            <Button label="Create New" icon="pi pi-plus" @click="createNew" severity="primary"  />
-          
+                <Button type="button" icon="pi pi-refresh" label="Refresh" @click="refreshAllPage" severity="secondary" />
+                <Button label="Create New" icon="pi pi-plus" @click="createNew" severity="primary" />
             </div>
         </div>
 
@@ -110,8 +118,10 @@ onMounted(() => {
             showGridlines
             rowHover
             :globalFilterFields="['receiveNumber', 'receiveDate', 'invoiceNumber', 'vendorCode', 'vendorName']"
-            class="p-datatable-sm"
+            class="w-full"
             responsiveLayout="scroll"
+            @row-click="onRowClick"
+           
         >
             <template #header>
                 <div class="flex justify-between items-center">
@@ -129,7 +139,7 @@ onMounted(() => {
             <Column field="invoiceNumber" header="Invoice Number" sortable style="width: 180px">
                 <template #body="slotProps">
                     <div class="font-medium">
-                        {{ slotProps.data.invoiceNumber }}
+                        {{ slotProps.data.InvoiceNumber }}
                     </div>
                 </template>
                 <template #filter="{ filterModel }">
@@ -138,19 +148,16 @@ onMounted(() => {
             </Column>
             <Column field="PoNumber" header="Po Number" sortable style="width: 150px">
                 <template #body="slotProps">
-                    {{ slotProps.data.poNumber }}
+                    {{ slotProps.data.PoNumber }}
                 </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by po number" />
                 </template>
             </Column>
 
-          
-            
-
             <Column field="vendorCode" header="Vendor Code" sortable style="width: 150px">
                 <template #body="slotProps">
-                    {{ slotProps.data.vendorCode }}
+                    {{ slotProps.data.VendorCode }}
                 </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor code" />
@@ -159,19 +166,12 @@ onMounted(() => {
 
             <Column field="vendorName" header="Vendor Name" sortable style="width: 150px">
                 <template #body="slotProps">
-                    {{ slotProps.data.vendorName }}
+                    {{ slotProps.data.VendorName }}
                 </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
-
-            <Column field="createdAt" header="Created At" sortable style="width: 150px">
-                <template #body="slotProps">
-                    {{ formatDate(slotProps.data.createdAt) }}
-                </template>
-            </Column>
-
 
             <template #empty>
                 <div class="text-center py-8">
@@ -181,6 +181,7 @@ onMounted(() => {
                 </div>
             </template>
         </DataTable>
+    </div>
     </div>
 </template>
 
