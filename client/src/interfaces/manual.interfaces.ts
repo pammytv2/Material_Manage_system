@@ -23,6 +23,7 @@ interface receiveItems {
         iqaRequired: boolean;
         lotRequired: boolean;
         ReceiveQty: number | string;
+        PoNumber: string | number;
 }
 
 

@@ -4,7 +4,7 @@ import { useConfirm } from 'primevue/useconfirm';
 import { onMounted, reactive, ref, computed, h } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
-import { FilterMatchMode } from '@primevue/core/api';
+import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import type { receiveForm, receiveItems } from '@/interfaces/manual.interfaces';
 import { useReceiveStore_manual } from '@/stores/receive_manual';
 import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
@@ -40,12 +40,16 @@ const selectedRows = ref([]);
 const poHeader = ref<any[]>([]);
 
 // Filters for DataTable
+
 const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    itemNo: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    description: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    unit: { value: null, matchMode: FilterMatchMode.EQUALS },
-    receiveQty: { value: null, matchMode: FilterMatchMode.EQUALS }
+    global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    itemNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    description: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    unit: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+    receiveQty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+    Quantity: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+    unitCost: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+    extendedcost: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
 });
 
 const receiveItems = ref<receiveItems[]>([]);
@@ -135,7 +139,8 @@ async function saveReceive() {
 
         const itemsToUpdate = receiveItems.value.map((item) => ({
             ItemNo: item.itemNo,
-            ReceiveQty: Number(item.receiveQty)
+            ReceiveQty: Number(item.receiveQty),
+            
         }));
         const invoiceNumber = String(receiveForm.value.InvoiceNo ?? '');
         // Here you would call the API to save to database
@@ -189,7 +194,16 @@ async function viewManualDetail() {
     pageLoading.value = true; // Start full-page loading
     const invoiceNumber = route.query.invoiceNumber;
     const poNumber = route.query.poNumber;
-
+    receiveForm.value.PoNumber = poNumber ? String(poNumber) : '';
+   if (receiveForm.value.PoNumber) {
+        const poArr = String(receiveForm.value.PoNumber).split(',').map(p => p.trim()).filter(p => p);
+        // เพิ่ม PO ที่ยังไม่มีใน receiveNumberList
+        poArr.forEach(po => {
+            if (!receiveForm.value.receiveNumberList.includes(po)) {
+                receiveForm.value.receiveNumberList.push(po);
+            }
+        });
+    }
     if (invoiceNumber) {
         const detail = await receiveStore_manual.showItem_manual_detail(
             String(invoiceNumber),
@@ -207,19 +221,14 @@ async function viewManualDetail() {
             unitCost: item.UNITCOST ?? 0,
             iqaRequired: item.iqaRequired ?? false,
             lotRequired: item.lotRequired ?? false,
-            ReceiveQty: item.ReceiveQty ?? 0
+            ReceiveQty: item.ReceiveQty ?? 0,
+            extendedcost: ((Number(item.ReceiveQty ?? 0)) * (Number(item.UNITCOST ?? 0))),
+            PoNumber: item.PORHSEQ ?? '' // <-- เพิ่มตรงนี้
         })) : [];
         receiveForm.value.InvoiceNo = String(invoiceNumber);
         receiveForm.value.PoNumber = poNumber ? String(poNumber) : '';
         receiveForm.value.ItemCount = receiveItems.value.length;
         console.log('Loaded Manual Detail:', receiveItems.value);
-    } else {
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: 'Missing invoiceNumber in query parameters',
-            life: 3000
-        });
     }
     pageLoading.value = false; // End full-page loading
 }
@@ -299,11 +308,14 @@ async function searchItemListManual() {
 // Clear all filters
 function clearFilter() {
     filters.value = {
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        itemNo: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        description: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        unit: { value: null, matchMode: FilterMatchMode.EQUALS },
-        receiveQty: { value: null, matchMode: FilterMatchMode.EQUALS }
+        global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        itemNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        description: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        unit: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        receiveQty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        Quantity: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        unitCost: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
+        extendedcost: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.EQUALS }] },
     };
 }
 function confirmSaveNoPoItems() {
@@ -511,7 +523,10 @@ const grandTotal = computed(() =>
             </div>
             <div class="space-y-2">
                 <label for="PoNumber" class="block font-bold text-sm">Po Number</label>
-                <Chips v-model="receiveForm.receiveNumberList" separator="," addOnBlur placeholder="Po Number" class="w-full" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" />
+                <Chips v-model="receiveForm.receiveNumberList " separator="," addOnBlur placeholder="Po Number" class="w-full" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" 
+                />
+                
+                
             </div>
             <div class="space-y-2">
                 <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
@@ -557,7 +572,7 @@ const grandTotal = computed(() =>
             loadingIcon="pi pi-spin pi-spinner"
             showGridlines
             rowHover
-            :globalFilterFields="['itemNo', 'description', 'unit', 'receiveQty']"
+            :globalFilterFields="['itemNo', 'description', 'unit', 'receiveQty','Quantity','unitCost','extendedcost']"
             class="p-datatable-sm mb-6"
             responsiveLayout="scroll"
             :scrollable="true"
@@ -571,7 +586,7 @@ const grandTotal = computed(() =>
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                        <InputText v-model="filters['global'].value" placeholder="Keyword Search" class="w-full sm:w-auto" />
+                        <InputText v-model="filters['global'].constraints[0].value" placeholder="Keyword Search" class="w-full sm:w-auto" />
                     </IconField>
                 </div>
             </template>
@@ -634,11 +649,11 @@ const grandTotal = computed(() =>
                 </template>
             </Column>
 
-            <Column field="Unit Cost" header="Unit Cost" sortable style="min-width: 120px">
+            <Column field="unitCost" header="Unit Cost" sortable style="min-width: 120px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
                         <span class="font-medium">
-                            {{ slotProps.data.unitCost.toLocaleString() }}
+                            {{ slotProps.data.unitCost.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}
                         </span>
                     </template>
                 </template>
@@ -649,7 +664,7 @@ const grandTotal = computed(() =>
                 </template>
             </Column>
 
-            <Column field="Extended Cost" header="Extended Cost" sortable style="min-width: 130px">
+            <Column field="extendedcost" header="Extended Cost" sortable style="min-width: 130px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
                         <span class="font-medium"> {{ ((Number(slotProps.data.receiveQty) || 0) * (Number(slotProps.data.unitCost) || 0)).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
@@ -662,7 +677,7 @@ const grandTotal = computed(() =>
                 </template>
             </Column>
 
-            <Column field="Unit" header="Unit" sortable style="min-width: 80px">
+            <Column field="unit" header="Unit" sortable style="min-width: 80px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
                         <span class="font-medium">
@@ -794,7 +809,7 @@ const grandTotal = computed(() =>
             <Column field="unitCost" header="Unit Cost" style="min-width: 100px">
                 <template #body="slotProps">
                     <span>
-                        {{ slotProps.data.unitCost.toLocaleString() }}
+                       {{ slotProps.data.unitCost.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 6 }) }}
                     </span>
                 </template>
             </Column>

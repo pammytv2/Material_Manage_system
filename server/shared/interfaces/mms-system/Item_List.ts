@@ -11,6 +11,7 @@ interface Item {
   SECTIONGROUP?: string;
   GROUPMATTYPE?: string;
   CATEGORY?: string;
+  
   SPEC?: string;
   GROUPMAT?: string;
   ReceiveQty: number;
