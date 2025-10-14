@@ -36,18 +36,21 @@ async function handleRowClick(receipt: any) {
     const RecReceiveDate = receipt.ReciveDate;
     const VendorName = receipt.VendorName;
 
-    loading.value = true; // เริ่มแสดง overlay loading
-
-    // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
-    await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
-
-    loading.value = false; // ปิด overlay loading หลังข้อมูลเข้า DB
-
-    // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
-    router.push({
-        path: `/uikit/Receive_Detail/${receiveNumber}`,
-        query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
-    });
+    loading.value = true;
+    try {
+        // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
+        await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
+        // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
+        router.push({
+            path: `/uikit/Receive_Detail/${receiveNumber}`,
+            query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
+        });
+    } catch (err) {
+        alert('เกิดข้อผิดพลาดในการ sync ข้อมูล กรุณาตรวจสอบข้อมูลหรือแจ้งผู้ดูแลระบบ');
+        // หรือใช้ toast/notification แทน alert
+    } finally {
+        loading.value = false;
+    }
 }
 const allReceiveList = computed(() => receiveStore.items);
 
@@ -71,8 +74,8 @@ const filteredReceiveList = computed(() => {
     if (searchQuery.value) {
         const q = searchQuery.value.trim().toLowerCase();
         list = list.filter((item) => {
-            const receive = (item.ReceptNumbar || '').toLowerCase();
-            const invoice = (item.InveiceNumbar || '').toLowerCase();
+            const receive = (item.ReceptNumber || '').toLowerCase();
+            const invoice = (item.InvoiceNumber || '').toLowerCase();
             // ค้นหาทั้งแบบ contains และ startsWith
             return receive.includes(q) || invoice.includes(q) || receive.startsWith(q) || invoice.startsWith(q);
         });
@@ -98,15 +101,25 @@ async function onDateSearch() {
     loading.value = false;
 }
 
+function rowClass(data: any) {
+    return data.total_detail === 0 ? 'highlight-yellow-row' : '';
+}
+
 async function syncMaterials() {
-    loading.value = true;
+    loading.value = true;   
     syncProgress.value = 0;
-    const total = filteredReceiveList.value.length;
+    const filtered = filteredReceiveList.value.filter(item => item.total_detail === 0);
+    const total = filtered.length;
     let count = 0;
-    for (const item of filteredReceiveList.value) {
+    for (const item of filtered) {
         const receiveNo = item.ReceptNumber?.toString();
         const StatusRecIC = item.StatusRecIC?.toString();
-        await receiveStore.fetchSyncReceiveDetail(receiveNo, StatusRecIC);
+        try {
+            await receiveStore.fetchSyncReceiveDetail(receiveNo, StatusRecIC);
+        } catch (err) {
+            alert(`Sync ล้มเหลวสำหรับ ${receiveNo} (${StatusRecIC})`);
+            // หรือใช้ toast/notification แทน alert
+        }
         count++;
         syncProgress.value = Math.round((count / total) * 100);
     }
@@ -133,8 +146,9 @@ function formatDate(dateString: string) {
     return `${year}-${month}-${day}`;
 }
 
-// ไม่ต้องเรียก API ใน onMounted เพราะ store จะจัดการให้
+
 </script>
+
 
 <template>
     <div class="card">
@@ -196,6 +210,7 @@ function formatDate(dateString: string) {
             :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
             :loading="loading"
+            :rowClass="rowClass"
         >
             <template #header>
                 <div class="flex justify-between">
@@ -282,3 +297,21 @@ function formatDate(dateString: string) {
         </div>
     </div>
 </template>
+
+<style scoped>
+:deep(.highlight-yellow-row) {
+    background-color: #fef3c7 !important;
+}
+
+:deep(.highlight-yellow-row:hover) {
+    background-color: #fde68a !important;
+}
+
+:deep(.highlight-yellow-row td) {
+    background-color: #fef3c7 !important;
+}
+
+:deep(.highlight-yellow-row:hover td) {
+    background-color: #fde68a !important;
+}
+</style>

@@ -50,7 +50,7 @@ export class MaterialReceiveManualController {
   async getLocation() {
     return await this.materialReceiveManualService.getLocation();
   }
-  @Put('update-receive-items')
+  @Post('update-receive-items')
   async updateReceiveItems(
     @Body('items') items: { ItemNo: string; ReceiveQty: number }[],
     @Body('invoiceNumber') invoiceNumber: string,

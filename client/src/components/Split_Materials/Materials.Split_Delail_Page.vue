@@ -1,31 +1,83 @@
 <script setup lang="ts">
-import { useConfirm } from 'primevue/useconfirm';
-import { useToast } from 'primevue/usetoast';
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { onMounted, reactive, ref, toRefs, nextTick, computed } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
+import { useMaterialSplit } from '@/stores/split_material';
 import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
-import { useRoute } from 'vue-router';
-import { item } from '@primeuix/themes/aura/breadcrumb';
-import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/fn_recive';
+import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/recive_material';
 
-const receiveStore = useReceiveStore();
+// Add missing PrimeVue imports
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Dropdown from 'primevue/dropdown';
+import Checkbox from 'primevue/checkbox';
+import ConfirmPopup from 'primevue/confirmpopup';
+import { useConfirm } from 'primevue/useconfirm';
+import { useToast } from 'primevue/usetoast';
+
 const router = useRouter();
-const toast = useToast();
-const confirmPopup = useConfirm();
-const loading = ref(false);
 const route = useRoute();
+const confirmPopup = useConfirm();
+const toast = useToast();
 
- 
 
-// Dialog state
-const isDialogOpen = ref(false);
-const dialogRowIndex = ref<number | null>(null);
+// Use the composable to get all necessary variables and functions
+const {
+    receiveStore, 
+    loading,
+    isDialogOpen,
+    dialogRowIndex,
+    selectedRows,
+    receiveNumber,
+    receiveDate,
+    invoiceNumber,
+    specialExpDate,
+    vendorName,
+    detailTableRef,
+    lotRows,
+    lotStatusIQA,
+    tableRows,
+    filteredRows,
+    allLotRows,
+    canAddRow,
+    calculateBalanceQty,
+    updateRowLotSplitQtys,
+    addRow,
+    getRowLotSplitQty,
+    updateRowBalanceQtys,
+    getRowBalanceQty,
+    color_BalanceQty,
+    getIQAStatusClass,
+    expireDateEnd,
+    saveLotSplit,
+    getReturnQty,
+   
+} = useMaterialSplit();
+
+// Add isLotSplitRequired function for template usage
+function isLotSplitRequired() {
+    if (dialogRowIndex.value !== null && tableRows.value && tableRows.value[dialogRowIndex.value]) {
+        const lotSplit = tableRows.value[dialogRowIndex.value].lotSplit;
+        return lotSplit === 1 || lotSplit === '1';
+    }
+    return false;
+}
+
+// Add isExpireDateRequired function for template usage
+function isExpireDateRequired() {
+    if (dialogRowIndex.value !== null && tableRows.value && tableRows.value[dialogRowIndex.value]) {
+        const expDate = tableRows.value[dialogRowIndex.value].ExpDate;
+        return expDate === 1 || expDate === '1';
+    }
+    return false;
+}
+
 const searchQuery = ref('');
-// const checkboxValue = ref(false);
-// const loading = ref(false);
-const selectedRows = ref<IReceiveDetailItem[]>([]);
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -39,155 +91,7 @@ const filters = ref({
     iqaStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
 });
 
-const receiveNumber = computed(() => receiveStore.detail?.receiveNumber || route.params.receiveNumber || '');
-const receiveDate = computed(() => receiveStore.detail?.receiveDate || route.query.RecReceiveDate || route.params.receiveDate || '');
-const invoiceNumber = computed(() => receiveStore.detail?.invoiceNumber || route.query.InvoiceNumber || route.params.invoiceNumber || '');
-const specialExpDate = computed(() => receiveStore.detail?.specialExpDate || '');
-const vendorName = computed(() => receiveStore.detail?.vendorName || route.query.VendorName || route.params.vendorName || '');
-const detailTableRef = ref<HTMLElement | null>(null);
-const lotSplitStatusList = reactive([{ value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }]);
-const allLotRows = computed(() => receiveStore.detail?.allLotRows || []);
-const lotRows = ref<LotRow[]>([]);
-const lotStatusIQA = ref<any[]>([]);
-
-// ดึงข้อมูล tableRows จาก API
-const tableRows = computed(() => receiveStore.detail?.tableRows || []);
-
-// สร้าง reactive object เพื่อเก็บข้อมูล balance qty ของแต่ละแถว
-const rowBalanceQtys = ref<{ [key: string]: number }>({});
-
-// สร้าง reactive object เพื่อเก็บข้อมูล lot split qty ของแต่ละแถว
-const rowLotSplitQtys = ref<{ [key: string]: number }>({});
-
-// ฟังก์ชันสำหรับคำนวณและอัปเดต Lot Split QTY ของแต่ละแถว
-async function updateRowLotSplitQtys() {
-    const lotSplitQtys: { [key: string]: number } = {};
-
-    for (const row of tableRows.value) {
-        const key = `${row.itemNo}_${row.no}`;
-
-        try {
-            // ดึงข้อมูล Lot Split ที่มีอยู่
-            const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
-                receiveno: receiveNumber.value,
-                itemNo: row.itemNo || ''
-            } as any);
-
-            // นับจำนวน Lot ที่แบ่ง (จำนวน records/items) ไม่ใช่รวม quantity
-            const lotCount = existingLotSplits?.length || 0;
-
-            lotSplitQtys[key] = lotCount;
-        } catch (error) {
-            console.error('Error calculating lot split qty:', error);
-            lotSplitQtys[key] = 0;
-        }
-    }
-
-    rowLotSplitQtys.value = lotSplitQtys;
-}
-
 // ฟังก์ชันสำหรับดึง Lot Split QTY ของแถวที่ระบุ
-function getRowLotSplitQty(data: any): number {
-    const key = `${data.itemNo}_${data.no}`;
-    return rowLotSplitQtys.value[key] ?? 0;
-}
-
-// ฟังก์ชันสำหรับคำนวณและอัปเดต Balance QTY ของแต่ละแถว
-async function updateRowBalanceQtys() {
-    const balances: { [key: string]: number } = {};
-
-    for (const row of tableRows.value) {
-        const key = `${row.itemNo}_${row.no}`;
-        balances[key] = await calculateRowBalanceQtyWithLot(row);
-    }
-
-    rowBalanceQtys.value = balances;
-
-    // อัปเดต Lot Split QTY พร้อมกัน
-    await updateRowLotSplitQtys();
-}
-
-// ฟังก์ชันสำหรับดึง Balance QTY ของแถวที่ระบุ
-function getRowBalanceQty(data: any): number {
-    const key = `${data.itemNo}_${data.no}`;
-    return rowBalanceQtys.value[key] ?? calculateRowBalanceQty(data);
-}
-
-const filteredRows = computed(() => {
-    const rows = tableRows.value;
-    if (!searchQuery.value) return rows;
-    const q = searchQuery.value.toLowerCase();
-    return rows.filter(
-        (row: any) =>
-            row.no?.toString().includes(q) ||
-            row.itemNo?.toLowerCase().includes(q) ||
-            row.description?.toLowerCase().includes(q) ||
-            row.unit?.toLowerCase().includes(q) ||
-            row.lotExpireDate?.includes(q) ||
-            row.invoice?.toLowerCase().includes(q) ||
-            row.iqaStatus?.toLowerCase().includes(q)
-    );
-});
-
-async function saveLotSplit() {
-    if (dialogRowIndex.value === null) return;
-    const currentRow = tableRows.value[dialogRowIndex.value];
-
-    if (!lotRows.value || lotRows.value.length === 0) {
-        toast.add({ severity: 'warn', summary: 'Warning', detail: 'No lot data to save', life: 3000 });
-        return;
-    }
-
-    const validLotRows = lotRows.value.filter((lotRow) => lotRow.lotNo && lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0);
-    if (validLotRows.length === 0) {
-        toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please fill in Lot No and Take Out Qty for at least one row', life: 3000 });
-        return;
-    }
-
-    const lotSplitPromises = validLotRows.map((lotRow) => {
-        // Ensure value is boolean before converting to 1/0
-        const payload = {
-            ItemNo: currentRow?.itemNo || '',
-            LotSplit: lotRow.lotNo,
-            receiveno: receiveNumber.value,
-            lot_unit: lotRow.unit || currentRow.unit,
-            exp_date: new Date(lotRow.expireDate),
-            remark: lotRow.remark || '',
-            isProblem: !!lotRow.problem,
-            lot_qty: parseFloat(String(lotRow.takeOutQty ?? '0')) || 0
-        };
-
-        // ถ้ามี id = UPDATE, ถ้าไม่มี id = INSERT
-        if (lotRow.id) {
-            const updatePayload = { ...payload, id: lotRow.id };
-            console.log('Update LotSplit Payload:', updatePayload);
-            return receiveStore.updateLotSplit(updatePayload);
-        } else {
-            console.log('Insert LotSplit Payload:', payload);
-            return receiveStore.createLotSplit(payload);
-        }
-    });
-
-    try {
-        loading.value = true;
-        const results = await Promise.all(lotSplitPromises);
-        const allSuccess = results.every((result) => result !== null && result !== undefined);
-        if (allSuccess) {
-            toast.add({ severity: 'success', summary: 'Success', detail: 'Lot split data saved successfully', life: 3000 });
-
-            // อัปเดต Balance QTY ใหม่หลังจากบันทึกสำเร็จ
-            await updateRowBalanceQtys();
-
-            closeEditDialog(true);
-        } else {
-            toast.add({ severity: 'error', summary: 'Error', detail: 'Some lot split data failed to save', life: 3000 });
-        }
-    } catch (error) {
-        toast.add({ severity: 'error', summary: 'Error', detail: `Failed to save lot split data: ${String(error)}`, life: 5000 });
-    } finally {
-        loading.value = false;
-    }
-}
 
 // สำหรับ scroll กลับไปยังตาราง Detail
 onMounted(async () => {
@@ -245,161 +149,6 @@ const goBack = () => {
     router.back();
 };
 
-function getReturnQty(receiveQty: number | string, returnQty: number | string) {
-    const r = parseFloat(receiveQty as string) || 0;
-    const t = parseFloat(returnQty as string) || 0;
-    return Math.max(t + r, 0);
-} //ไม่ต้องมีก็ได้
-
-function calculateBalanceQty() {
-    if (dialogRowIndex.value === null) return 0;
-
-    const receiveQty = parseFloat(tableRows.value[dialogRowIndex.value]?.receiveQty || '0') || 0;
-    const totalTakeOutQty = lotRows.value.reduce((sum, row) => {
-        return sum + (parseFloat(String(row.takeOutQty || '0')) || 0);
-    }, 0);
-
-    // ห้ามใส่เกิน receiveQty
-    if (totalTakeOutQty > receiveQty) {
-        return 0;
-    }
-
-    // ปัดเศษให้เหลือ 2 ตำแหน่ง
-    return Number((receiveQty - totalTakeOutQty).toFixed(2));
-}
-
-function calculateRowBalanceQty(data: any) {
-    // คำนวณ Balance QTY สำหรับแต่ละแถวใน DataTable
-    const receiveQty = parseFloat(data.receiveQty || '0') || 0;
-    const returnQty = parseFloat(data.returnQty || '0') || 0;
-
-    // Balance = Receive - Return - Total Lot Split Qty
-    return Math.max(receiveQty - returnQty, 0);
-}
-
-// ฟังก์ชันใหม่สำหรับคำนวณ Balance QTY แบบ async ที่ดึงข้อมูล Lot Split มาคำนวณ
-async function calculateRowBalanceQtyWithLot(data: any) {
-    try {
-        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
-        const returnQty = parseFloat(data.returnQty || '0') || 0;
-
-        // ดึงข้อมูล Lot Split ที่มีอยู่
-        const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
-            receiveno: receiveNumber.value,
-            itemNo: data.itemNo || ''
-        } as any);
-
-        // คำนวณจำนวนที่แบ่งไปแล้ว
-        const totalLotSplitQty =
-            existingLotSplits?.reduce((sum: number, lot: any) => {
-                return sum + (parseFloat(lot.lot_qty || '0') || 0);
-            }, 0) || 0;
-
-        // Balance = Receive - Return - Total Lot Split Qty
-        return Math.max(receiveQty - returnQty - totalLotSplitQty, 0);
-    } catch (error) {
-        console.error('Error calculating balance with lot splits:', error);
-        // ถ้าเกิด error ให้คำนวณแบบปกติ
-        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
-        const returnQty = parseFloat(data.returnQty || '0') || 0;
-        return Math.max(receiveQty - returnQty, 0);
-    }
-}
-const canAddRow = computed(() => {
-    return calculateBalanceQty() > 0;
-});
-
-function color_BalanceQty(data: any) {
-    const balanceQty = getRowBalanceQty(data);
-    if (balanceQty === 0) {
-        return 'bg-green-200 text-green-700 font-semibold px-2 py-1 rounded';
-    } else if (balanceQty > 0) {
-        return 'bg-yellow-200 text-yellow-700 font-semibold px-2 py-1 rounded';
-    }
-    return '';
-}
-
-
-function canEditIQA(iqa: number | string | null | undefined) {
-    // สามารถแก้ไขได้เมื่อค่าเป็น Not Specified (2, '2', null, undefined, หรือ '')
-    return iqa === 2 || iqa === '2' || iqa === null || iqa === undefined || iqa === '';
-}
-function updateIQAValue(data: any, val: string) {
-    if (canEditIQA(data.IQA)) {
-        switch (val) {
-            case 'IQA Required':
-                data.IQA = 1;
-                break;
-            case 'No IQA Required':
-                data.IQA = 0;
-                break;
-            case 'Not Specified':
-                data.IQA = 2;
-                break;
-            default:
-                data.IQA = 2;
-        }
-
-        // แสดงข้อความแจ้งเตือนเมื่อผู้ใช้เปลี่ยนค่า
-        toast.add({
-            severity: 'info',
-            summary: 'Updated',
-            detail: `IQA Requirement changed to: ${val}`,
-            life: 2000
-        });
-    }
-}
-
-
-function getIQAStatusClass(status: number | string) {
-    // รับค่า lotStatusIQAResponse จาก API
-    // สมมติ lotStatusIQA เป็น array ของ object เช่น [{ IQAStatusName: 'PENDING', ... }]
-    // ถ้า status เป็นตัวเลข ให้หาใน lotStatusIQA ว่าตรงกับ IQAStatusID ไหน
-    let statusName = String(status);
-    if (typeof status === 'number' && lotStatusIQA.value.length) {
-        const found = lotStatusIQA.value.find((s) => s.IQAStatusID === status);
-        statusName = found ? found.IQAStatusName : statusName;
-    }
-    switch (statusName?.toUpperCase()) {
-        case 'UNCHECKED':
-            return 'bg-gray-100 text-gray-700 font-semibold px-2 py-1 rounded';
-        case 'UNDER_REVIEW':
-            return 'bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded';
-        case 'PENDING':
-            return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
-        case 'APPROVED':
-            return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
-        case 'REJECTED':
-            return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
-        case 'CANCELLED':
-            return 'bg-orange-200 text-orange-700 font-semibold px-2 py-1 rounded';
-        case 'RESUBMITTED':
-            return 'bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded';
-        default:
-            return 'bg-white text-gray-900 px-2 py-1 rounded';
-    }
-}
-
-
-
-
-// Lot rows state for dialog (แยกแต่ละแถว)
-
-function expireDateEnd(date: string) {
-    if (!date) return '';
-    const today = new Date();
-    const expire = new Date(date);
-    const diffTime = expire.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); // คำนวณจำนวนวัน
-    if (diffDays < 0) {
-        return 'bg-red-200 text-red-700 font-semibold px-2 py-1 rounded'; // หมดอายุ
-    } else if (diffDays <= 15) {
-        return 'bg-yellow-200 text-yellow-700 font-semibold px-2 py-1 rounded'; // ใกล้หมดอายุ
-    }
-    return '';
-}
-// ข้อมูล lotRows จาก API (เช่น receiveStore.detail.lotRows)
-
 async function openEditDialog(rowIndex: number) {
     dialogRowIndex.value = rowIndex;
     const currentRow = tableRows.value[rowIndex];
@@ -407,7 +156,6 @@ async function openEditDialog(rowIndex: number) {
     try {
         loading.value = true;
 
-        // ดึงข้อมูล Lot Split ที่มีอยู่แล้วจาก API
         const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
             receiveno: receiveNumber.value,
             itemNo: currentRow?.itemNo || ''
@@ -415,30 +163,33 @@ async function openEditDialog(rowIndex: number) {
 
         console.log('Existing Lot Splits:', existingLotSplits);
 
-        // แปลงข้อมูลจาก API เป็นรูปแบบที่ใช้ใน Dialog
         if (existingLotSplits && existingLotSplits.length > 0) {
             lotRows.value = existingLotSplits.map((row: any) => ({
-                id: row.id, // เพิ่ม id สำหรับ update
+                id: row.id,
                 no: '',
                 lotNo: row.lot_no || '',
-                qty: parseFloat(row.lot_qty || '0') || 0, // แปลงเป็น number
+                qty: parseFloat(row.lot_qty || '0') || 0,
                 unit: row.lot_unit || currentRow?.unit || '',
                 expireDate: row.exp_date ? new Date(row.exp_date).toISOString().split('T')[0] : '',
-                takeOutQty: parseFloat(row.lot_qty || '0') || 0, // แปลงเป็น number สำหรับ decimal
-                problem: !!row.isProblem, // แปลง 1/0 เป็น boolean
+                takeOutQty: parseFloat(row.lot_qty || '0') || 0,
+                problem: !!row.isProblem,
                 remark: row.remark || ''
             }));
         } else {
-            // ถ้าไม่มีข้อมูลเก่า ให้สร้าง row ว่างใหม่
+            // Check if lot splitting is required
+            const isLotSplitRequired = currentRow?.lotSplit === 1 || currentRow?.lotSplit === '1';
+            const receiveQty = parseFloat(currentRow?.receiveQty || '0') || 0;
+            
             lotRows.value = [
                 {
-                    id: null, // ไม่มี id = ข้อมูลใหม่
+                    id: null,
                     no: '',
                     lotNo: '',
-                    qty: 0, // เปลี่ยนเป็น number ตาม interface
+                    qty: 0,
                     unit: currentRow?.unit || '',
                     expireDate: '',
-                    takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
+                    // If lot split required, start with 0, if not required, pre-fill with full receive quantity
+                    takeOutQty: isLotSplitRequired ? 0 : receiveQty,
                     problem: false,
                     remark: ''
                 }
@@ -453,16 +204,20 @@ async function openEditDialog(rowIndex: number) {
             life: 3000
         });
 
-        // ถ้าเกิด error ให้สร้าง row ว่างใหม่
+        const currentRow = tableRows.value[rowIndex];
+        const isLotSplitRequired = currentRow?.lotSplit === 1 || currentRow?.lotSplit === '1';
+        const receiveQty = parseFloat(currentRow?.receiveQty || '0') || 0;
+
         lotRows.value = [
             {
-                id: null, // ไม่มี id = ข้อมูลใหม่
+                id: null,
                 no: '',
                 lotNo: '',
-                qty: 0, // เปลี่ยนเป็น number ตาม interface
+                qty: 0,
                 unit: currentRow?.unit || '',
                 expireDate: '',
-                takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
+                // If lot split required, start with 0, if not required, pre-fill with full receive quantity
+                takeOutQty: isLotSplitRequired ? 0 : receiveQty,
                 problem: false,
                 remark: ''
             }
@@ -492,25 +247,6 @@ async function closeEditDialog(save = false) {
     });
 }
 
-function addRow() {
-    let unit = '';
-    if (dialogRowIndex.value !== null) {
-        unit = tableRows.value[dialogRowIndex.value]?.unit || '';
-    }
-
-    const newRow = {
-        id: null, // ไม่มี id = ข้อมูลใหม่
-        no: '',
-        lotNo: '',
-        qty: 0, // เปลี่ยนเป็น number ตาม interface
-        unit,
-        expireDate: '',
-        takeOutQty: 0, // เปลี่ยนเป็น number (decimal)
-        problem: false,
-        remark: ''
-    };
-    lotRows.value.push(newRow);
-}
 
 async function removeRow(index: number) {
     const lotRow = lotRows.value[index];
@@ -583,10 +319,10 @@ function confirmDelete(index: number, event?: Event) {
     });
 }
 
-function confirm(event) {
-    console.log('🔍 confirm function called'); // เพิ่ม log เพื่อ debug
+function confirm(event: Event) {
+    console.log('🔍 confirm function called');
     confirmPopup.require({
-        target: event.target,
+        target: event.target as HTMLElement,
         message: 'Are you sure you want to save the lot split data?',
         icon: 'pi pi-exclamation-triangle',
         rejectProps: {
@@ -598,27 +334,28 @@ function confirm(event) {
             label: 'Save'
         },
         accept: async () => {
-            console.log('✅ User accepted, calling saveLotSplit'); // เพิ่ม log
+            console.log('✅ User accepted, calling saveLotSplit');
             await saveLotSplit();
         },
         reject: () => {
-            console.log('❌ User rejected'); // เพิ่ม log
+            console.log('❌ User rejected');
             toast.add({ severity: 'info', summary: 'Cancelled', detail: 'Operation cancelled', life: 3000 });
         }
     });
 }
 
-function Success() {
-    // เมื่อกด Submit ให้เปลี่ยน IQA Status เฉพาะแถวที่เลือก
-    (async () => {
+async function Success() {
+    try {
         const lotStatusIQAResponse = await receiveStore.fetchLotStatusIQA(2);
-        // อัปเดต IQA Status เฉพาะแถวที่เลือก
         selectedRows.value.forEach((row) => {
             row.iqaStatus = lotStatusIQAResponse[0]?.IQAStatusName || 'PENDING';
         });
         console.log('lotStatusIQAResponse_Success:', lotStatusIQAResponse);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Submitted to IQA', life: 3000 });
-    })();
+    } catch (error) {
+        console.error('Error submitting to IQA:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to submit to IQA', life: 3000 });
+    }
 }
 
 function clearFilter() {
@@ -634,6 +371,50 @@ function clearFilter() {
         iqaStatus: { value: null, matchMode: FilterMatchMode.EQUALS }
     };
 }
+
+// Add helper methods for better template organization
+function validateTakeOutQty(row: any, idx: number) {
+    if (dialogRowIndex.value !== null && isLotSplitRequired()) {
+        const currentValue = parseFloat(String(row.takeOutQty || '0')) || 0;
+        row.takeOutQty = currentValue;
+
+        const totalTakeOutQty = lotRows.value.reduce((sum, r) => {
+            return sum + (parseFloat(String(r.takeOutQty || '0')) || 0);
+        }, 0);
+        
+        const receiveQty = parseFloat(String(tableRows.value[dialogRowIndex.value].receiveQty || '0')) || 0;
+
+        if (totalTakeOutQty > receiveQty) {
+            const otherRowsSum = totalTakeOutQty - currentValue;
+            const maxAllowed = Math.max(receiveQty - otherRowsSum, 0);
+            row.takeOutQty = Number(maxAllowed.toFixed(2));
+            toast.add({ 
+                severity: 'warn', 
+                summary: 'Warning', 
+                detail: 'Total Take Out Qty cannot exceed Receive Qty', 
+                life: 2000 
+            });
+        }
+    }
+}
+
+function canEditExpireDate(row: any): boolean {
+    return isExpireDateRequired() && 
+           row.lotNo && row.lotNo.trim() !== '' && 
+           row.takeOutQty && row.takeOutQty > 0;
+}
+
+function getExpireDateClass(row: any){
+    const classes = [expireDateEnd(row.expireDate)];
+    
+    if (!canEditExpireDate(row)) {
+        classes.push('bg-gray-100 cursor-not-allowed');
+    } else if (isExpireDateRequired() && (!row.expireDate || row.expireDate.trim() === '')) {
+        classes.push('border-red-500 bg-red-50');
+    }
+    return classes.join(' ');
+}
+
 </script>
 
 <template>
@@ -698,6 +479,7 @@ function clearFilter() {
             rowHover
             :globalFilterFields="['no', 'itemNo', 'description', 'unit', 'lotExpireDate', 'invoice', 'iqaStatus']"
             class="mb-6"
+            @row-click="(event) => openEditDialog(event.index)"
         >
             <template #header>
                 <div class="flex justify-between">
@@ -804,11 +586,7 @@ function clearFilter() {
                 </template>
             </Column>
 
-            <Column header="Action">
-                <template #body="{ data, index }">
-                    <Button icon="pi pi-pencil" @click="openEditDialog(index)" />
-                </template>
-            </Column>
+            
         </DataTable>
 
         <div class="flex justify-end">
@@ -817,141 +595,169 @@ function clearFilter() {
         </div>
 
         <div v-if="isDialogOpen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-40">
-            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-4xl relative">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    <div class="flex flex-col gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-muted-color font-medium">Item No:</span>
-                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.itemNo : '' }}
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-muted-color font-medium">Description:</span>
-                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.description : '' }}
-                            </span>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-4">
-                        <div class="flex items-center gap-2">
-                            <span class="text-muted-color font-medium">Receive QTY:</span>
-                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
-                            </span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <span class="text-muted-color font-medium">Unit:</span>
-                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.unit : '' }}
-                            </span>
-                        </div>
-                    </div>
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative" style="min-height: 50vh;">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                <div class="flex flex-col gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-muted-color font-medium">Item No:</span>
+                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.itemNo : '' }}
+                    </span>
                 </div>
-                <div class="text-lg font-semibold mb-4">Lot Information</div>
-                <div class="overflow-x-auto mb-4">
-                    <table class="min-w-full border border-gray-300">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="border px-2 py-1">No</th>
-                                <th class="border px-2 py-1">Lot No</th>
-
-                                <th class="border px-2 py-1">TAKE OUT QTY</th>
-                                <th class="border px-2 py-1">EXPIRE DATE</th>
-                                <th class="border px-2 py-1">have a problem?</th>
-                                <th class="border px-2 py-1">REMARK</th>
-                                <th class="border px-2 py-1">ACTIONS</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr v-for="(row, idx) in lotRows" :key="idx">
-                                <td class="border px-2 py-1">
-                                    {{ idx + 1 }}
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <input type="text" class="border rounded px-2 py-1 w-24" placeholder="Lot No" v-model="row.lotNo" />
-                                </td>
-
-                                <td class="border px-2 py-1">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
-                                        class="border rounded px-2 py-1 w-16"
-                                        placeholder="0.00"
-                                        v-model.number="row.takeOutQty"
-                                        step="0.01"
-                                        @input="
-                                            (() => {
-                                                if (dialogRowIndex !== null) {
-                                                    // แปลงค่าเป็น number และจัดการกรณีที่เป็น string หรือ null
-                                                    const currentValue = parseFloat(String(row.takeOutQty || '0')) || 0;
-                                                    row.takeOutQty = currentValue;
-
-                                                    const totalTakeOutQty = lotRows.reduce((sum, r) => {
-                                                        return sum + (parseFloat(String(r.takeOutQty || '0')) || 0);
-                                                    }, 0);
-                                                    const receiveQty = parseFloat(String(tableRows[dialogRowIndex].receiveQty || '0')) || 0;
-
-                                                    if (totalTakeOutQty > receiveQty) {
-                                                        const otherRowsSum = totalTakeOutQty - currentValue;
-                                                        const maxAllowed = Math.max(receiveQty - otherRowsSum, 0);
-                                                        row.takeOutQty = Number(maxAllowed.toFixed(2));
-                                                        toast.add({ severity: 'warn', summary: 'Warning', detail: 'Take Out Qty รวมทุกแถวห้ามเกิน Receive Qty', life: 2000 });
-                                                    }
-                                                }
-                                            })()
-                                        "
-                                    />
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <input type="date" class="border rounded px-2 py-1 w-36" v-model="row.expireDate" :class="expireDateEnd(row.expireDate)" />
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <Checkbox
-                                        :id="'checkOption' + idx"
-                                        name="option"
-                                        :binary="true"
-                                        v-model="row.problem"
-                                        @update:modelValue="
-                                            (value) => {
-                                                console.log(`Checkbox ${idx} updated to:`, value, typeof value);
-                                                row.problem = value;
-                                            }
-                                        "
-                                    />
-                                    <!-- แสดงค่าปัจจุบันเพื่อ debug -->
-                                    <span class="ml-2 text-xs text-gray-400"> ({{ row.problem ? 'checked' : 'unchecked' }}) </span>
-                                </td>
-                                <td class="border px-2 py-1">
-                                    <input type="text" class="border rounded px-2 py-1 w-36" v-model="row.remark" />
-                                </td>
-                                <td class="border px-2 py-1 text-center">
-                                    <Button label="Delete" icon="pi pi-trash" severity="danger" style="width: auto" @click="confirmDelete(idx, $event)" />
-                                </td>
-                            </tr>
-                        </tbody>
-
-                        <tfoot>
-                            <tr>
-                                <td colspan="8" class="text-left font-semibold py-2 pl-4">Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div class="flex items-center gap-2">
+                    <span class="text-muted-color font-medium">Description:</span>
+                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.description : '' }}
+                    </span>
                 </div>
-                <div class="flex justify-end gap-2">
-                    <button class="px-4 py-2 text-white rounded transition-all duration-200" :class="canAddRow ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" :disabled="!canAddRow" @click="canAddRow && addRow()">
-                        + Add Row
-                    </button>
-                    <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
-                    <ConfirmPopup></ConfirmPopup>
-                    <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading"></Button>
                 </div>
                 <div class="flex flex-col gap-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
+                <div class="flex items-center gap-2">
+                    <span class="text-muted-color font-medium">Receive QTY:</span>
+                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
+                    </span>
                 </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-muted-color font-medium">Unit:</span>
+                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.unit : '' }}
+                    </span>
+                </div>
+                </div>
+            </div>
+            
+            <!-- Lot Split Status Information -->
+
+            <div class="text-lg font-semibold mb-4">Lot Information</div>
+           <div class="overflow-x-auto mb-4" style="max-height: 50vh;">
+                <table class="min-w-full border border-gray-300">
+                <thead class="bg-gray-100">
+                    <tr>
+                    <th class="border px-2 py-1">No</th>
+                    <th class="border px-2 py-1">Lot No</th>
+                    <th class="border px-2 py-1">TAKE OUT QTY</th>
+                    <th class="border px-2 py-1">EXPIRE DATE</th>
+                    <th class="border px-2 py-1">have a problem?</th>
+                    <th class="border px-2 py-1">REMARK</th>
+                    <th class="border px-2 py-1" v-if="isLotSplitRequired()">ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="(row, idx) in lotRows" :key="idx">
+                        <td class="border px-2 py-1">
+                            {{ idx + 1 }}
+                        </td>
+                        
+                        <!-- Lot No Input -->
+                        <td class="border px-2 py-1">
+                            <input 
+                                type="text" 
+                                class="border rounded px-2 py-1 w-36" 
+                                placeholder="Enter Lot No" 
+                                v-model="row.lotNo"
+                                :class="{
+                                    'border-yellow-400 bg-yellow-50': !row.lotNo || row.lotNo.trim() === '',
+                                    'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== ''
+                                }"
+                            />
+                           
+                        </td>
+                        
+                        <!-- Take Out QTY Input -->
+                        <td class="border px-2 py-1">
+                            <input
+                                type="number"
+                                min="0"
+                                :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
+                                class="border rounded px-2 py-1 w-32"
+                                placeholder="0.00"
+                                v-model.number="row.takeOutQty"
+                                step="0.01"
+                                :disabled="!row.lotNo || row.lotNo.trim() === '' || (!isLotSplitRequired() && idx === 0)"
+                                :class="{
+                                    'bg-gray-100 cursor-not-allowed': !row.lotNo || row.lotNo.trim() === '',
+                                    'border-yellow-400 bg-yellow-50': row.lotNo && row.lotNo.trim() !== '' && (!row.takeOutQty || row.takeOutQty <= 0),
+                                    'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== '' && row.takeOutQty && row.takeOutQty > 0
+                                }"
+                                @input="validateTakeOutQty(row, idx)"
+                            />
+                           
+                        </td>
+                        
+                        <!-- Expire Date Input -->
+                        <td class="border px-2 py-1">
+                             <input 
+                             type="date" 
+                             class="border rounded px-2 py-1 w-36" 
+                             v-model="row.expireDate" 
+                             :disabled="!canEditExpireDate(row)"
+                             :class="getExpireDateClass(row)"
+                             :required="isExpireDateRequired()"
+                              />
+
+                        </td>
+                        
+                        <!-- Problem Checkbox -->
+                        <td class="border px-2 py-1 text-center">
+                            <Checkbox
+                                :id="'checkOption' + idx"
+                                name="option"
+                                :binary="true"
+                                v-model="row.problem"
+                            />
+                        </td>
+                        
+                        <!-- Remark Input -->
+                        <td class="border px-2 py-1">
+                            <input 
+                                type="text" 
+                                class="border rounded px-2 py-1 w-36" 
+                                v-model="row.remark" 
+                                placeholder="Optional remarks" 
+                            />
+                        </td>
+                        
+                        <!-- Actions Column (only for lot split required items) -->
+                        <td class="border px-2 py-1 text-center" v-if="isLotSplitRequired()">
+                            <Button 
+                                label="Delete" 
+                                icon="pi pi-trash" 
+                                severity="danger" 
+                                size="small"
+                                @click="confirmDelete(idx, $event)"
+                                :disabled="lotRows.length <= 1"
+                            />
+                        </td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                    <td :colspan="isLotSplitRequired() ? 7 : 6" class="text-left font-semibold py-2 pl-4">
+                        Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
+                    </td>
+                    </tr>
+                </tfoot>
+                </table>
+            </div>
+            <div class="flex justify-end gap-2">
+                <button 
+                    class="px-4 py-2 text-white rounded transition-all duration-200" 
+                    :class="canAddRow && isLotSplitRequired() ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" 
+                    :disabled="!canAddRow || !isLotSplitRequired()" 
+                    @click="canAddRow && isLotSplitRequired() && addRow()"
+                >
+                + Add Row
+                </button>
+                <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
+                <ConfirmPopup></ConfirmPopup>
+                <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading"></Button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
+            </div>
             </div>
         </div>
     </div>
+
 </template>

@@ -2,25 +2,47 @@
 import { useToast } from 'primevue/usetoast';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { useReceiveStore } from '@/stores/receive';
 import { FilterMatchMode } from '@primevue/core/api';
-import { useReceiveStore_manual } from '@/stores/receive_manual';
+import { useManualMaterial } from '@/stores/manual_material';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
 
-const receiveStore = useReceiveStore();
 const router = useRouter();
 const toast = useToast();
-const loading = ref(false);
-const manualReceives = ref([]);
-const selectedRows = ref([]);
-const receiveStore_manual = useReceiveStore_manual();
+
+// Get functions and data from composable - add error handling
+let composableData;
+try {
+    composableData = useManualMaterial();
+} catch (error) {
+    console.error('Error initializing useManualMaterial:', error);
+    // Provide fallback values
+    composableData = {
+        loading: ref(false),
+        manualReceives: ref([]),
+        selectedRows: ref([]),
+        loadManualReceives: async () => {}
+    };
+}
+
+const {
+    loading,
+    manualReceives,
+    selectedRows,
+    loadManualReceives
+} = composableData;
 
 // Filters for DataTable
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
     receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    invoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    vendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
     vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
@@ -39,26 +61,19 @@ function onRowClick(event: any) {
     });
 }
 
-async function loadManualReceives() {
-    loading.value = true;
+onMounted(async () => {
     try {
-        const data = await receiveStore_manual.showItem_manual();
-        manualReceives.value = data || [];
+        await loadManualReceives(toast);
+        console.log('Manual Receives:', manualReceives.value);
     } catch (error) {
+        console.error('Error loading manual receives:', error);
         toast.add({
             severity: 'error',
             summary: 'Error',
-            detail: 'Failed to load manual receive list',
+            detail: 'Failed to load manual receives',
             life: 3000
         });
-    } finally {
-        loading.value = false;
     }
-}
-
-onMounted(() => {
-    loadManualReceives();
-    console.log('Manual Receives:', manualReceives.value);
 });
 // Create new manual receive
 function createNew() {
@@ -69,24 +84,16 @@ function createNew() {
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+        receiveNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
         receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        invoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        vendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
         vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 }
 
-// Format date
-function formatDate(dateString: string) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleDateString('th-TH', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    });
-}
+
+
 function refreshAllPage() {
     window.location.reload();
 }
@@ -117,7 +124,7 @@ function refreshAllPage() {
             loadingIcon="pi pi-spin pi-spinner"
             showGridlines
             rowHover
-            :globalFilterFields="['receiveNumber', 'receiveDate', 'invoiceNumber', 'vendorCode', 'vendorName']"
+            :globalFilterFields="['receiveNumber', 'receiveDate', 'invoicenumber', 'VendorCode', 'VendorName']"
             class="w-full"
             responsiveLayout="scroll"
             @row-click="onRowClick"
@@ -136,7 +143,7 @@ function refreshAllPage() {
                     </div>
                 </div>
             </template>
-            <Column field="invoiceNumber" header="Invoice Number" sortable style="width: 180px">
+            <Column field="InvoiceNumber" header="Invoice Number" sortable style="width: 180px">
                 <template #body="slotProps">
                     <div class="font-medium">
                         {{ slotProps.data.InvoiceNumber }}
@@ -155,7 +162,7 @@ function refreshAllPage() {
                 </template>
             </Column>
 
-            <Column field="vendorCode" header="Vendor Code" sortable style="width: 150px">
+            <Column field="VendorCode" header="Vendor Code" sortable style="width: 150px">
                 <template #body="slotProps">
                     {{ slotProps.data.VendorCode }}
                 </template>
@@ -164,7 +171,7 @@ function refreshAllPage() {
                 </template>
             </Column>
 
-            <Column field="vendorName" header="Vendor Name" sortable style="width: 150px">
+            <Column field="VendorName" header="Vendor Name" sortable style="width: 150px">
                 <template #body="slotProps">
                     {{ slotProps.data.VendorName }}
                 </template>

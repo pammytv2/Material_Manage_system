@@ -49,7 +49,7 @@ export class MaterialReceiveService {
       { name: 'startDate', type: sql.VarChar, value: startDate },
       { name: 'endDate', type: sql.VarChar, value: endDate },
     ]);
-    const selectQuery = `SELECT * FROM dbo.accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
+    const selectQuery = `SELECT * FROM dbo.view_accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
     return await this.databaseService.query(selectQuery, [
       { name: 'StartDate', type: sql.VarChar, value: startDate },
       { name: 'EndDate', type: sql.VarChar, value: endDate },

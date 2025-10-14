@@ -91,10 +91,18 @@ export class MaterialReceiveManualService {
         request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
 
         const sqlQuery = `
-        UPDATE accpac_sync_poreceipt_icshipment_detail
-        SET ReceiveQty = @ReceiveQty, InvoiceNumber = @InvoiceNumber
-        WHERE ItemNo = @ItemNo
-      `;
+        IF EXISTS (SELECT 1 FROM accpac_sync_poreceipt_icshipment_detail WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber)
+        BEGIN
+          UPDATE accpac_sync_poreceipt_icshipment_detail
+          SET ReceiveQty = @ReceiveQty
+          WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber
+        END
+        ELSE
+        BEGIN
+          INSERT INTO accpac_sync_poreceipt_icshipment_detail (ItemNo, ReceiveQty, InvoiceNumber)
+          VALUES (@ItemNo, @ReceiveQty, @InvoiceNumber)
+        END
+            `;
         await request.query(sqlQuery);
       }
       await transaction.commit();

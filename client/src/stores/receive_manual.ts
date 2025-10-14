@@ -106,7 +106,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     items,
                     invoiceNumber
                 };
-                const response = await ApiService.put<any>(url, payload);
+                const response = await ApiService.post<any>(url, payload);
                 this.loading = false;
                 return response;
             } catch (error) {

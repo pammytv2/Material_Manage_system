@@ -17,7 +17,7 @@ const default_state: ReceiveStoreState = {
     detail: null
 };
 
-// const api = 'http://localhost:3002';
+
 
 const useReceiveStore = defineStore('receive', {
     state: (): ReceiveStoreState => default_state,
@@ -339,7 +339,7 @@ const useReceiveStore = defineStore('receive', {
         async fetchInsertItem(additem: any) {
             this.loading = true;
             this.error = null;
-            const url = '${api}/material-manage/add-item';
+            const url = `${api}/material-manage/add-item`;
             try {
                 const data = await ApiService.post<any>(url, additem);
                 return data;

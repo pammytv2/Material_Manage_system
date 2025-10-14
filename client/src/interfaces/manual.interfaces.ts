@@ -24,7 +24,24 @@ interface receiveItems {
         lotRequired: boolean;
         ReceiveQty: number | string;
         PoNumber: string | number;
+        InvoiceNo?: string | number;
+        location?: string; 
+        vdcode?: string;
+        invoiceNo?: string;
+        
+}
+
+interface NoPoItemType {
+    itemNo: string | { label: string; value: string };
+    description: string;
+    unit: string;
+    receiveQty: number;
+    unitCost: number;
+    location: string | { label: string; value: string };
+    vdcode: string | { code: string; name: string };
+    invoiceNo: string;
 }
 
 
-export type { receiveForm, receiveItems};
+
+export type { receiveForm, receiveItems, NoPoItemType };

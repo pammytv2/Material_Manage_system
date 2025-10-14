@@ -1,15 +1,35 @@
 <script lang="ts" setup>
-import { NodeService } from '@/service/NodeService';
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
+import { useMaterialSplit } from '@/stores/split_material';
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { filterMeta } from '@/interfaces/receive.interfaces';
+// Add missing PrimeVue imports
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import DatePicker from 'primevue/datepicker';
+import Dropdown from 'primevue/dropdown';
 
-const loading = ref(false);
-const ReceptNumber = ref('');
-const router = useRouter();
-const receiveStore = useReceiveStore();
+// Use the composable
+const {
+    router,
+    receiveStore,
+    handleRowClick,
+    startDate,
+    endDate,
+    onDateSearch,
+    filteredReceiveList,
+    searchQuery,
+    loading,
+    ReceptNumber,
+    formatDate
+} = useMaterialSplit();
+
 // const loading = receiveStore.loading;
 const filters = ref<{
     global: filterMeta;
@@ -29,84 +49,7 @@ const filters = ref<{
     countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-async function handleRowClick(receipt: any) {
-    const receiveNumber = receipt.ReceptNumber;
-    const StatusRecIC = receipt.StatusRecIC;
-    const InvoiceNumber = receipt.InvoiceNumber;
-    const RecReceiveDate = receipt.ReciveDate;
-    const VendorName = receipt.VendorName;
 
-    router.push({
-        path: `/materials-split-detail/${receiveNumber}`,
-        query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
-    });
-
-    console.log('Row clicked:', receipt);
-
-    console.log('Row clicked1:', receiveNumber);
-
-    // receiveStore.getComponents(receiveNumber, StatusRecIC);
-    console.log('StatusRecIC:', StatusRecIC);
-
-    console.log('receiveStore:', receiveStore);
-}
-const allReceiveList = computed(() => receiveStore.materialSplitItems);
-
-const searchQuery = ref('');
-
-function getTodayStr() {
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
-
-const startDate = ref(localStorage.getItem('receiveStartDate') || '');
-const endDate = ref(localStorage.getItem('receiveEndDate') || getTodayStr());
-
-// กรองข้อมูลตาม searchQuery
-const filteredReceiveList = computed(() => {
-    let list = allReceiveList.value;
-    // filter by searchQuery
-    if (searchQuery.value) {
-        const q = searchQuery.value.trim().toLowerCase();
-        list = list.filter((item) => {
-            const receive = (item.ReceptNumber || '').toLowerCase();
-            const invoice = (item.InvoiceNumber || '').toLowerCase();
-            return receive.includes(q) || invoice.includes(q) || receive.startsWith(q) || invoice.startsWith(q);
-        });
-    }
-    // filter by date range
-    if (startDate.value) {
-        list = list.filter((item) => item.ReciveDate >= startDate.value.replace(/-/g, ''));
-    }
-    if (endDate.value) {
-        list = list.filter((item) => item.ReciveDate <= endDate.value.replace(/-/g, ''));
-    }
-    // เพิ่ม MaterialDivisionStatus ให้แต่ละ row
-    return list.map(row => ({
-        ...row,
-        MaterialDivisionStatus: getMaterialDivisionStatus(row)
-    }));
-});
-
-async function onDateSearch() {
-    localStorage.setItem('receiveStartDate', startDate.value);
-    localStorage.setItem('receiveEndDate', endDate.value);
-    const start = startDate.value.replace(/-/g, '');
-    const end = endDate.value.replace(/-/g, '');
-    loading.value = true;
-    await receiveStore.fetchMaterialSplit(start, end);
-
-    loading.value = false;
-}
-const receiveItems = computed(() =>
-    receiveStore.item_split.map(row => ({
-        ...row,
-        MaterialDivisionStatus: getMaterialDivisionStatus(row)
-    }))
-);
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -117,20 +60,6 @@ function clearFilter() {
         vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
         countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
-}
-
-function getMaterialDivisionStatus(row: any) {
-    if (row.total_split_qty === 0) return 'none';
-    if (row.total_split_qty === row.total_received_qty) return 'complete';
-    if (row.total_split_qty > 0 && row.total_split_qty < row.total_received_qty) return 'partial';
-    return 'none';
-}
-
-function formatDate(dateString: string) {
-    const year = dateString.substring(0, 4);
-    const month = dateString.substring(4, 6);
-    const day = dateString.substring(6, 8);
-    return `${year}-${month}-${day}`;
 }
 
 onMounted(async () => {
@@ -239,27 +168,27 @@ onMounted(async () => {
                 </template>
             </Column>
             <Column field="MaterialDivisionStatus" header="Material Division Status" sortable>
-        <template #body="{ data }">
-            <span v-if="data.MaterialDivisionStatus === 'complete'" class="text-green-600 font-semibold">แบ่งครบแล้ว</span>
-            <span v-else-if="data.MaterialDivisionStatus === 'partial'" class="text-yellow-600 font-semibold">แบ่งบางส่วน</span>
-            <span v-else class="text-red-600 font-semibold">ยังไม่แบ่ง</span>
-        </template>
-        <template #filter="{ filterModel }">
-            <Dropdown
-                v-model="filterModel.value"
-                :options="[
-                    { label: 'แบ่งครบแล้ว', value: 'complete' },
-                    { label: 'แบ่งบางส่วน', value: 'partial' },
-                    { label: 'ยังไม่แบ่ง', value: 'none' }
-                ]"
-                placeholder="เลือกสถานะการแบ่ง"
-                class="p-column-filter"
-                optionLabel="label"
-                optionValue="value"
-                showClear
-            />
-        </template>
-    </Column>
+                <template #body="{ data }">
+                    <span v-if="data.MaterialDivisionStatus === 'complete'" class="text-green-600 font-semibold">แบ่งครบแล้ว</span>
+                    <span v-else-if="data.MaterialDivisionStatus === 'partial'" class="text-yellow-600 font-semibold">แบ่งบางส่วน</span>
+                    <span v-else class="text-red-600 font-semibold">ยังไม่แบ่ง</span>
+                </template>
+                <template #filter="{ filterModel }">
+                    <Dropdown
+                        v-model="filterModel.value"
+                        :options="[
+                            { label: 'แบ่งครบแล้ว', value: 'complete' },
+                            { label: 'แบ่งบางส่วน', value: 'partial' },
+                            { label: 'ยังไม่แบ่ง', value: 'none' }
+                        ]"
+                        placeholder="เลือกสถานะการแบ่ง"
+                        class="p-column-filter"
+                        optionLabel="label"
+                        optionValue="value"
+                        showClear
+                    />
+                </template>
+            </Column>
             <Column field="CountOrder" header="Item Count" sortable>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count order" />

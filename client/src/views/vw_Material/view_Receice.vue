@@ -19,13 +19,13 @@ import Manage_Material from '@/components/Manage_Material/Manage.Material_Page.v
 export default defineComponent({
   name: 'ViewReceice',
   components: {
-    Receice
-    , Receive_Detail
-    , Receiv_Manual 
-    , Materials_Split
-    , Materials_Split_Detail
-    , Manual_Receive_List
-    , Manage_Material
+    Receice, 
+    Receive_Detail, 
+    Receiv_Manual, 
+    Materials_Split, 
+    Materials_Split_Detail, 
+    Manual_Receive_List,
+    Manage_Material
   },
   setup() {
     // component logic here

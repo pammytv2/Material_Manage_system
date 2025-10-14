@@ -7,7 +7,7 @@ import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
 import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
 import { useRoute } from 'vue-router';
-import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/fn_recive';
+import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/recive_material';
 
 const receiveStore = useReceiveStore();
 const router = useRouter();
@@ -229,10 +229,6 @@ async function calculateRowBalanceQtyWithLot(data: any) {
 
 
 
-// Lot rows state for dialog (แยกแต่ละแถว)
-
-
-
 
 
 function clearFilter() {
@@ -324,7 +320,6 @@ function clearFilter() {
                     </IconField>
                 </div>
             </template>
-
             <Column field="itemNo" header="Item No" sortable>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by item no" />
