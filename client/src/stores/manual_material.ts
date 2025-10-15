@@ -537,6 +537,8 @@ const noPoSubtotal = computed(() =>
     }, 0)
 );
 
+
+
 // Export all necessary functions and variables
 export function useManualMaterial() {
     

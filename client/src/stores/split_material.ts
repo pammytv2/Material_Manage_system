@@ -15,7 +15,7 @@ function getTodayStr() {
 
 function formatDate(dateString: string) {
     if (!dateString || dateString.length < 8) return '';
-    
+
     const year = dateString.substring(0, 4);
     const month = dateString.substring(4, 6);
     const day = dateString.substring(6, 8);
@@ -24,10 +24,10 @@ function formatDate(dateString: string) {
 
 function getMaterialDivisionStatus(row: any) {
     if (!row) return 'none';
-    
+
     const totalSplitQty = row.total_split_qty || 0;
     const totalReceivedQty = row.total_received_qty || 0;
-    
+
     if (totalSplitQty === 0) return 'none';
     if (totalSplitQty === totalReceivedQty) return 'complete';
     if (totalSplitQty > 0 && totalSplitQty < totalReceivedQty) return 'partial';
@@ -39,30 +39,25 @@ export function useMaterialSplit() {
     const route = useRoute();
     const receiveStore = useReceiveStore();
     const toast = useToast();
-    
+
     // Reactive variables
     const startDate = ref(localStorage.getItem('receiveStartDate') || '');
     const endDate = ref(localStorage.getItem('receiveEndDate') || getTodayStr());
     const searchQuery = ref('');
     const loading = ref(false);
     const ReceptNumber = ref('');
-    
+
     // Material Split Detail variables
     const isDialogOpen = ref(false);
     const dialogRowIndex = ref<number | null>(null);
     const selectedRows = ref<IReceiveDetailItem[]>([]);
     const detailTableRef = ref<HTMLElement | null>(null);
-    const lotSplitStatusList = reactive([
-        { value: 'Not Specified' }, 
-        { value: 'Not Specified' }, 
-        { value: 'Not Specified' }, 
-        { value: 'Not Specified' }
-    ]);
+    const lotSplitStatusList = reactive([{ value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }]);
     const lotRows = ref<LotRow[]>([]);
     const lotStatusIQA = ref<any[]>([]);
     const rowBalanceQtys = ref<{ [key: string]: number }>({});
     const rowLotSplitQtys = ref<{ [key: string]: number }>({});
-    
+
     // Computed properties
     const allReceiveList = computed(() => receiveStore.materialSplitItems);
     const allLotRows = computed(() => receiveStore.detail?.allLotRows || []);
@@ -72,22 +67,22 @@ export function useMaterialSplit() {
     const invoiceNumber = computed(() => receiveStore.detail?.invoiceNumber || route.query.InvoiceNumber || route.params.invoiceNumber || '');
     const specialExpDate = computed(() => receiveStore.detail?.specialExpDate || '');
     const vendorName = computed(() => receiveStore.detail?.vendorName || route.query.VendorName || route.params.vendorName || '');
-    
+
     const filteredReceiveList = computed(() => {
         try {
             let list = allReceiveList.value || [];
-            
+
             if (searchQuery.value) {
                 const q = searchQuery.value.trim().toLowerCase();
                 list = list.filter((item) => {
                     if (!item) return false;
-                    
+
                     const receive = (item.ReceptNumber || '').toLowerCase();
                     const invoice = (item.InvoiceNumber || '').toLowerCase();
                     return receive.includes(q) || invoice.includes(q) || receive.startsWith(q) || invoice.startsWith(q);
                 });
             }
-            
+
             if (startDate.value) {
                 const startDateFormatted = startDate.value.replace(/-/g, '');
                 list = list.filter((item) => item && (item.ReciveDate || '') >= startDateFormatted);
@@ -96,8 +91,8 @@ export function useMaterialSplit() {
                 const endDateFormatted = endDate.value.replace(/-/g, '');
                 list = list.filter((item) => item && (item.ReciveDate || '') <= endDateFormatted);
             }
-            
-            return list.map(row => ({
+
+            return list.map((row) => ({
                 ...row,
                 MaterialDivisionStatus: getMaterialDivisionStatus(row)
             }));
@@ -127,11 +122,11 @@ export function useMaterialSplit() {
         if (dialogRowIndex.value === null) return false;
         const currentRow = tableRows.value[dialogRowIndex.value];
         const isLotSplitRequired = currentRow?.lotSplit === 1 || currentRow?.lotSplit === '1';
-        
+
         // Only allow adding rows if lot split is required AND there's remaining balance
         return isLotSplitRequired && calculateBalanceQty() > 0;
     });
-    
+
     // Functions
     async function onDateSearch() {
         localStorage.setItem('receiveStartDate', startDate.value);
@@ -141,6 +136,8 @@ export function useMaterialSplit() {
         loading.value = true;
         await receiveStore.fetchMaterialSplit(start, end);
         loading.value = false;
+
+        console.log('Material Split List fetched:', allReceiveList.value);
     }
 
     async function handleRowClick(receipt: any) {
@@ -219,32 +216,32 @@ export function useMaterialSplit() {
         return rowLotSplitQtys.value[key] ?? 0;
     }
     async function calculateRowBalanceQtyWithLot(data: any) {
-    try {
-        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
-        const returnQty = parseFloat(data.returnQty || '0') || 0;
+        try {
+            const receiveQty = parseFloat(data.receiveQty || '0') || 0;
+            const returnQty = parseFloat(data.returnQty || '0') || 0;
 
-        // ดึงข้อมูล Lot Split ที่มีอยู่
-        const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
-            receiveno: receiveNumber.value,
-            itemNo: data.itemNo || ''
-        } as any);
+            // ดึงข้อมูล Lot Split ที่มีอยู่
+            const existingLotSplits = await receiveStore.fetchLotSplitByRecAndItem({
+                receiveno: receiveNumber.value,
+                itemNo: data.itemNo || ''
+            } as any);
 
-        // คำนวณจำนวนที่แบ่งไปแล้ว
-        const totalLotSplitQty =
-            existingLotSplits?.reduce((sum: number, lot: any) => {
-                return sum + (parseFloat(lot.lot_qty || '0') || 0);
-            }, 0) || 0;
+            // คำนวณจำนวนที่แบ่งไปแล้ว
+            const totalLotSplitQty =
+                existingLotSplits?.reduce((sum: number, lot: any) => {
+                    return sum + (parseFloat(lot.lot_qty || '0') || 0);
+                }, 0) || 0;
 
-        // Balance = Receive - Return - Total Lot Split Qty
-        return Math.max(receiveQty - returnQty - totalLotSplitQty, 0);
-    } catch (error) {
-        console.error('Error calculating balance with lot splits:', error);
-        // ถ้าเกิด error ให้คำนวณแบบปกติ
-        const receiveQty = parseFloat(data.receiveQty || '0') || 0;
-        const returnQty = parseFloat(data.returnQty || '0') || 0;
-        return Math.max(receiveQty - returnQty, 0);
+            // Balance = Receive - Return - Total Lot Split Qty
+            return Math.max(receiveQty - returnQty - totalLotSplitQty, 0);
+        } catch (error) {
+            console.error('Error calculating balance with lot splits:', error);
+            // ถ้าเกิด error ให้คำนวณแบบปกติ
+            const receiveQty = parseFloat(data.receiveQty || '0') || 0;
+            const returnQty = parseFloat(data.returnQty || '0') || 0;
+            return Math.max(receiveQty - returnQty, 0);
+        }
     }
-}
 
     async function updateRowBalanceQtys() {
         const balances: { [key: string]: number } = {};
@@ -261,10 +258,10 @@ export function useMaterialSplit() {
     }
     function addRow() {
         if (dialogRowIndex.value === null) return;
-        
+
         const currentRow = tableRows.value[dialogRowIndex.value];
         const isLotSplitRequired = currentRow?.lotSplit === 1 || currentRow?.lotSplit === '1';
-        
+
         // Only allow adding rows if lot split is required
         if (!isLotSplitRequired) {
             toast.add({
@@ -366,45 +363,42 @@ export function useMaterialSplit() {
         // Validate progressive completion: Lot No -> Take Out QTY -> Expire Date (if required)
         for (let i = 0; i < lotRows.value.length; i++) {
             const lotRow = lotRows.value[i];
-            
+
             // Step 1: Check Lot No
             if (!lotRow.lotNo || lotRow.lotNo.trim() === '') {
-                toast.add({ 
-                    severity: 'warn', 
-                    summary: 'Warning', 
-                    detail: `Row ${i + 1}: Please enter Lot No first`, 
-                    life: 3000 
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Warning',
+                    detail: `Row ${i + 1}: Please enter Lot No first`,
+                    life: 3000
                 });
                 return;
             }
 
             // Step 2: Check Take Out QTY (only if Lot No is filled)
             if (!lotRow.takeOutQty || parseFloat(String(lotRow.takeOutQty)) <= 0) {
-                toast.add({ 
-                    severity: 'warn', 
-                    summary: 'Warning', 
-                    detail: `Row ${i + 1}: Please enter Take Out QTY after Lot No`, 
-                    life: 3000 
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Warning',
+                    detail: `Row ${i + 1}: Please enter Take Out QTY after Lot No`,
+                    life: 3000
                 });
                 return;
             }
 
             // Step 3: Check Expire Date (only if required and previous steps are complete)
             if (isExpireDateRequired && (!lotRow.expireDate || lotRow.expireDate.trim() === '')) {
-                toast.add({ 
-                    severity: 'warn', 
-                    summary: 'Warning', 
-                    detail: `Row ${i + 1}: Please enter Expire Date after completing Lot No and Take Out QTY`, 
-                    life: 3000 
+                toast.add({
+                    severity: 'warn',
+                    summary: 'Warning',
+                    detail: `Row ${i + 1}: Please enter Expire Date after completing Lot No and Take Out QTY`,
+                    life: 3000
                 });
                 return;
             }
         }
 
-        const validLotRows = lotRows.value.filter((lotRow) => 
-            lotRow.lotNo && lotRow.lotNo.trim() !== '' && 
-            lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0
-        );
+        const validLotRows = lotRows.value.filter((lotRow) => lotRow.lotNo && lotRow.lotNo.trim() !== '' && lotRow.takeOutQty && parseFloat(String(lotRow.takeOutQty)) > 0);
 
         if (validLotRows.length === 0) {
             toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please complete at least one row with Lot No and Take Out Qty', life: 3000 });
@@ -445,6 +439,13 @@ export function useMaterialSplit() {
             const allSuccess = results.every((result) => result !== null && result !== undefined);
             if (allSuccess) {
                 toast.add({ severity: 'success', summary: 'Success', detail: 'Lot split data saved successfully', life: 3000 });
+                const targetRow = receiveStore.materialSplitItems.find((item) => item.ReceptNumber === receiveNumber.value);
+                if (targetRow) {
+                    targetRow.lot_no_status_id = 1; // หรือ lot_no_status_id = 1 หรือ LotSplitStatus = 1 ตามที่ใช้ใน rowClass
+                }
+                if (targetRow) {
+                    targetRow.split_status = 1; // หรือ lot_no_status_id = 1 หรือ LotSplitStatus = 1 ตามที่ใช้ใน rowClass
+                }
                 await updateRowBalanceQtys();
                 closeEditDialog(true);
             } else {
@@ -523,7 +524,6 @@ export function useMaterialSplit() {
         getReturnQty,
         closeEditDialog,
         toast,
-        addRow,
-       
+        addRow
     };
 }

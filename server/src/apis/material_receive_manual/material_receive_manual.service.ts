@@ -144,8 +144,19 @@ export class MaterialReceiveManualService {
 
   async showItem_manual(): Promise<any[]> {
     const sqlQuery = `
-    SELECT DISTINCT  InvoiceNumber, PoNumber,VendorCode,VendorName FROM  [dbo].[accpac_sync_poreceipt_icshipment_detail]
-    WHERE Ismanual = 1;`;
+    SELECT
+  InvoiceNumber,
+  STUFF(
+    (SELECT DISTINCT ',' + LTRIM(RTRIM(PoNumber))
+     FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] d2
+     WHERE d2.InvoiceNumber = d1.InvoiceNumber AND Ismanual = 1
+     FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, ''
+  ) AS PoNumber,
+  VendorCode,
+  VendorName
+FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] d1
+WHERE Ismanual = 1
+GROUP BY InvoiceNumber, VendorCode, VendorName;`;
     return await this.databaseService.query(sqlQuery);
   }
   

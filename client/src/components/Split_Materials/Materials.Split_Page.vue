@@ -73,6 +73,22 @@ onMounted(async () => {
         loading.value = false;
     }
 });
+
+// Add rowClass for orange highlight
+function rowClass(data: any) {
+
+    if (data.lot_no_status_id === 2) {
+        return 'highlight-blue-row';
+    }
+    if (data.split_status === 2) {
+        return 'highlight-yellow-row';
+    }
+    if (data.split_status === 3) {
+        return 'highlight-orange-row';
+    }
+    return '';
+}
+
 </script>
 
 <template>
@@ -81,11 +97,18 @@ onMounted(async () => {
         <form class="mb-4 flex flex-col gap-4">
             <div class="flex flex-col md:flex-row md:items-end gap-4">
                 <div class="flex gap-4">
-                    <input id="startDate" v-model="startDate" type="date" class="p-2 border rounded md:w-40" />
-                    <input id="endDate" v-model="endDate" type="date" class="p-2 border rounded md:w-40" />
+                    <div class="flex flex-col">
+                        <label for="startDate" class="mb-1 text-sm text-gray-600">Start Date</label>
+                        <input id="startDate" v-model="startDate" type="date" class="p-2 border rounded md:w-40" />
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="endDate" class="mb-1 text-sm text-gray-600">End Date</label>
+                        <input id="endDate" v-model="endDate" type="date" class="p-2 border rounded md:w-40" />
+                    </div>
                     <button
                         type="button"
-                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-0"
+                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-6"
+                        :disabled="!startDate || !endDate"
                         @click="
                             async () => {
                                 await onDateSearch();
@@ -113,6 +136,8 @@ onMounted(async () => {
             :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
             :loading="loading"
+            
+            :rowClass="rowClass"
         >
             <template #header>
                 <div class="flex justify-between">
@@ -167,33 +192,54 @@ onMounted(async () => {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
-            <Column field="MaterialDivisionStatus" header="Material Division Status" sortable>
-                <template #body="{ data }">
-                    <span v-if="data.MaterialDivisionStatus === 'complete'" class="text-green-600 font-semibold">แบ่งครบแล้ว</span>
-                    <span v-else-if="data.MaterialDivisionStatus === 'partial'" class="text-yellow-600 font-semibold">แบ่งบางส่วน</span>
-                    <span v-else class="text-red-600 font-semibold">ยังไม่แบ่ง</span>
-                </template>
-                <template #filter="{ filterModel }">
-                    <Dropdown
-                        v-model="filterModel.value"
-                        :options="[
-                            { label: 'แบ่งครบแล้ว', value: 'complete' },
-                            { label: 'แบ่งบางส่วน', value: 'partial' },
-                            { label: 'ยังไม่แบ่ง', value: 'none' }
-                        ]"
-                        placeholder="เลือกสถานะการแบ่ง"
-                        class="p-column-filter"
-                        optionLabel="label"
-                        optionValue="value"
-                        showClear
-                    />
-                </template>
-            </Column>
-            <Column field="CountOrder" header="Item Count" sortable>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count order" />
-                </template>
-            </Column>
+            <!-- <Column field="CountOrder" header="Item Count" sortable>
+            <template #body="{ data }">
+                {{ data.total_lots }}
+            </template> 
+            <template #filter="{ filterModel }">
+                <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by total lots" />
+            </template>
+            </Column> -->
         </DataTable>
     </div>
 </template>
+
+<style scoped>
+:deep(.highlight-blue-row) {
+    background-color: #bfdbfe !important;
+}
+:deep(.highlight-blue-row:hover) {
+    background-color: #60a5fa !important;
+}
+:deep(.highlight-blue-row td) {
+    background-color: #bfdbfe !important;
+}
+:deep(.highlight-blue-row:hover td) {
+    background-color: #60a5fa !important;
+}
+
+:deep(.highlight-yellow-row) {
+    background-color: #fef08a !important;
+}
+:deep(.highlight-yellow-row:hover) {
+    background-color: #fde047 !important;
+}
+:deep(.highlight-yellow-row td) {
+    background-color: #fef08a !important;
+}
+:deep(.highlight-yellow-row:hover td) {
+    background-color: #fde047 !important;
+}
+:deep(.highlight-orange-row) {
+    background-color: #ffedd5 !important;
+}
+:deep(.highlight-orange-row:hover) {
+    background-color: #fed7aa !important;
+}
+:deep(.highlight-orange-row td) {
+    background-color: #ffedd5 !important;
+}
+:deep(.highlight-orange-row:hover td) {
+    background-color: #fed7aa !important;
+}
+</style>

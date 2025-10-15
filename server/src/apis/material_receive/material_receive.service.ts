@@ -233,7 +233,7 @@ export class MaterialReceiveService {
   }
 
   async material_split(startDate: string, endDate: string): Promise<any> {
-    const sqlQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_h WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
+    const sqlQuery = `SELECT * FROM view_item_lotsplit WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
 
     return await this.databaseService.query(sqlQuery, [
       { name: 'StartDate', type: sql.VarChar, value: startDate },

@@ -111,6 +111,7 @@ function clearFilter() {
     };
 }
 
+
 function openNoPoDialog() {
     showNoPoDialog.value = true;
 }
@@ -499,15 +500,18 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
-            <Column header="Action" style="min-width: 120px">
-                <template #body="slotProps">
-                    <div class="flex gap-2 items-center">
-                        <!-- เฉพาะรายการที่ไม่มี PO -->
-                        <Button v-if="!slotProps.data.PoNumber" icon="pi pi-pencil" severity="info" outlined @click="editNoPoItem(slotProps.index)" />
-                        <!-- ...existing code for other actions... -->
-                    </div>
-                </template>
-            </Column>
+           <Column header="Action" style="min-width: 120px">
+    <template #body="slotProps">
+        <div class="flex gap-2 items-center">
+            <!-- เฉพาะรายการที่ไม่มี PO -->
+            <Button v-if="!slotProps.data.PoNumber"
+                icon="pi pi-pencil"
+                severity="info"
+                outlined
+                @click="editNoPoFromList(slotProps.index)" />
+        </div>
+    </template>
+</Column>
         </DataTable>
         <div class="flex justify-end mt-2 mb-2">
             <span class="font-bold text-base sm:text-lg"> Receipt Subtotal: {{ noPoSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>

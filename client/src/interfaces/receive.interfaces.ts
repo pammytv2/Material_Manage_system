@@ -25,6 +25,10 @@ interface IReceiveItem {
     LotSplit?: number;
     total_detail?: number;
     IQA: number ;
+    lot_no_status_id?: number ;
+    split_status?: number ;
+
+    
 
 
 } 

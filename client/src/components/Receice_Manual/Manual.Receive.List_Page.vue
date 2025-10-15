@@ -77,7 +77,10 @@ onMounted(async () => {
 });
 // Create new manual receive
 function createNew() {
-    router.push('/receive-manual');
+    router.push({
+        path: '/receive-manual',
+        query: { mode: 'create' }
+    });
 }
 
 // Clear all filters

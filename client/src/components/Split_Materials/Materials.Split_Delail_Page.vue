@@ -146,9 +146,8 @@ onMounted(async () => {
 });
 
 const goBack = () => {
-    router.back();
+    router.push({ path: '/materials-split', query: { page: route.query.page } });
 };
-
 async function openEditDialog(rowIndex: number) {
     dialogRowIndex.value = rowIndex;
     const currentRow = tableRows.value[rowIndex];

@@ -41,6 +41,8 @@ async function handleRowClick(receipt: any) {
         // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
         await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
         // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
+        const item = receiveStore.items.find((i) => i.ReceptNumber === receiveNumber);
+        if (item) item.total_detail = 1; // หรือค่าที่ถูกต้องหลังรับของ
         router.push({
             path: `/uikit/Receive_Detail/${receiveNumber}`,
             query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
@@ -102,13 +104,13 @@ async function onDateSearch() {
 }
 
 function rowClass(data: any) {
-    return data.total_detail === 0 ? 'highlight-yellow-row' : '';
+    return data.total_detail === 0 ? 'highlight-gray-row' : '';
 }
 
 async function syncMaterials() {
-    loading.value = true;   
+    loading.value = true;
     syncProgress.value = 0;
-    const filtered = filteredReceiveList.value.filter(item => item.total_detail === 0);
+    const filtered = filteredReceiveList.value.filter((item) => item.total_detail === 0);
     const total = filtered.length;
     let count = 0;
     for (const item of filtered) {
@@ -145,10 +147,7 @@ function formatDate(dateString: string) {
     const day = dateString.substring(6, 8);
     return `${year}-${month}-${day}`;
 }
-
-
 </script>
-
 
 <template>
     <div class="card">
@@ -156,14 +155,21 @@ function formatDate(dateString: string) {
         <form class="mb-4 flex flex-col gap-4">
             <div class="flex flex-col md:flex-row md:items-end gap-4">
                 <div class="flex gap-4">
-                    <input id="startDate" v-model="startDate" type="date" class="p-2 border rounded md:w-40" />
-                    <input id="endDate" v-model="endDate" type="date" class="p-2 border rounded md:w-40" />
+                    <div class="flex flex-col">
+                        <label for="startDate" class="mb-1 text-sm text-gray-600">Start Date</label>
+                        <input id="startDate" v-model="startDate" type="date" class="p-2 border rounded md:w-40" />
+                    </div>
+                    <div class="flex flex-col">
+                        <label for="endDate" class="mb-1 text-sm text-gray-600">End Date</label>
+                        <input id="endDate" v-model="endDate" type="date" class="p-2 border rounded md:w-40" />
+                    </div>
                     <button
                         type="button"
-                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-0"
+                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-6"
+                        :disabled="!startDate || !endDate"
                         @click="
                             async () => {
-                                await onDateSearch();
+                                 await onDateSearch();
                             }
                         "
                     >
@@ -171,32 +177,36 @@ function formatDate(dateString: string) {
                     </button>
                     <button
                         type="button"
-                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-0"
-                        @click="async () => { await syncMaterials(); }"
+                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-6"
+                        :disabled="filteredReceiveList.filter((item) => item.total_detail === 0).length === 0"
+
+                        @click="
+                            async () => {
+                                await syncMaterials();
+                            }
+                        "
                     >
                         Sync Materials ALL
                     </button>
-
-                  
                 </div>
             </div>
         </form>
     </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">Receive Material List</div>
-          <div class="flex-1 flex justify-end  p-3">
-                        <Button
-                            icon="pi pi-plus"
-                            label="Manual Receive"
-                            class="p-button-success mr-2"
-                            @click="
-                                () => {
-                                    router.push('/manual-receive-list');
-                                }
-                            "
-                        />
-                    </div>
-        
+        <div class="flex-1 flex justify-end p-3">
+            <Button
+                icon="pi pi-plus"
+                label="Manual Receive"
+                class="p-button-success mr-2"
+                @click="
+                    () => {
+                        router.push('/manual-receive-list');
+                    }
+                "
+            />
+        </div>
+
         <DataTable
             :value="filteredReceiveList"
             v-model:filters="filters"
@@ -259,38 +269,27 @@ function formatDate(dateString: string) {
                 </template>
             </Column>
             <Column field="CountOrder" header="Material Count" sortable>
+                <template #body="{ data }">
+                    {{ data.total_detail }}
+                </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by material count" />
                 </template>
-            </Column>   
-
-  
-            
+            </Column>
         </DataTable>
         <!-- Loading overlay for normal loading -->
-        <div
-            v-if="loading && syncProgress === 0"
-            class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
-            style="backdrop-filter: blur(2px); z-index: 1000;"
-        >
+        <div v-if="loading && syncProgress === 0" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
             <div class="flex flex-col items-center">
                 <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
                 <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
             </div>
         </div>
         <!-- Loading bar overlay for syncMaterials -->
-        <div
-            v-if="syncProgress > 0"
-            class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50"
-            style="backdrop-filter: blur(2px); z-index: 1001;"
-        >
+        <div v-if="syncProgress > 0" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1001">
             <div class="flex flex-col items-center w-80">
                 <span class="text-white text-xl mb-4">Sync Materials กำลังดำเนินการ...</span>
                 <div class="w-full bg-gray-700 rounded h-6 overflow-hidden mb-2">
-                    <div
-                        class="bg-green-500 h-6 transition-all duration-300"
-                        :style="{ width: syncProgress + '%' }"
-                    ></div>
+                    <div class="bg-green-500 h-6 transition-all duration-300" :style="{ width: syncProgress + '%' }"></div>
                 </div>
                 <span class="text-white">{{ syncProgress }}%</span>
             </div>
@@ -299,19 +298,19 @@ function formatDate(dateString: string) {
 </template>
 
 <style scoped>
-:deep(.highlight-yellow-row) {
-    background-color: #fef3c7 !important;
+:deep(.highlight-gray-row) {
+    background-color: #d1d5db !important; /* เทาเข้ม */
 }
 
-:deep(.highlight-yellow-row:hover) {
-    background-color: #fde68a !important;
+:deep(.highlight-gray-row:hover) {
+    background-color: #f3f4f6 !important; /* เทาอ่อน */
 }
 
-:deep(.highlight-yellow-row td) {
-    background-color: #fef3c7 !important;
+:deep(.highlight-gray-row td) {
+    background-color: #d1d5db !important;
 }
 
-:deep(.highlight-yellow-row:hover td) {
-    background-color: #fde68a !important;
+:deep(.highlight-gray-row:hover td) {
+    background-color: #f3f4f6 !important;
 }
 </style>
