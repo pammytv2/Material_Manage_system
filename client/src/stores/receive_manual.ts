@@ -167,25 +167,21 @@ const useReceiveStore_manual = defineStore('receive_manual', {
             try {
                 this.loading = true;
                 this.error = null;
-                const url = `${api}/material-receive-manual/insert-no-po-items_Post`;
+                const url: string = `${api}/material-receive-manual/insert-single-no-po-item`;
+
                 const payload = {
-                    VendorCode: VENDORCODE, // <-- change key to VendorCode
+
                     invoiceNumber,
                     ReceiveQty,
-                    itemNo,
-                    LOCATION
+                    itemNo
                 };
+
                 const response = await ApiService.post<any>(url, payload);
-                this.loading = false;
                 return response;
             } catch (error) {
+                // handle error
+            } finally {
                 this.loading = false;
-                if (error instanceof Error) {
-                    this.error = error.message;
-                } else {
-                    this.error = 'Failed to insert NO_PO item';
-                }
-                return null;
             }
         },
         async showItem_manual() {

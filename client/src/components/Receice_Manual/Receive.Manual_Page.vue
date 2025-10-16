@@ -19,6 +19,7 @@ import Column from 'primevue/column';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import ConfirmDialog from 'primevue/confirmdialog';
+import { todo } from 'node:test';
 
 // Initialize toast and confirm directly in component
 const toast = useToast();
@@ -49,6 +50,10 @@ const {
     vdcodeSuggestions,
     // Dialog state
     showNoPoDialog,
+    isEditingNoPoItems,
+    editingNoPoItemIndex,
+    updateNoPoItems,
+    confirmUpdateNoPoItems,
     // Error states
     invoiceNoError,
     poNumberError,
@@ -77,7 +82,8 @@ const {
     addNoPoItem,
     removeNoPoItem,
     editNoPoItem,
-    editNoPoFromList
+    editNoPoFromList,
+    loadManualReceives
 } = useManualMaterial();
 
 const receiveStore_manual = useReceiveStore_manual();
@@ -111,7 +117,6 @@ function clearFilter() {
     };
 }
 
-
 function openNoPoDialog() {
     showNoPoDialog.value = true;
 }
@@ -119,15 +124,16 @@ function openNoPoDialog() {
 onMounted(async () => {
     pageLoading.value = true;
     try {
+        const { mode, invoiceNumber, poNumber } = route.query;
+
+        console.log('Route query:', { mode, invoiceNumber, poNumber });
+
+        // Load initial data
         const response = await receiveStore_manual.fetchVDCODE();
         const itemList = await receiveStore_manual.fetchItemList_spec();
         const locationRaw = await receiveStore_manual.fetchLocation();
 
-        // Pass route query parameters to viewManualDetail
-        const invoiceNumber = route.query.invoiceNumber as string;
-        const poNumber = route.query.poNumber as string;
-        await viewManualDetail(invoiceNumber, poNumber);
-
+        // Setup suggestions and options
         vdcodeSuggestions.value = response ?? [];
         itemNoOptions.value = (itemList ?? []).map((item) => ({
             label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
@@ -137,6 +143,25 @@ onMounted(async () => {
             label: `[${loc.LOCATION?.trim() ?? ''}] ${loc.LOCATIONNAME?.trim() ?? ''}`,
             value: loc.LOCATION?.trim() ?? ''
         }));
+
+        // Handle different modes
+        if (mode === 'create') {
+            // Clear form for new creation
+            receiveForm.value = {
+                PoNumber: '',
+                receiveNumberList: [],
+                receiveDate: '',
+                ItemCount: 0,
+                InvoiceNo: '',
+                VDCODE: ''
+            };
+            receiveItems.value = [];
+            console.log('Create mode: Form cleared for new manual receive');
+        } else if (invoiceNumber) {
+            // Load existing data for edit/view - รองรับทั้ง PO และ No PO
+            await viewManualDetail(String(invoiceNumber), poNumber ? String(poNumber) : undefined);
+            console.log('Edit/View mode: Loaded manual detail for:', invoiceNumber, poNumber || 'No PO');
+        }
 
         console.log('locationList:', locationList.value);
         console.log('itemNoOptions:', itemNoOptions.value);
@@ -348,13 +373,14 @@ onMounted(async () => {
                 </template>
             </Column>
 
-            <Column header="Action" style="min-width: 120px">
+            <Column header="Actions" style="min-width: 150px">
                 <template #body="slotProps">
-                    <div class="flex gap-2 items-center">
-                        <!-- เฉพาะรายการที่ไม่มี PO -->
-                        <Button v-if="!slotProps.data.PoNumber" icon="pi pi-pencil" severity="info" outlined @click="editNoPoFromList(slotProps.index)" />
-                        <!-- ...existing code for other actions... -->
-                    </div>
+                    <span style="display: none">{{ console.log('PoNumber:', slotProps.data.PoNumber) }}</span>
+                    <template v-if="!slotProps.data.PoNumber || slotProps.data.PoNumber === null">
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <Button icon="pi pi-pencil" severity="warning" outlined @click="() => editNoPoFromList(slotProps.index)" class="w-full sm:w-auto" />
+                        </div>
+                    </template>
                 </template>
             </Column>
         </DataTable>
@@ -364,7 +390,13 @@ onMounted(async () => {
         </div>
     </div>
 
-    <Dialog v-model:visible="showNoPoDialog" modal header="Add Material (No PO)" :style="{ width: '90vw', maxWidth: '1500px', height: '80vh', maxHeight: '60vh' }" contentStyle="height: 65vh; overflow-y: auto;">
+    <Dialog
+        v-model:visible="showNoPoDialog"
+        modal
+        :header="isEditingNoPoItems ? 'Edit Material (No PO)' : 'Add Material (No PO)'"
+        :style="{ width: '90vw', maxWidth: '1500px', height: '80vh', maxHeight: '60vh' }"
+        contentStyle="height: 65vh; overflow-y: auto;"
+    >
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
                 <label class="block font-bold mb-1 text-sm">Invoice Number</label>
@@ -455,7 +487,7 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
-            <Column field="Vdcode" header="Vdcode" style="min-width: 120px">
+            <Column field="Vdcode" header="VDCODE" style="min-width: 120px">
                 <template #body="slotProps">
                     <span>
                         {{ typeof slotProps.data.vdcode === 'object' && slotProps.data.vdcode !== null && 'code' in slotProps.data.vdcode ? slotProps.data.vdcode.code : slotProps.data.vdcode || slotProps.data.VDCODE }}
@@ -466,13 +498,6 @@ onMounted(async () => {
                 <template #body="slotProps">
                     <span>
                         {{ slotProps.data.description }}
-                    </span>
-                </template>
-            </Column>
-            <Column field="location" header="Location" style="min-width: 120px">
-                <template #body="slotProps">
-                    <span>
-                        {{ typeof slotProps.data.location === 'object' && slotProps.data.location !== null && 'value' in slotProps.data.location ? slotProps.data.location.value : slotProps.data.location }}
                     </span>
                 </template>
             </Column>
@@ -500,23 +525,21 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
-           <Column header="Action" style="min-width: 120px">
-    <template #body="slotProps">
-        <div class="flex gap-2 items-center">
-            <!-- เฉพาะรายการที่ไม่มี PO -->
-            <Button v-if="!slotProps.data.PoNumber"
-                icon="pi pi-pencil"
-                severity="info"
-                outlined
-                @click="editNoPoFromList(slotProps.index)" />
-        </div>
-    </template>
-</Column>
+            <Column header="Action" style="min-width: 120px">
+                <template #body="slotProps">
+                    <div class="flex gap-2 items-center">
+                        <!-- เฉพาะรายการที่ไม่มี PO -->
+
+                        <Button icon="pi pi-trash" severity="danger" outlined @click="() => confirmRemoveNoPoItem(confirm, slotProps.index, toast)" />
+                    </div>
+                </template>
+            </Column>
         </DataTable>
         <div class="flex justify-end mt-2 mb-2">
             <span class="font-bold text-base sm:text-lg"> Receipt Subtotal: {{ noPoSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
         </div>
         <div class="flex flex-col sm:flex-row justify-end gap-4">
+            <Button v-if="isEditingNoPoItems" label="Update No Po Items" @click="() => confirmUpdateNoPoItems(confirm, toast)" :loading="loading" icon="pi pi-save" severity="warning" class="w-full sm:w-auto order-1 sm:order-2" />
             <Button label="Cancel" @click="closeNoPoDialog" severity="danger" outlined style="background-color: #dc3545; color: #fff" class="w-full sm:w-auto order-2 sm:order-1" />
             <Button label="Save Receive No Po" @click="() => confirmSaveNoPoItems(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
         </div>

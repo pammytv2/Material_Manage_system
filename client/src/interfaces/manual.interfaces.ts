@@ -1,34 +1,31 @@
-interface receiveForm
-    {
-        PoNumber: (string | number);
-        receiveNumberList: (string)[];
-        receiveDate: string | number;
-        ItemCount: number | string ;
-        InvoiceNo?: string | number;
-        VDCODE?: string | { code: string; name?: string };
-        VDNAME?: string ;
-        location?: string | { code: string; name?: string  };
-
-    }
+interface receiveForm {
+    PoNumber: string | number;
+    receiveNumberList: string[];
+    receiveDate: string | number;
+    ItemCount: number | string;
+    InvoiceNo?: string | number;
+    VDCODE?: string | { code: string; name?: string };
+    VDNAME?: string;
+    location?: string | { code: string; name?: string };
+}
 
 interface receiveItems {
-        itemNo: string;
-        description: string;
-        unit: number | string;
-        receiveQty: number | string;
-        lotNo: string | number;
-        expireDate: string | number;
-        remark: string | number;
-        unitCost: string | number;
-        iqaRequired: boolean;
-        lotRequired: boolean;
-        ReceiveQty: number | string;
-        PoNumber: string | number;
-        InvoiceNo?: string | number;
-        location?: string; 
-        vdcode?: string;
-        invoiceNo?: string;
-        
+    itemNo: string;
+    description: string;
+    unit: number | string;
+    receiveQty: number | string;
+    lotNo: string | number;
+    expireDate: string | number;
+    remark: string | number;
+    unitCost: string | number;
+    iqaRequired: boolean;
+    lotRequired: boolean;
+    ReceiveQty: number | string;
+    PoNumber: string | number;
+    InvoiceNo?: string | number;
+    location?: string;
+    vdcode?: string | { code: string; name?: string };
+    PORHSEQ?: number;
 }
 
 interface NoPoItemType {
@@ -41,7 +38,5 @@ interface NoPoItemType {
     vdcode: string | { code: string; name: string };
     invoiceNo: string;
 }
-
-
 
 export type { receiveForm, receiveItems, NoPoItemType };

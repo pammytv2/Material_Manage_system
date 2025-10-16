@@ -17,6 +17,8 @@ const filteredLocationOptions = ref<{ label: string; value: string }[]>([]);
 const filteredItemNoOptions = ref<{ label: string; value: string }[]>([]);
 const vdcodeSuggestions = ref<{ code: string; name: string }[]>([]);
 const manualReceives = ref([]);
+const editingNoPoItemIndex = ref<number | null>(null);
+const isEditingNoPoItems = ref(false);
 
 
 
@@ -50,6 +52,9 @@ const vdcodeNoPoError = ref('');
 
 function closeNoPoDialog() {
     showNoPoDialog.value = false;
+    isEditingNoPoItems.value = false;
+    editingNoPoItemIndex.value = null;
+    
     // รีเซ็ตข้อมูลใน Dialog
     noPoItem.value = {
         itemNo: '',
@@ -118,7 +123,7 @@ const isFormValid = computed(() => {
 });
 
 
-function confirmRemoveNoPoItem(confirm: any, index: number) {
+function confirmRemoveNoPoItem(confirm: any, index: number, toast?: any) {
     confirm.require({
         message: 'Are you sure you want to delete this item?',
         header: 'Confirm Delete',
@@ -134,6 +139,12 @@ function confirmRemoveNoPoItem(confirm: any, index: number) {
         },
         accept: () => {
             removeNoPoItem(index);
+            toast?.add({
+                severity: 'success',
+                summary: 'Deleted',
+                detail: 'Item removed',
+                life: 3000
+            });
         }
     });
 }
@@ -244,8 +255,12 @@ async function viewManualDetail(invoiceNumber?: string, poNumber?: string) {
             lotRequired: item.lotRequired ?? false,
             ReceiveQty: item.ReceiveQty ?? 0,
             extendedcost: ((Number(item.ReceiveQty ?? 0)) * (Number(item.UNITCOST ?? 0))),
-            PoNumber: item.PORHSEQ ?? '', // <-- เพิ่มตรงนี้
-            location: item.location ?? '' // <-- เพิ่ม property location
+            PORHSEQ: item.PORHSEQ ?? '',
+            location: item.location ?? '', 
+            PoNumber: item.PoNumber ?? '',
+            // location: item.LOCATION ?? '',      // <--- ตรงกับ API
+            vdcode: item.VendorCode ?? '',          // <--- ตรงกับ API
+            invoiceNo: item.InvoiceNumber ?? '',    // <--- ตรงกับ API
         })) : [];
         receiveForm.value.InvoiceNo = String(invoiceNumber);
         receiveForm.value.PoNumber = poNumber ? String(poNumber) : '';
@@ -354,6 +369,86 @@ function confirmSaveNoPoItems(confirm: any, toast: any) {
     });
 }
 
+async function updateNoPoItems(toast: any) {
+    if (!noPoItems.value.length) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Validation Error',
+            detail: 'No items to update',
+            life: 3000
+        });
+        return;
+    }
+
+    try {
+        loading.value = true;
+        
+        // Update แต่ละ item
+        for (const item of noPoItems.value) {
+            const VENDORCODE = typeof item.vdcode === 'object' && item.vdcode !== null && 'code' in item.vdcode ? item.vdcode.code : (item.vdcode ?? '');
+            const itemNoStr = typeof item.itemNo === 'object' && item.itemNo !== null && 'value' in item.itemNo ? item.itemNo.value : (item.itemNo ?? '');
+            const invoiceNumber = item.invoiceNo ?? '';
+            const locationStr = typeof item.location === 'object' && item.location !== null && 'value' in item.location ? item.location.value : item.location;
+            
+            // เรียก API สำหรับ update (ใช้ endpoint เดียวกับ insert)
+            await receiveStore_manual.fetchInsertNoPoItem(
+                VENDORCODE,
+                invoiceNumber,
+                Number(item.receiveQty) ?? 0,
+                itemNoStr,
+                locationStr
+            );
+        }
+
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: 'No PO items updated successfully',
+            life: 3000
+        });
+
+        // รีเฟรชข้อมูลใน main table
+        const invoiceNumber = noPoItems.value[0]?.invoiceNo;
+        if (invoiceNumber) {
+            await viewManualDetail(String(invoiceNumber), '');
+        }
+
+        // ปิด dialog
+        showNoPoDialog.value = false;
+        isEditingNoPoItems.value = false;
+        editingNoPoItemIndex.value = null;
+
+    } catch (error) {
+        console.error('Error updating No PO items:', error);
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to update No PO items',
+            life: 3000
+        });
+    } finally {
+        loading.value = false;
+    }
+}
+
+function confirmUpdateNoPoItems(confirm: any, toast: any) {
+    confirm.require({
+        message: 'Are you sure you want to update these No PO items?',
+        header: 'Confirm Update',
+        icon: 'pi pi-exclamation-triangle',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Update'
+        },
+        accept: () => {
+            updateNoPoItems(toast);
+        }
+    });
+}
 
 
 async function saveNoPoItems(toast: any) {
@@ -454,8 +549,8 @@ function addNoPoItem(toast: any) {
             unit: '',
             receiveQty: 0,
             unitCost: 0,
-            location: '',
-            vdcode: '',
+            location: noPoItem.value.location, // เก็บ Location ไว้
+            vdcode: noPoItem.value.vdcode,  
             invoiceNo: noPoItem.value.invoiceNo // เก็บ Invoice No ไว้
         };
     });
@@ -483,28 +578,116 @@ function editNoPoItem(index: number) {
     }
 }
 
-function editNoPoFromList(index: number) {
+async function editNoPoFromList(index: number, toast?: any) {
     const item = receiveItems.value[index];
     if (item && !item.PoNumber) {
         showNoPoDialog.value = true;
-       
-        const editItem = {
-            itemNo: item.itemNo ?? '',
-            description: item.description ?? '',
-            unit: typeof item.unit === 'string' ? item.unit : String(item.unit ?? ''),
-            receiveQty: typeof item.receiveQty === 'number' ? item.receiveQty : Number(item.receiveQty ?? 0),
-            unitCost: typeof item.unitCost === 'number' ? item.unitCost : Number(item.unitCost ?? 0),
-            location: item.location ?? '',
-            vdcode: item.vdcode ?? '',
-            invoiceNo: String(item.invoiceNo ?? item.InvoiceNo ?? '')
-        };
-        // ใส่ข้อมูลลงในฟอร์ม
-        noPoItem.value = { ...editItem };
-        // เพิ่มข้อมูลเข้า array เพื่อแสดงในตาราง 
-        noPoItems.value = [editItem];
+        isEditingNoPoItems.value = true; // set editing mode
+        editingNoPoItemIndex.value = index;
+        
+        console.log('Editing No PO Items for Invoice:', item.InvoiceNo || item.InvoiceNo);
+        
+        try {
+            // ดึงข้อมูลทั้งหมดของ Invoice Number นี้
+            const invoiceNumber = item.InvoiceNo || item.InvoiceNo || receiveForm.value.InvoiceNo;
+            
+            if (!invoiceNumber) {
+                toast?.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Invoice Number not found',
+                    life: 3000
+                });
+                return;
+            }
+
+            // เรียก API เพื่อดึงข้อมูลทั้งหมดของ Invoice นี้
+            const allItemsInInvoice = await receiveStore_manual.showItem_manual_detail(
+                String(invoiceNumber),
+                '' // ไม่ส่ง PO Number เพื่อดึงทุก items ของ Invoice
+            );
+
+            console.log('All items in invoice:', allItemsInInvoice);
+
+            // กรองเฉพาะ No PO items
+            const noPoItemsInInvoice = Array.isArray(allItemsInInvoice) 
+                ? allItemsInInvoice.filter((apiItem: any) => 
+                    !apiItem.PoNumber || 
+                    apiItem.PoNumber === null || 
+                    apiItem.PoNumber === '' ||
+                    String(apiItem.PoNumber).trim() === ''
+                  )
+                : [];
+
+            console.log('No PO items in invoice:', noPoItemsInInvoice);
+
+            if (noPoItemsInInvoice.length === 0) {
+                toast?.add({
+                    severity: 'warn',
+                    summary: 'Warning',
+                    detail: 'No No-PO items found for this invoice',
+                    life: 3000
+                });
+                return;
+            }
+
+            // แปลงข้อมูลทั้งหมดให้อยู่ในรูปแบบ NoPoItemType
+            const convertedItems = noPoItemsInInvoice.map((apiItem: any) => ({
+                itemNo: apiItem.ITEMNO?.trim() ?? '',
+                description: apiItem.ITEMDESC?.trim() ?? '',
+                unit: apiItem.UNIT?.trim() ?? '',
+                receiveQty: Number(apiItem.ReceiveQty ?? 0),
+                unitCost: Number(apiItem.UNITCOST ?? 0),
+                location: apiItem.location ?? apiItem.LOCATION ?? '',
+                vdcode: apiItem.VendorCode ?? apiItem.VDCODE ?? '',
+                invoiceNo: String(apiItem.InvoiceNumber ?? apiItem.INVOICENO ?? invoiceNumber)
+            }));
+
+            // ใส่ข้อมูลทั้งหมดลงใน noPoItems array
+            noPoItems.value = [...convertedItems];
+
+            // ใส่ข้อมูล item แรกลงในฟอร์ม (สำหรับการแก้ไข)
+            if (convertedItems.length > 0) {
+                noPoItem.value = { ...convertedItems[0] };
+            }
+
+            console.log('Loaded all No PO items for editing:', convertedItems);
+            toast?.add({
+                severity: 'success',
+                summary: 'Success',
+                detail: `Loaded ${convertedItems.length} No-PO items for editing`,
+                life: 3000
+            });
+
+        } catch (error) {
+            console.error('Error loading No PO items for invoice:', error);
+            
+            // ถ้า API ผิดพลาด ใช้ข้อมูลเดิม
+            const editItem = {
+                itemNo: item.itemNo ?? '',
+                description: item.description ?? '',
+                unit: typeof item.unit === 'string' ? item.unit : String(item.unit ?? ''),
+                receiveQty: typeof item.receiveQty === 'number' ? item.receiveQty : Number(item.receiveQty ?? 0),
+                unitCost: typeof item.unitCost === 'number' ? item.unitCost : Number(item.unitCost ?? 0),
+                location: item.location ?? '',
+                vdcode: typeof item.vdcode === 'object' && item.vdcode !== null
+                    ? { code: item.vdcode.code, name: item.vdcode.name ?? '' }
+                    : item.vdcode ?? '',
+                invoiceNo: String(item.InvoiceNo ?? receiveForm.value.InvoiceNo ?? '')
+            };
+            
+            noPoItem.value = { ...editItem };
+            noPoItems.value = [editItem];
+            
+            toast?.add({
+                severity: 'warn',
+                summary: 'Warning',
+                detail: 'Could not load all items, showing current item only',
+                life: 3000
+            });
+        }
     }
 }
-
 async function loadManualReceives(toast: any) {
     loading.value = true;
     try {
@@ -574,6 +757,8 @@ export function useManualMaterial() {
         invoiceNoNoPoError,
         itemNoNoPoError,
         locationNoPoError,
+        editingNoPoItemIndex,
+        isEditingNoPoItems,
         vdcodeNoPoError,
         
         // Computed
@@ -590,6 +775,8 @@ export function useManualMaterial() {
         saveNoPoItems,
         addNoPoItem,
         confirmRemoveNoPoItem,
+        updateNoPoItems,
+        confirmUpdateNoPoItems,
         
         // Functions that don't need parameters
         closeNoPoDialog,
@@ -603,4 +790,5 @@ export function useManualMaterial() {
         editNoPoFromList
     };
 }
+
 

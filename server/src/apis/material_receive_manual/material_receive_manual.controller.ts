@@ -90,15 +90,26 @@ async insertNoPoItems(
   }
 
   @Post('insert-no-po-items_Post')
-  async insertNoPoItems_post(
-    @Body('VendorCode') VendorCode: string, // <-- change param name
-    @Body('invoiceNumber') invoiceNumber: string,
-    @Body('LOCATION') LOCATION: string,
-    @Body('ReceiveQty') ReceiveQty: number,
-    @Body('itemNo') itemNo: string,
-  ) {
-    return await this.materialReceiveManualService.PostItemList_manual(VendorCode, invoiceNumber, ReceiveQty, itemNo, LOCATION); // <-- pass VendorCode
-  }
+async insertNoPoItems_post(
+  @Body('VendorCode') VendorCode: string,
+  @Body('invoiceNumber') invoiceNumber: string,
+  @Body('LOCATION') LOCATION: string,
+  @Body('ReceiveQty') ReceiveQty: number,
+  @Body('itemNo') itemNo: string,
+) {
+  // แปลง single values เป็น arrays ตาม signature ของ PostItemList_manual
+  const itemNoArray = [itemNo];
+  const receiveQtyArray = [ReceiveQty];
+  
+  return await this.materialReceiveManualService.PostItemList_manual(
+    VendorCode,      // VendorCode: string
+    invoiceNumber,   // invoiceNumber: string  
+    itemNoArray,     // itemNoList: string[]
+    receiveQtyArray, // ReceiveQty: number[]
+    LOCATION         // LOCATION: string
+  );
+}
+
 
  @Get('show-itemmanual')
   async showItemmanual() {
@@ -112,5 +123,18 @@ async insertNoPoItems(
   ) {
     return await this.materialReceiveManualService.showItem_manual_detail(invoiceNumber, PONUMBER);
   }
+ @Post('insert-single-no-po-item')
+  async updateItem_manual(
+    @Body('invoiceNumber') invoiceNumber: string,
+    @Body('ReceiveQty') ReceiveQty: number,
+    @Body('itemNo') itemNo: string,
+  ) {
+    return await this.materialReceiveManualService.insert_single_no_po_item(
+      invoiceNumber,
+      ReceiveQty,
+      itemNo,
+    );
+  }
+
 }
 

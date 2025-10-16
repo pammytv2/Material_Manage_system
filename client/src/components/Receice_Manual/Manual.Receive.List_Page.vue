@@ -22,7 +22,7 @@ try {
     console.error('Error initializing useManualMaterial:', error);
     // Provide fallback values
     composableData = {
-        loading: ref(false),
+        loading: ref(false),   
         manualReceives: ref([]),
         selectedRows: ref([]),
         loadManualReceives: async () => {}
@@ -49,14 +49,16 @@ const filters = ref({
 function onRowClick(event: any) {
     const invoiceNumber = event.data.InvoiceNumber;
     const poNumber = event.data.PoNumber;
-    // เรียก API เพื่อเตรียมข้อมูล detail (ถ้าต้องการ preload)
-    // await receiveStore_manual.showItem_manual_detail(invoiceNumber, poNumber);
+    
+    console.log('Row clicked:', { invoiceNumber, poNumber });
+    
     // ส่งไปหน้า Receive.Manual_Page.vue พร้อม query
     router.push({
         path: '/receive-manual',
         query: {
+            mode: 'view', // เพิ่ม mode สำหรับการดู
             invoiceNumber,
-            poNumber
+            poNumber: poNumber || '' // ถ้า poNumber เป็น null ให้เป็น empty string
         }
     });
 }
@@ -76,12 +78,21 @@ onMounted(async () => {
     }
 });
 // Create new manual receive
-function createNew() {
-    router.push({
+async function createNew() {
+    // Clear any existing data before navigation
+    if (composableData && typeof composableData.resetForm === 'function') {
+        composableData.resetForm();
+    }
+    
+    await router.push({
         path: '/receive-manual',
-        query: { mode: 'create' }
+        query: { 
+            mode: 'create',
+            timestamp: Date.now() // เพิ่ม timestamp เพื่อบังคับให้ component รู้ว่าเป็นการสร้างใหม่
+        }
     });
 }
+
 
 // Clear all filters
 function clearFilter() {

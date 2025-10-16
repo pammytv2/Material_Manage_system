@@ -34,20 +34,27 @@ export class MaterialReceiveManualService {
     const result = await request.execute('sp_Receive_Material_Manual');
     return result.recordsets;
   }
+
   async PostItemList_manual(
-    VENDORCODE: string, // <-- change param name
+    VendorCode: string,
     invoiceNumber: string,
-    ReceiveQty: number,
-    itemNo: string,
+    itemNoList: string[], // เปลี่ยนเป็น array
+    ReceiveQty: number[], // เปลี่ยนเป็น array
     LOCATION: string,
   ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
-    request.input('VendorCode', sql.VarChar, VENDORCODE); // <-- change to 'VendorCode'
+
+    // แปลง array เป็น string คั่นด้วย comma
+    const itemNoString = itemNoList.join(',');
+    const receiveQtyString = ReceiveQty.join(',');
+
+    request.input('VendorCode', sql.VarChar, VendorCode);
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
-    request.input('ReceiveQty', sql.Decimal, ReceiveQty);
-    request.input('itemNo', sql.VarChar, itemNo);
-    request.input('LOCATION', sql.VarChar, LOCATION);
+    request.input('ItemNo', sql.VarChar, itemNoString); // ตรงกับ @ItemNo ใน SP
+    request.input('ReceiveQtyList', sql.VarChar, receiveQtyString);
+    request.input('Location', sql.VarChar, LOCATION); // ตรงกับ @Location ใน SP
+
     const result = await request.execute('sp_Insert_Manual');
     return result.recordsets;
   }
@@ -73,6 +80,35 @@ export class MaterialReceiveManualService {
     request.input('ItemNo', sql.VarChar, ItemNo);
     const result = await request.query<Item_List_LotSplit>(sqlQuery);
     return result.recordset;
+  }
+
+  async insert_single_no_po_item(
+    invoiceNumber: string,
+    ReceiveQty: number,
+    itemNo: string,
+  ): Promise<any> {
+    const pool = await this.databaseService.getConnection();
+    const transaction = pool.transaction();
+    await transaction.begin();
+    try {
+      // เปลี่ยนจาก ReceiveQty = ReceiveQty + @ReceiveQty เป็น ReceiveQty = @ReceiveQty
+      const sqlQuery = `UPDATE accpac_sync_poreceipt_icshipment_detail
+                         SET ReceiveQty = @ReceiveQty
+                         WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber AND Ismanual = 1`;
+
+      const request = transaction.request();
+      request.input('ReceiveQty', sql.Decimal, ReceiveQty);
+      request.input('ItemNo', sql.VarChar, itemNo);
+      request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+
+      const result = await request.query(sqlQuery);
+      await transaction.commit();
+
+      return result.recordset;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   async updateReceiveItems(
@@ -159,8 +195,11 @@ WHERE Ismanual = 1
 GROUP BY InvoiceNumber, VendorCode, VendorName;`;
     return await this.databaseService.query(sqlQuery);
   }
-  
-  async showItem_manual_detail(invoiceNumber: string, poString?: string): Promise<any[]> {
+
+  async showItem_manual_detail(
+    invoiceNumber: string,
+    poString?: string,
+  ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
     let sqlQuery = `
