@@ -539,8 +539,14 @@ onMounted(async () => {
             <span class="font-bold text-base sm:text-lg"> Receipt Subtotal: {{ noPoSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
         </div>
         <div class="flex flex-col sm:flex-row justify-end gap-4">
-            <Button v-if="isEditingNoPoItems" label="Update No Po Items" @click="() => confirmUpdateNoPoItems(confirm, toast)" :loading="loading" icon="pi pi-save" severity="warning" class="w-full sm:w-auto order-1 sm:order-2" />
-            <Button label="Cancel" @click="closeNoPoDialog" severity="danger" outlined style="background-color: #dc3545; color: #fff" class="w-full sm:w-auto order-2 sm:order-1" />
+            <Button 
+            label="Cancel" 
+            @click="closeNoPoDialog" 
+            severity="danger" 
+            outlined 
+            style="background-color: #dc3545; color: #fff" 
+            class="w-full sm:w-auto order-2 sm:order-1" 
+        />
             <Button label="Save Receive No Po" @click="() => confirmSaveNoPoItems(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
         </div>
     </Dialog>

@@ -35,29 +35,33 @@ export class MaterialReceiveManualService {
     return result.recordsets;
   }
 
-  async PostItemList_manual(
+
+
+ async PostItemList_manual(
     VendorCode: string,
     invoiceNumber: string,
     itemNoList: string[], // เปลี่ยนเป็น array
     ReceiveQty: number[], // เปลี่ยนเป็น array
     LOCATION: string,
-  ): Promise<any[]> {
+): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
-
+    
     // แปลง array เป็น string คั่นด้วย comma
     const itemNoString = itemNoList.join(',');
     const receiveQtyString = ReceiveQty.join(',');
-
+    
     request.input('VendorCode', sql.VarChar, VendorCode);
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     request.input('ItemNo', sql.VarChar, itemNoString); // ตรงกับ @ItemNo ใน SP
     request.input('ReceiveQtyList', sql.VarChar, receiveQtyString);
     request.input('Location', sql.VarChar, LOCATION); // ตรงกับ @Location ใน SP
-
+    
     const result = await request.execute('sp_Insert_Manual');
     return result.recordsets;
-  }
+}
+
+
 
   async getItemList_spec(): Promise<any[]> {
     const sqlQuery = `
@@ -82,34 +86,6 @@ export class MaterialReceiveManualService {
     return result.recordset;
   }
 
-  async insert_single_no_po_item(
-    invoiceNumber: string,
-    ReceiveQty: number,
-    itemNo: string,
-  ): Promise<any> {
-    const pool = await this.databaseService.getConnection();
-    const transaction = pool.transaction();
-    await transaction.begin();
-    try {
-      // เปลี่ยนจาก ReceiveQty = ReceiveQty + @ReceiveQty เป็น ReceiveQty = @ReceiveQty
-      const sqlQuery = `UPDATE accpac_sync_poreceipt_icshipment_detail
-                         SET ReceiveQty = @ReceiveQty
-                         WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber AND Ismanual = 1`;
-
-      const request = transaction.request();
-      request.input('ReceiveQty', sql.Decimal, ReceiveQty);
-      request.input('ItemNo', sql.VarChar, itemNo);
-      request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
-
-      const result = await request.query(sqlQuery);
-      await transaction.commit();
-
-      return result.recordset;
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
-  }
 
   async updateReceiveItems(
     items: { ItemNo: string; ReceiveQty: number }[],
@@ -195,11 +171,8 @@ WHERE Ismanual = 1
 GROUP BY InvoiceNumber, VendorCode, VendorName;`;
     return await this.databaseService.query(sqlQuery);
   }
-
-  async showItem_manual_detail(
-    invoiceNumber: string,
-    poString?: string,
-  ): Promise<any[]> {
+  
+  async showItem_manual_detail(invoiceNumber: string, poString?: string): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
     let sqlQuery = `
@@ -216,4 +189,36 @@ GROUP BY InvoiceNumber, VendorCode, VendorName;`;
     const result = await request.query(sqlQuery);
     return result.recordset;
   }
+  async insert_single_no_po_item(
+    invoiceNumber: string,
+    ReceiveQty: number,
+    itemNo: string,
+  ): Promise<any> {
+    const pool = await this.databaseService.getConnection();
+    const transaction = pool.transaction();
+    await transaction.begin();
+    try {
+      // เปลี่ยนจาก ReceiveQty = ReceiveQty + @ReceiveQty เป็น ReceiveQty = @ReceiveQty
+      const sqlQuery = `UPDATE accpac_sync_poreceipt_icshipment_detail
+                         SET ReceiveQty = @ReceiveQty
+                         WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber AND Ismanual = 1`;
+
+      const request = transaction.request();
+      request.input('ReceiveQty', sql.Decimal, ReceiveQty);
+      request.input('ItemNo', sql.VarChar, itemNo);
+      request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+
+      const result = await request.query(sqlQuery);
+      await transaction.commit();
+
+      return result.recordset;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+
+  
+
+
 }
