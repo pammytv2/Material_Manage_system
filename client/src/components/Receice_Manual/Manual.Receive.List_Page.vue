@@ -39,11 +39,12 @@ const {
 // Filters for DataTable
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+    receiveNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
     receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
     InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
     VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
+    VendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    PoNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
 });
 
 function onRowClick(event: any) {
@@ -66,6 +67,10 @@ function onRowClick(event: any) {
 onMounted(async () => {
     try {
         await loadManualReceives(toast);
+         manualReceives.value = manualReceives.value.map(item => ({
+            ...item,
+            PoNumber: Array.isArray(item.PoNumber) ? item.PoNumber.join(', ') : (item.PoNumber ?? ''),
+        }));
         console.log('Manual Receives:', manualReceives.value);
     } catch (error) {
         console.error('Error loading manual receives:', error);
@@ -102,10 +107,10 @@ function clearFilter() {
         receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
         InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
         VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS }
+        VendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        PoNumber: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 }
-
 
 
 function refreshAllPage() {
@@ -138,10 +143,13 @@ function refreshAllPage() {
             loadingIcon="pi pi-spin pi-spinner"
             showGridlines
             rowHover
-            :globalFilterFields="['receiveNumber', 'receiveDate', 'invoicenumber', 'VendorCode', 'VendorName']"
+            :globalFilterFields="['receiveNumber', 'receiveDate', 'InvoiceNumber', 'PoNumber', 'VendorCode', 'VendorName']"
             class="w-full"
             responsiveLayout="scroll"
+            :sortField="'ImportDate'" 
+            :sortOrder="-1" 
             @row-click="onRowClick"
+            
            
         >
             <template #header>
@@ -167,7 +175,7 @@ function refreshAllPage() {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by invoice" />
                 </template>
             </Column>
-            <Column field="PoNumber" header="Po Number" sortable style="width: 150px">
+            <Column field="PoNumber" header="PoNumber" sortable style="width: 150px">
                 <template #body="slotProps">
                     {{ slotProps.data.PoNumber }}
                 </template>

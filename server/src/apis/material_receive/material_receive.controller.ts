@@ -26,6 +26,10 @@ export class MaterialReceiveController {
   syncData_Detail(@Param('receiptNumber') receiptNumber: string) {
     return this.materialReceiveService.syncData_Detail(receiptNumber);
   }
+@Get('details-split/:InvoiceNumber')
+syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
+    return this.materialReceiveService.syncData_Detail_Split(InvoiceNumber);
+}
   @Get('lot-status-iqa/:IQAStatusID')
   lot_statusIQA(@Query('IQAStatusID') IQAStatusID: number) {
     return this.materialReceiveService.lot_statusIQA(Number(IQAStatusID));
@@ -95,6 +99,16 @@ export class MaterialReceiveController {
   ) {
     return this.materialReceiveService.lot_Split_BY_Rec_and_ItemNo(
       receiveNo,
+      itemNo,
+    );
+  }
+  @Get('lot-split/:InvoiceNumber')
+  lotSplit_Invoice(
+    @Param('InvoiceNumber') InvoiceNumber: string,
+    @Query('itemNo') itemNo: string,
+  ) {
+    return this.materialReceiveService.lot_Split_BY_INV_and_ItemNo(
+      InvoiceNumber,
       itemNo,
     );
   }

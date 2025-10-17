@@ -5,6 +5,7 @@ import { ApiService } from '@/service/api.service';
 // If 'Receive' is a default export:
 import { IReceiveItem, ILotSplitData, ReceiveItem, ReceiveStoreState } from '@/interfaces/receive.interfaces';
 import { item } from '@primeuix/themes/aura/breadcrumb';
+import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const api = import.meta.env.VITE_API_URL;
 
@@ -16,8 +17,6 @@ const default_state: ReceiveStoreState = {
     error: null,
     detail: null
 };
-
-
 
 const useReceiveStore = defineStore('receive', {
     state: (): ReceiveStoreState => default_state,
@@ -52,21 +51,21 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
-       async fetchReceiveItems(receiptNumber: string) {
-    this.loading = true;
-    this.error = null;
-    const url: string = `${api}/material-receive/view-item?ReceptNumber=${receiptNumber}`;
-    try {
-        const data = await ApiService.get<IReceiveItem[]>(url);
-        this.item_split = data;
-        return data;
-    } catch (err: any) {
-        this.error = err?.message || 'Failed to fetch receive items';
-        return null;
-    } finally {
-        this.loading = false;
-    }
-},
+        async fetchReceiveItems(receiptNumber: string) {
+            this.loading = true;
+            this.error = null;
+            const url: string = `${api}/material-receive/view-item?ReceptNumber=${receiptNumber}`;
+            try {
+                const data = await ApiService.get<IReceiveItem[]>(url);
+                this.item_split = data;
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch receive items';
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
         async getComponents(receiptNumber: string) {
             this.loading = true;
             this.error = null;
@@ -81,6 +80,19 @@ const useReceiveStore = defineStore('receive', {
                 return null;
             } finally {
                 this.loading = false;
+            }
+        },
+        async Components_Split(InvoiceNumber: string) {
+            this.loading = true;
+            this.error = null;
+            const url: string = `${api}/material-receive/details-split/${InvoiceNumber}`;
+            try {
+                const data = await ApiService.get<any>(url);
+                this.detail = data;
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to get components split';
+                return null;
             }
         },
 
@@ -131,6 +143,24 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
+
+        // async fetchLotSplitByInvoice(receiveItem: ReceiveItem) {
+        //     this.loading = true;
+        //     this.error = null;
+        //     // Use InvoiceNumber (capital I) and fallback to both possible property names
+        //     const invoiceNumber =
+        //         (receiveItem.InvoiceNumber ?? receiveItem.invoiceNumber) || '';
+        //     const url: string = `${api}/material-receive/lot-split-invoice/${invoiceNumber}?itemNo=${receiveItem.itemNo}`;
+        //     try {
+        //         const data = await ApiService.get<any>(url);
+        //         return data;
+        //     } catch (err: any) {
+        //         this.error = err?.message || 'Failed to fetch lot split by invoice';
+        //     } finally {
+        //         this.loading = false;
+        //     }
+        // },
+
         async fetchLotSplitByRecAndItem(receiveItem: ReceiveItem) {
             this.loading = true;
             this.error = null;
@@ -411,13 +441,7 @@ const useReceiveStore = defineStore('receive', {
             }
         }
     }
-
-
-    
-    
-    
 });
-
 
 interface IActiveUpdateItem {
     Message: string;

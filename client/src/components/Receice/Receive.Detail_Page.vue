@@ -336,7 +336,7 @@ function clearFilter() {
 
             <Column field="receiveQty" header="Receive(QTY)" sortable>
                 <template #body="{ data }">
-                    {{ getReturnQty(data.receiveQty, data.returnQty) }}
+                    {{ Number(getReturnQty(data.receiveQty, data.returnQty)).toLocaleString() }}
                 </template>
             </Column>
                         <Column field="unit" header="Unit" sortable>
@@ -345,7 +345,7 @@ function clearFilter() {
                 </template>
             </Column>
 
-            <Column field="lotSplitStatusIdx" header="Lot Split Status" sortable>
+            <!-- <Column field="lotSplitStatusIdx" header="Lot Split Status" sortable>
                 <template #body="{ data }">
                     <span :class="getLotSplitStatusClass(getLotSplitStatusText(data.lotSplit))">
                         {{ getLotSplitStatusText(data.lotSplit) }}
@@ -361,15 +361,15 @@ function clearFilter() {
                         </template>
                     </Dropdown>
                 </template>
-            </Column>
+            </Column> -->
 
-            <Column field="iqaRequirement" header="IQA Requirement" sortable>
+            <!-- <Column field="iqaRequirement" header="IQA Requirement" sortable>
                 <template #body="{ data }">
                     <span :class="getIQARequiredClass(getIQAStatusText(data.IQA))">
                         {{ getIQAStatusText(data.IQA) }}
                     </span>
                 </template>
-            </Column>
+            </Column> -->
         </DataTable>
     </div>
 </template>

@@ -123,11 +123,24 @@ async insertNoPoItems_post(
   ) {
     return await this.materialReceiveManualService.showItem_manual_detail(invoiceNumber, PONUMBER);
   }
+
+
+
+
+@Get('showItem_manual_detail_inv')
+  async showItem_manual_detail_inv(
+    @Query('invoiceNumber') invoiceNumber: string
+  ) {
+    return await this.materialReceiveManualService.showItem_manual_detail_inv(invoiceNumber);
+  }
+    
+
  @Post('insert-single-no-po-item')
   async updateItem_manual(
     @Body('invoiceNumber') invoiceNumber: string,
     @Body('ReceiveQty') ReceiveQty: number,
     @Body('itemNo') itemNo: string,
+
   ) {
     return await this.materialReceiveManualService.insert_single_no_po_item(
       invoiceNumber,
@@ -136,5 +149,17 @@ async insertNoPoItems_post(
     );
   }
 
-}
 
+  
+  @Post('delete-item-manual')
+  async deleteItem_manual(
+    @Body('invoiceNumber') invoiceNumber: string,
+    @Body('ItemNo') ItemNo: string,
+  ) {
+    return await this.materialReceiveManualService.DeleteItem_manual(
+      invoiceNumber,
+      ItemNo,
+    );
+  }
+
+}

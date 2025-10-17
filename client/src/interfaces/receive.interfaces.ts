@@ -68,9 +68,14 @@ interface IReceiveDetailItem {
     UNIT: string;
     RQRECEIVED: number;
     SyncAt: Date;
+    itemNo: string ;
     LotSplitStatus: number;
     ItemStatusIqaID: number;
     iqaStatus: number ;
+    unit: string ;
+    ExpDate?: string | number;
+    lotSplit?: number | string;
+    receiveQty?: string  ;
 }
 interface LotRow {
     id?: number | null;
@@ -78,7 +83,7 @@ interface LotRow {
     lotNo: string;
     qty:  number;
     unit: string;
-    expireDate: string;
+    expireDate: string | null;
     takeOutQty?: number;
     problem?: boolean ;
     remark?: string;
@@ -98,8 +103,12 @@ interface ILotSplitData {
 interface ReceiveItem {
     itemNo : string | number;
     receiveno: string | number;
+    invoiceNumber: string | number;
     lotNo: string | number;
+    
 }
+
+
 interface ReceiveStoreState {
     items: IReceiveItem[];
     materialSplitItems: IReceiveItem[]; // เพิ่มสำหรับเก็บข้อมูล material-split แยกต่างหาก

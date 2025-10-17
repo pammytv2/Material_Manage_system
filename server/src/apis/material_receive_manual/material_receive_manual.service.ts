@@ -1,4 +1,4 @@
-import { Injectable, Post } from '@nestjs/common';
+import { Injectable, Post, Delete } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import {
   Item,
@@ -9,6 +9,7 @@ import {
 import { Item_manual } from 'shared/interfaces/mms-system/ManualReceiv';
 import * as sql from 'mssql';
 import * as request from 'supertest';
+
 
 @Injectable()
 export class MaterialReceiveManualService {
@@ -35,33 +36,29 @@ export class MaterialReceiveManualService {
     return result.recordsets;
   }
 
-
-
- async PostItemList_manual(
+  async PostItemList_manual(
     VendorCode: string,
     invoiceNumber: string,
     itemNoList: string[], // เปลี่ยนเป็น array
     ReceiveQty: number[], // เปลี่ยนเป็น array
     LOCATION: string,
-): Promise<any[]> {
+  ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
-    
+
     // แปลง array เป็น string คั่นด้วย comma
     const itemNoString = itemNoList.join(',');
     const receiveQtyString = ReceiveQty.join(',');
-    
+
     request.input('VendorCode', sql.VarChar, VendorCode);
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     request.input('ItemNo', sql.VarChar, itemNoString); // ตรงกับ @ItemNo ใน SP
     request.input('ReceiveQtyList', sql.VarChar, receiveQtyString);
     request.input('Location', sql.VarChar, LOCATION); // ตรงกับ @Location ใน SP
-    
+
     const result = await request.execute('sp_Insert_Manual');
     return result.recordsets;
-}
-
-
+  }
 
   async getItemList_spec(): Promise<any[]> {
     const sqlQuery = `
@@ -86,6 +83,35 @@ export class MaterialReceiveManualService {
     return result.recordset;
   }
 
+  async insert_single_no_po_item(
+    invoiceNumber: string,
+    ReceiveQty: number,
+    itemNo: string,
+  ): Promise<any> {
+    const pool = await this.databaseService.getConnection();
+    const transaction = pool.transaction();
+    await transaction.begin();
+    try {
+      // เปลี่ยนจาก ReceiveQty = ReceiveQty + @ReceiveQty เป็น ReceiveQty = @ReceiveQty
+      const sqlQuery = `UPDATE accpac_sync_poreceipt_icshipment_detail
+                         SET ReceiveQty = @ReceiveQty,
+                             RQRECEIVED = @ReceiveQty
+                         WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber AND Ismanual = 1`;
+
+      const request = transaction.request();
+      request.input('ReceiveQty', sql.Decimal, ReceiveQty);
+      request.input('ItemNo', sql.VarChar, itemNo);
+      request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+
+      const result = await request.query(sqlQuery);
+      await transaction.commit();
+
+      return result.recordset;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
 
   async updateReceiveItems(
     items: { ItemNo: string; ReceiveQty: number }[],
@@ -156,23 +182,29 @@ export class MaterialReceiveManualService {
 
   async showItem_manual(): Promise<any[]> {
     const sqlQuery = `
-    SELECT
-  InvoiceNumber,
+   SELECT
+  d1.InvoiceNumber,
   STUFF(
-    (SELECT DISTINCT ',' + LTRIM(RTRIM(PoNumber))
+    (SELECT DISTINCT ',' + LTRIM(RTRIM(d2.PoNumber))
      FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] d2
-     WHERE d2.InvoiceNumber = d1.InvoiceNumber AND Ismanual = 1
+     WHERE d2.InvoiceNumber = d1.InvoiceNumber AND d2.Ismanual = 1
      FOR XML PATH(''), TYPE).value('.', 'NVARCHAR(MAX)'), 1, 1, ''
   ) AS PoNumber,
-  VendorCode,
-  VendorName
+  d1.VendorCode,
+  d1.VendorName,
+  h.ImportDate
 FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] d1
-WHERE Ismanual = 1
-GROUP BY InvoiceNumber, VendorCode, VendorName;`;
+LEFT JOIN view_accpac_sync_poreceipt_icshipment_h h
+  ON d1.InvoiceNumber = h.InvoiceNumber
+WHERE d1.Ismanual = 1
+GROUP BY d1.InvoiceNumber, d1.VendorCode, d1.VendorName, h.ImportDate;`;
     return await this.databaseService.query(sqlQuery);
   }
-  
-  async showItem_manual_detail(invoiceNumber: string, poString?: string): Promise<any[]> {
+
+async showItem_manual_detail(
+    invoiceNumber: string,
+    poString?: string,
+): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
     let sqlQuery = `
@@ -181,44 +213,45 @@ GROUP BY InvoiceNumber, VendorCode, VendorName;`;
     `;
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
 
+    // ถ้ามี poString ให้ใช้ AND ไม่ใช่ OR
     if (poString) {
-      sqlQuery += ' OR PoNumber = @PONUMBER';
+      sqlQuery += ' AND PoNumber = @PONUMBER';
       request.input('PONUMBER', sql.VarChar, poString);
     }
 
     const result = await request.query(sqlQuery);
     return result.recordset;
-  }
-  async insert_single_no_po_item(
+}
+
+async showItem_manual_detail_inv(
     invoiceNumber: string,
-    ReceiveQty: number,
-    itemNo: string,
-  ): Promise<any> {
+): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
-    const transaction = pool.transaction();
-    await transaction.begin();
-    try {
-      // เปลี่ยนจาก ReceiveQty = ReceiveQty + @ReceiveQty เป็น ReceiveQty = @ReceiveQty
-      const sqlQuery = `UPDATE accpac_sync_poreceipt_icshipment_detail
-                         SET ReceiveQty = @ReceiveQty
-                         WHERE ItemNo = @ItemNo AND InvoiceNumber = @InvoiceNumber AND Ismanual = 1`;
+    const request = pool.request();
+    let sqlQuery = `
+      SELECT * FROM [dbo].[accpac_sync_poreceipt_icshipment_detail]
+      WHERE InvoiceNumber = @InvoiceNumber
+    `;
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+}
 
-      const request = transaction.request();
-      request.input('ReceiveQty', sql.Decimal, ReceiveQty);
-      request.input('ItemNo', sql.VarChar, itemNo);
-      request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
 
-      const result = await request.query(sqlQuery);
-      await transaction.commit();
 
-      return result.recordset;
-    } catch (error) {
-      await transaction.rollback();
-      throw error;
-    }
+
+  
+  async DeleteItem_manual(invoiceNumber: string, ItemNo: string): Promise<any> {
+    const sqlQuery = `
+            DELETE FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] WHERE InvoiceNumber = @InvoiceNumber AND ItemNo = @ItemNo`;
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    request.input('ItemNo', sql.VarChar, ItemNo);
+    const result = await request.query(sqlQuery);
+    return result.recordset;
   }
 
   
-
-
 }
+

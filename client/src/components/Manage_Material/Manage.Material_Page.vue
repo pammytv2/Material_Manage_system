@@ -22,6 +22,7 @@ import { useConfirm } from 'primevue/useconfirm';
 const receiveStore = useReceiveStore();
 const manageMaterialStore = useManageMaterialStore();
 const router = useRouter();
+const confirm = useConfirm();
 
 // Destructure from the store
 const {
@@ -162,11 +163,8 @@ async function handleRowClick(row: any) {
     }
 }
 
-function confirm(event) {
-    console.log('🔍 confirm function called');
-    const confirmPopup = useConfirm();
-    
-    confirmPopup.require({
+function confirmSave(event) {
+    confirm.require({
         target: event.target,
         message: 'Are you sure you want to save the lot split data?',
         icon: 'pi pi-exclamation-triangle',
@@ -179,11 +177,7 @@ function confirm(event) {
             label: 'Save'
         },
         accept: async () => {
-            console.log('✅ User accepted, calling saveLotSplit');
             await saveLotSplit();
-        },
-        reject: () => {
-            console.log('❌ User rejected');
         }
     });
 }
@@ -631,7 +625,7 @@ function rowStyleNA(row: any) {
                         </div>
                     </div>
                     <div class="flex justify-end gap-2 mt-6">
-                        <Button label="Save" icon="pi pi-check" @click="confirm($event)" severity="success" :disabled="loading" />
+                        <Button label="Save" icon="pi pi-check" @click="confirmSave($event)" severity="success" :disabled="loading" />
                         <Button label="Cancel" icon="pi pi-times" @click="showMaterialDetailsDialog = false" severity="secondary" outlined :disabled="loading" />
                         <ConfirmPopup></ConfirmPopup>
                     </div>

@@ -9,6 +9,7 @@ import { filterMeta } from '@/interfaces/receive.interfaces';
 const loading = ref(false);
 const syncProgress = ref(0); // <-- add for progress bar
 const router = useRouter();
+const dateError = ref('');
 const receiveStore = useReceiveStore();
 // const loading = receiveStore.loading;
 const filters = ref<{
@@ -40,6 +41,11 @@ async function handleRowClick(receipt: any) {
     try {
         // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
         await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
+
+        // เก็บวันที่ไว้ใน localStorage ก่อนเปลี่ยนหน้า
+        localStorage.setItem('receiveStartDate', startDate.value);
+        localStorage.setItem('receiveEndDate', endDate.value);
+
         // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
         const item = receiveStore.items.find((i) => i.ReceptNumber === receiveNumber);
         if (item) item.total_detail = 1; // หรือค่าที่ถูกต้องหลังรับของ
@@ -49,7 +55,6 @@ async function handleRowClick(receipt: any) {
         });
     } catch (err) {
         alert('เกิดข้อผิดพลาดในการ sync ข้อมูล กรุณาตรวจสอบข้อมูลหรือแจ้งผู้ดูแลระบบ');
-        // หรือใช้ toast/notification แทน alert
     } finally {
         loading.value = false;
     }
@@ -93,13 +98,26 @@ const filteredReceiveList = computed(() => {
 });
 
 async function onDateSearch() {
+    dateError.value = '';
+    if (startDate.value && endDate.value && startDate.value > endDate.value) {
+        dateError.value = 'Start Date ต้องน้อยกว่า End Date';
+        return;
+    }
+    if (!startDate.value || !endDate.value) {
+        dateError.value = 'กรุณาเลือกวันที่ให้ครบถ้วน';
+        return;
+    }
+    if (startDate.value > getTodayStr() || endDate.value > getTodayStr()) {
+        dateError.value = 'วันที่ไม่สามารถเป็นอนาคตได้';
+        return;
+    }
+    
     localStorage.setItem('receiveStartDate', startDate.value);
     localStorage.setItem('receiveEndDate', endDate.value);
     const start = startDate.value.replace(/-/g, '');
     const end = endDate.value.replace(/-/g, '');
     loading.value = true;
     await receiveStore.syncItems(start, end);
-    console.log('Filtered List:', filteredReceiveList.value);
     loading.value = false;
 }
 
@@ -125,6 +143,10 @@ async function syncMaterials() {
         count++;
         syncProgress.value = Math.round((count / total) * 100);
     }
+    const start = startDate.value.replace(/-/g, '');
+    const end = endDate.value.replace(/-/g, '');
+    await receiveStore.syncItems(start, end);
+
     loading.value = false;
     syncProgress.value = 0;
 }
@@ -158,6 +180,7 @@ function formatDate(dateString: string) {
                     <div class="flex flex-col">
                         <label for="startDate" class="mb-1 text-sm text-gray-600">Start Date</label>
                         <input id="startDate" v-model="startDate" type="date" class="p-2 border rounded md:w-40" />
+                        <span v-if="dateError" class="text-red-500 text-xs mt-1">{{ dateError }}</span>
                     </div>
                     <div class="flex flex-col">
                         <label for="endDate" class="mb-1 text-sm text-gray-600">End Date</label>
@@ -169,7 +192,7 @@ function formatDate(dateString: string) {
                         :disabled="!startDate || !endDate"
                         @click="
                             async () => {
-                                 await onDateSearch();
+                                await onDateSearch();
                             }
                         "
                     >
@@ -179,7 +202,6 @@ function formatDate(dateString: string) {
                         type="button"
                         class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-6"
                         :disabled="filteredReceiveList.filter((item) => item.total_detail === 0).length === 0"
-
                         @click="
                             async () => {
                                 await syncMaterials();
@@ -269,9 +291,7 @@ function formatDate(dateString: string) {
                 </template>
             </Column>
             <Column field="CountOrder" header="Material Count" sortable>
-                <template #body="{ data }">
-                    {{ data.total_detail }}
-                </template>
+                <template #body="{ data }"> {{ data.total_detail }}/{{ data.CountOrder }} </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by material count" />
                 </template>

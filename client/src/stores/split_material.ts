@@ -184,6 +184,39 @@ export function useMaterialSplit() {
 
         return Number((receiveQty - totalTakeOutQty).toFixed(2));
     }
+    function rowClass(data: any) {
+    // lot_no_status_ids อาจเป็น string, array หรือ number
+    let lotNoStatusArr: number[] = [];
+    if (typeof data.lot_no_status_id === 'string') {
+        lotNoStatusArr = data.lot_no_status_id.split(',').map(s => Number(s.trim()));
+    } else if (Array.isArray(data.lot_no_status_id)) {
+        lotNoStatusArr = data.lot_no_status_id.map(Number);
+    } else if (typeof data.lot_no_status_id === 'number') {
+        lotNoStatusArr = [data.lot_no_status_id];
+    }
+
+    // if (lotNoStatusArr.includes(2)) {
+    //     return 'highlight-blue-row';
+    // }
+
+    // split_statuses อาจเป็น string, array หรือ number
+    let splitStatusesArr: number[] = [];
+    if (typeof data.split_statuses === 'string') {
+        splitStatusesArr = data.split_status.split(',').map(s => Number(s.trim()));
+    } else if (Array.isArray(data.split_status)) {
+        splitStatusesArr = data.split_status.map(Number);
+    } else if (typeof data.split_status === 'number') {
+        splitStatusesArr = [data.split_statuses];
+    }
+
+    if (splitStatusesArr.includes(2)) {
+        return 'highlight-yellow-row';
+    }
+    if (splitStatusesArr.includes(3)) { 
+        return 'highlight-orange-row';
+    }
+    return '';
+}
 
     async function updateRowLotSplitQtys() {
         const lotSplitQtys: { [key: string]: number } = {};
@@ -448,6 +481,7 @@ export function useMaterialSplit() {
                 }
                 await updateRowBalanceQtys();
                 closeEditDialog(true);
+                 await receiveStore.fetchMaterialSplit(startDate.value.replace(/-/g, ''), endDate.value.replace(/-/g, ''));
             } else {
                 toast.add({ severity: 'error', summary: 'Error', detail: 'Some lot split data failed to save', life: 3000 });
             }
@@ -456,6 +490,7 @@ export function useMaterialSplit() {
         } finally {
             loading.value = false;
         }
+        
     }
 
     function getReturnQty(receiveQty: number | string, returnQty: number | string) {
@@ -471,6 +506,8 @@ export function useMaterialSplit() {
             // Refresh logic here if needed
         }
     }
+
+    
 
     return {
         // Router and store
@@ -511,6 +548,7 @@ export function useMaterialSplit() {
         getMaterialDivisionStatus,
         handleRowClick,
         formatDate,
+        rowClass,
         calculateBalanceQty,
         updateRowLotSplitQtys,
         getRowLotSplitQty,

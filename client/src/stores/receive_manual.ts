@@ -170,7 +170,6 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 const url: string = `${api}/material-receive-manual/insert-single-no-po-item`;
 
                 const payload = {
-
                     invoiceNumber,
                     ReceiveQty,
                     itemNo
@@ -216,6 +215,76 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                     this.error = error.message;
                 } else {
                     this.error = 'Failed to get items showItem_manual_detail';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        async showItem_manual_detail_inv(invoiceNumber: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/showItem_manual_detail_inv?invoiceNumber=${encodeURIComponent(invoiceNumber)}`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to get items showItem_manual_detail';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async insertNoPoItems_post(VendorCode: string, invoiceNumber: string, LOCATION: string, ReceiveQty: number, itemNo: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/insert-no-po-items_Post`;
+
+                const payload = {
+                    VendorCode,
+                    invoiceNumber,
+                    LOCATION,
+                    ReceiveQty,
+                    itemNo
+                };
+
+                const response = await ApiService.post<any>(url, payload);
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to insert no po items';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
+        },
+        async deleteItem_manual(invoiceNumber: string, ItemNo: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/delete-item-manual`;
+
+                const payload = {
+                    invoiceNumber,
+                    ItemNo
+                };
+                const response = await ApiService.post<any>(url, payload);
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to insert no po items';
                 }
                 return null;
             } finally {

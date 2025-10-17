@@ -22,6 +22,7 @@ import { useToast } from 'primevue/usetoast';
 
 const router = useRouter();
 const route = useRoute();
+const detailTableScrollRef = ref<HTMLElement | null>(null);
 const confirmPopup = useConfirm();
 const toast = useToast();
 
@@ -101,7 +102,7 @@ onMounted(async () => {
     const VendorName = (route.query.VendorName as string) || '';
 
     loading.value = true;
-    const response = await receiveStore.getComponents(receiveNumber);
+    const response = await receiveStore.Components_Split(InvoiceNumber);
     // const lotStatusIQAResponse = await receiveStore.fetchLotStatusIQA(defaultIQAStatusID);
     // lotStatusIQA.value = lotStatusIQAResponse;
 
@@ -131,8 +132,9 @@ onMounted(async () => {
                 takeOutQty: row.takeOutQty ?? '',
                 returnQty: row.returnQty ?? '',
                 balanceQty: row.balanceQty ?? '',
+                
                 lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
-                lotSplit: row.LotSplit ?? '',
+                lotSplit: row.LotSplit ?? 0,
                 ExpDate: row.ExpDate ?? '',
                 IQA: row.IQA ?? ''
             }))
@@ -225,6 +227,7 @@ async function openEditDialog(rowIndex: number) {
         loading.value = false;
         isDialogOpen.value = true;
     }
+
 }
 
 async function closeEditDialog(save = false) {
@@ -240,10 +243,10 @@ async function closeEditDialog(save = false) {
     lotRows.value = [];
     // scroll กลับไปยังตาราง Detail
     nextTick(() => {
-        if (detailTableRef.value) {
-            detailTableRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-    });
+    if (detailTableScrollRef.value) {
+        detailTableScrollRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+});
 }
 
 
@@ -413,7 +416,49 @@ function getExpireDateClass(row: any){
     }
     return classes.join(' ');
 }
+function isRowDisabled(row: any) {
+    return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
+}
+function onRowClick(event: any) {
+    // ใช้ itemNo หรือ key ที่ unique
+    const row = event.data;
+    if (isRowDisabled(row)) return; 
+    const realIndex = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
+    if (realIndex !== -1) {
+        openEditDialog(realIndex);
+    }
+}
+async function receiveNoLot() {
+    const noLotRows = selectedRows.value.filter(row => {
+        return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
+    });
 
+    if (noLotRows.length === 0) {
+        toast.add({ severity: 'info', summary: 'Info', detail: 'No items to receive without lot.', life: 2000 });
+        return;
+    }
+
+    for (const row of noLotRows) {
+        const receiveQty = parseFloat(row.receiveQty || '0') || 0;
+        // สร้าง lotRow สำหรับรับ lot
+        lotRows.value = [{
+            id: null,
+            no: '',
+            lotNo: 'N/A',
+            qty: receiveQty,
+            unit: row.unit || '',
+            expireDate: '',
+            takeOutQty: receiveQty,
+            problem: false,
+            remark: ''
+        }];
+        // เซ็ต dialogRowIndex ให้ตรงกับแถวที่กำลังจะบันทึก
+        dialogRowIndex.value = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
+        // เรียก saveLotSplit เพื่อบันทึก
+        await saveLotSplit();
+    }
+    
+}
 </script>
 
 <template>
@@ -478,7 +523,9 @@ function getExpireDateClass(row: any){
             rowHover
             :globalFilterFields="['no', 'itemNo', 'description', 'unit', 'lotExpireDate', 'invoice', 'iqaStatus']"
             class="mb-6"
-            @row-click="(event) => openEditDialog(event.index)"
+
+            @row-click="onRowClick"
+            
         >
             <template #header>
                 <div class="flex justify-between">
@@ -559,7 +606,7 @@ function getExpireDateClass(row: any){
                 </template>
             </Column>
 
-            <Column field="iqaRequirement" header="IQA Requirement" sortable>
+            <!-- <Column field="iqaRequirement" header="IQA Requirement" sortable>
                 <template #body="{ data }">
                     <span :class="getIQARequiredClass(getIQAStatusText(data.IQA))">
                         {{ getIQAStatusText(data.IQA) }}
@@ -575,7 +622,7 @@ function getExpireDateClass(row: any){
                         </template>
                     </Dropdown>
                 </template>
-            </Column>
+            </Column> -->   
 
             <Column field="iqaStatus" header="IQA Status" sortable>
                 <template #body="{ data }">
@@ -591,6 +638,7 @@ function getExpireDateClass(row: any){
         <div class="flex justify-end">
             <ConfirmPopup></ConfirmPopup>
             <Button ref="popup" @click="Success()" icon="pi pi-check" label="Submit to IQA" class="mr-2" :disabled="!selectedRows.length"></Button>
+           <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" severity="success"></Button>
         </div>
 
         <div v-if="isDialogOpen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-40">

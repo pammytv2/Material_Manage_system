@@ -26,6 +26,7 @@ const {
     filteredReceiveList,
     searchQuery,
     loading,
+    rowClass,
     ReceptNumber,
     formatDate
 } = useMaterialSplit();
@@ -74,20 +75,7 @@ onMounted(async () => {
     }
 });
 
-// Add rowClass for orange highlight
-function rowClass(data: any) {
 
-    if (data.lot_no_status_id === 2) {
-        return 'highlight-blue-row';
-    }
-    if (data.split_status === 2) {
-        return 'highlight-yellow-row';
-    }
-    if (data.split_status === 3) {
-        return 'highlight-orange-row';
-    }
-    return '';
-}
 
 </script>
 
@@ -192,14 +180,14 @@ function rowClass(data: any) {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
-            <!-- <Column field="CountOrder" header="Item Count" sortable>
+            <Column field="CountOrder" header="Item Count" sortable>
             <template #body="{ data }">
-                {{ data.total_lots }}
+                {{ data.item_count }}
             </template> 
             <template #filter="{ filterModel }">
                 <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by total lots" />
             </template>
-            </Column> -->
+            </Column>
         </DataTable>
     </div>
 </template>

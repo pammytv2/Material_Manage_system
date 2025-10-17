@@ -8,6 +8,7 @@ import {
 } from 'shared/interfaces/mms-system/Item_List';
 import * as sql from 'mssql';
 
+
 @Injectable()
 export class MaterialReceiveService {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -79,6 +80,21 @@ export class MaterialReceiveService {
     ]);
   }
 
+async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
+    // Sync data
+    const syncQuery = `
+      SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE InvoiceNumber = @InvoiceNumber
+    `;
+    await this.databaseService.query(syncQuery, [
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber },
+    ]);
+    // Return detail
+    const selectQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE InvoiceNumber = @InvoiceNumber`;
+    return await this.databaseService.query(selectQuery, [
+      { name: 'InvoiceNumber', type: sql.VarChar, value: InvoiceNumber },
+    ]);
+}
+
   // Sync Dates
   async syncDates(): Promise<any> {
     const sqlQuery = `
@@ -109,7 +125,7 @@ export class MaterialReceiveService {
     LotSplit: string,
     receiveno: string,
     lot_unit: string,
-    exp_date: Date,
+    exp_date: Date ,
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
@@ -123,7 +139,7 @@ export class MaterialReceiveService {
       created_at, remark, isProblem, lot_qty
     ) VALUES (
       @LotSplit, @ItemNo, @ReceptNumber, @LotUnit, @ExpDate,
-      GETDATE(), @Remark, @IsProblem, @LotQty
+      GETDATE(), @Remark, @IsProblem, @LotQty 
     )                                
   `;
     let booleanValue: boolean;
@@ -148,6 +164,19 @@ export class MaterialReceiveService {
     ]);
   }
 
+  async lot_Split_BY_INV_and_ItemNo(
+    InvoiceNumber: string,
+    itemNo: string,
+  ): Promise<Item_List_LotSplit[]> {
+    const sqlQuery = `
+    EXEC sp_Get_mat_lot_Split_by_Inv_and_ItemNo
+  `;
+   return await this.databaseService.query(sqlQuery, [
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber },
+      { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
+    ]);
+  }
+
   async lot_Split_BY_Rec_and_ItemNo(
     receiveno: string,
     itemNo: string,
@@ -167,7 +196,7 @@ export class MaterialReceiveService {
     LotSplit: string,
     receiveno: string,
     lot_unit: string,
-    exp_date: Date,
+    exp_date: Date|string|null,
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
@@ -233,7 +262,20 @@ export class MaterialReceiveService {
   }
 
   async material_split(startDate: string, endDate: string): Promise<any> {
-    const sqlQuery = `SELECT * FROM view_item_lotsplit WHERE ReciveDate BETWEEN @StartDate AND @EndDate`;
+    const sqlQuery = `SELECT 
+    ReceptNumber,
+    ReciveDate,
+    InvoiceNumber,
+    VendorCode, 
+    VendorName,
+    item_count
+
+    
+FROM view_item_lotsplit
+WHERE ReciveDate BETWEEN @StartDate AND @EndDate
+GROUP BY ReceptNumber, ReciveDate,InvoiceNumber, VendorCode,VendorName,item_count
+
+`;
 
     return await this.databaseService.query(sqlQuery, [
       { name: 'StartDate', type: sql.VarChar, value: startDate },
@@ -343,7 +385,7 @@ export class MaterialReceiveService {
   }
 
   async view_item(ReceptNumber: string): Promise<Item[]> {
-    const sqlQuery = `SELECT * FROM view_item_lotsplit  where ReceptNumber = @ReceptNumber`;
+    const sqlQuery = `  `;
     return await this.databaseService.query(sqlQuery, [
       { name: 'ReceptNumber', type: sql.NVarChar, value: ReceptNumber },
     ]);

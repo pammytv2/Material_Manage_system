@@ -38,6 +38,13 @@ const routes: RouteRecordRaw[] = [
                 component: () => import('@/components/Split_Materials/Materials.Split_Page.vue')
 
             },
+            // {
+            //     path: '/materials-split-detail/:InvoiceNumber',
+            //     name: 'MaterialsSplitDetail',
+            //     component: () => import('@/components/Split_Materials/Materials.Split_Delail_Page.vue')
+
+            // },
+      
             {
                 path: '/materials-split-detail/:receiveNumber',
                 name: 'MaterialsSplitDetail',

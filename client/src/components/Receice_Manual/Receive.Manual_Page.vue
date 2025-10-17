@@ -54,6 +54,7 @@ const {
     editingNoPoItemIndex,
     updateNoPoItems,
     confirmUpdateNoPoItems,
+    viewManualDetail_inv,
     // Error states
     invoiceNoError,
     poNumberError,
@@ -74,7 +75,7 @@ const {
     confirmRemoveNoPoItem,
     saveReceive,
     confirmSave,
-
+    receiveQtyNoPoError,
     viewManualDetail,
     searchItemListManual,
     confirmSaveNoPoItems,
@@ -118,6 +119,7 @@ function clearFilter() {
 }
 
 function openNoPoDialog() {
+    noPoItem.value.invoiceNo = String(receiveForm.value.InvoiceNo); // ใช้ .value และชื่อ property ให้ตรง
     showNoPoDialog.value = true;
 }
 
@@ -140,9 +142,33 @@ onMounted(async () => {
             value: item.ItemNo.trim()
         }));
         locationList.value = (locationRaw ?? []).map((loc) => ({
-            label: `[${loc.LOCATION?.trim() ?? ''}] ${loc.LOCATIONNAME?.trim() ?? ''}`,
+            label: loc.LOCATION?.trim() ?? '', // ใช้ชื่อสั้นๆ เช่น SMT
             value: loc.LOCATION?.trim() ?? ''
         }));
+        if (!response || response.length === 0) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'ไม่พบข้อมูล VDCODE',
+                life: 3000
+            });
+        }
+        if (!itemList || itemList.length === 0) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'ไม่พบข้อมูล Item',
+                life: 3000
+            });
+        }
+        if (!locationRaw || locationRaw.length === 0) {
+            toast.add({
+                severity: 'error',
+                summary: 'Error',
+                detail: 'ไม่พบข้อมูล Location',
+                life: 3000
+            });
+        }
 
         // Handle different modes
         if (mode === 'create') {
@@ -159,8 +185,11 @@ onMounted(async () => {
             console.log('Create mode: Form cleared for new manual receive');
         } else if (invoiceNumber) {
             // Load existing data for edit/view - รองรับทั้ง PO และ No PO
-            await viewManualDetail(String(invoiceNumber), poNumber ? String(poNumber) : undefined);
+            await viewManualDetail_inv(String(invoiceNumber));
             console.log('Edit/View mode: Loaded manual detail for:', invoiceNumber, poNumber || 'No PO');
+
+            // await viewManualDetail(String(invoiceNumber), poNumber ? String(poNumber) : undefined);
+            // console.log('Edit/View mode: Loaded manual detail for:', invoiceNumber, poNumber || 'No PO');
         }
 
         console.log('locationList:', locationList.value);
@@ -233,7 +262,38 @@ onMounted(async () => {
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <Button label="search" icon="pi pi-search" severity="success" @click="() => searchItemListManual(toast)" outlined style="background-color: #22c55e; color: #fff" class="w-full sm:w-auto" />
+            <Button
+                label="Add Material"
+                icon="pi pi-plus"
+                severity="success"
+                outlined
+                style="background-color: #2563eb; color: #fff"
+                class="w-full sm:w-auto"
+                @click="
+                    () => {
+                        // Reset error
+                        invoiceNoError = '';
+                        poNumberError = '';
+                        vdcodeError = '';
+
+                        let hasError = false;
+                        if (!receiveForm.InvoiceNo) {
+                            invoiceNoError = 'กรุณากรอก Invoice Number';
+                            hasError = true;
+                        }
+                        if (!receiveForm.receiveNumberList || !Array.isArray(receiveForm.receiveNumberList) || receiveForm.receiveNumberList.length === 0) {
+                            poNumberError = 'กรุณากรอก Po Number';
+                            hasError = true;
+                        }
+                        if (!receiveForm.VDCODE) {
+                            vdcodeError = 'กรุณากรอก VDCODE';
+                            hasError = true;
+                        }
+                        if (hasError) return;
+                        searchItemListManual(toast);
+                    }
+                "
+            />
 
             <Button label="Add Material (No PO)" icon="pi pi-plus" severity="info" outlined @click="openNoPoDialog" class="w-full sm:w-auto" />
         </div>
@@ -433,7 +493,7 @@ onMounted(async () => {
                     placeholder="Search or select Location"
                     class="w-full"
                     dropdown
-                    :optionLabel="(item) => `[${item.value}] ${item.label}`"
+                    :optionLabel="(item) => item.label"
                     :optionValue="(item) => item.value"
                 >
                     <template #option="slotProps">
@@ -494,6 +554,13 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
+            <Column field="location" header="Location" style="min-width: 150px">
+                <template #body="slotProps">
+                    <span>
+                        {{ typeof slotProps.data.location === 'object' && slotProps.data.location !== null && 'value' in slotProps.data.location ? slotProps.data.location.value : slotProps.data.location }}
+                    </span>
+                </template>
+            </Column>
             <Column field="description" header="Description" style="min-width: 250px">
                 <template #body="slotProps">
                     <span>
@@ -511,6 +578,7 @@ onMounted(async () => {
             <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
                 <template #body="slotProps">
                     <InputNumber v-model="slotProps.data.receiveQty" :min="0" class="w-full" />
+                    <span v-if="Number(slotProps.data.receiveQty) <= 0" class="text-red-500 text-xs">Receive Qty ต้องมากกว่า 0</span>
                 </template>
             </Column>
             <Column field="Extended Cost" header="Extended Cost" style="min-width: 100px">
@@ -539,15 +607,15 @@ onMounted(async () => {
             <span class="font-bold text-base sm:text-lg"> Receipt Subtotal: {{ noPoSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
         </div>
         <div class="flex flex-col sm:flex-row justify-end gap-4">
-            <Button 
-            label="Cancel" 
-            @click="closeNoPoDialog" 
-            severity="danger" 
-            outlined 
-            style="background-color: #dc3545; color: #fff" 
-            class="w-full sm:w-auto order-2 sm:order-1" 
-        />
-            <Button label="Save Receive No Po" @click="() => confirmSaveNoPoItems(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
+            <Button
+                :label="isEditingNoPoItems ? 'Update No Po Items' : 'Save Receive No Po'"
+                @click="() => (isEditingNoPoItems ? confirmUpdateNoPoItems(confirm, toast) : confirmSaveNoPoItems(confirm, toast))"
+                :loading="loading"
+                icon="pi pi-save"
+                :severity="isEditingNoPoItems ? 'warning' : 'primary'"
+                class="w-full sm:w-auto order-1 sm:order-2"
+            />
+            <Button label="Cancel" @click="closeNoPoDialog" severity="danger" outlined style="background-color: #dc3545; color: #fff" class="w-full sm:w-auto order-2 sm:order-1" />
         </div>
     </Dialog>
 
