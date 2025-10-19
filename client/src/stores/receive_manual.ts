@@ -291,6 +291,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 this.loading = false;
             }
         },
+        
         async viewItem_invoice(invoiceNumber: string) {
             try {
                 this.loading = true;
