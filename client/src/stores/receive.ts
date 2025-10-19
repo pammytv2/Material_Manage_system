@@ -180,9 +180,9 @@ const useReceiveStore = defineStore('receive', {
             this.loading = true;
             this.error = null;
 
-            const url: string = `${api}/material-receive/delete_LotSplit?receiveNo=${reactiveItem.receiveno}&itemNo=${reactiveItem.itemNo}&lotNo=${reactiveItem.lotNo}`;
+            const url: string = `${api}/material-receive/delete_LotSplit?invoiceNumber=${reactiveItem.invoiceNumber}&itemNo=${reactiveItem.itemNo}&lotNo=${reactiveItem.lotNo}`;
             try {
-                const data = await ApiService.delete<any>(url);
+                const data = await ApiService.post<any>(url);
                 return data;
             } catch (err: any) {
                 this.error = err?.message || 'Failed to delete lot split';

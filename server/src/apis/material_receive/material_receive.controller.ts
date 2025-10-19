@@ -54,6 +54,8 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       remark,
       isProblem,
       lot_qty,
+      InvoiceNumber,
+      PORHSEQ,
     } = lotSplitData;
     return await this.materialReceiveService.insert_LotSplit(
       ItemNo,
@@ -64,6 +66,8 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       remark,
       isProblem,
       lot_qty,
+      InvoiceNumber,
+      PORHSEQ,
     );
   }
   @Post('update_lot-split')
@@ -78,6 +82,8 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       remark,
       isProblem,
       lot_qty,
+      InvoiceNumber,
+      PORHSEQ,
     } = lotSplitData;
     return await this.materialReceiveService.update_LotSplit(
       id,
@@ -89,6 +95,8 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       remark,
       isProblem,
       lot_qty,
+      InvoiceNumber,
+      PORHSEQ,
     );
   }
 
@@ -113,14 +121,14 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
     );
   }
 
-  @Delete('delete_LotSplit')
+  @Post('delete_LotSplit')
   deleteLotSplit(
-    @Query('receiveNo') receiveNo: string,
+    @Query('invoiceNumber') invoiceNumber: string,
     @Query('itemNo') itemNo: string,
     @Query('lotNo') lotNo: string,
   ) {
     return this.materialReceiveService.delete_LotSplit(
-      receiveNo,
+      invoiceNumber,
       itemNo,
       lotNo,
     );

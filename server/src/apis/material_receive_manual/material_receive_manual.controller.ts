@@ -148,8 +148,14 @@ async insertNoPoItems_post(
       itemNo,
     );
   }
+  
 
-
+ @Get('view-item-invoice')
+  async viewItem_invoice(
+    @Query('invoiceNumber') invoiceNumber: string
+  ) {
+    return await this.materialReceiveManualService.View_Item_invoice(invoiceNumber);
+  }
   
   @Post('delete-item-manual')
   async deleteItem_manual(

@@ -37,6 +37,7 @@ const {
     receiveNumber,
     receiveDate,
     invoiceNumber,
+    
     specialExpDate,
     vendorName,
     detailTableRef,
@@ -49,6 +50,7 @@ const {
     calculateBalanceQty,
     updateRowLotSplitQtys,
     addRow,
+    handleUpdateLotSplit,
     getRowLotSplitQty,
     updateRowBalanceQtys,
     getRowBalanceQty,
@@ -132,7 +134,7 @@ onMounted(async () => {
                 takeOutQty: row.takeOutQty ?? '',
                 returnQty: row.returnQty ?? '',
                 balanceQty: row.balanceQty ?? '',
-                
+                PORHSEQ: row.PORHSEQ ?? '',
                 lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
                 lotSplit: row.LotSplit ?? 0,
                 ExpDate: row.ExpDate ?? '',
@@ -174,6 +176,7 @@ async function openEditDialog(rowIndex: number) {
                 expireDate: row.exp_date ? new Date(row.exp_date).toISOString().split('T')[0] : '',
                 takeOutQty: parseFloat(row.lot_qty || '0') || 0,
                 problem: !!row.isProblem,
+                InvoiceNumber: row.InvoiceNumber || '',
                 remark: row.remark || ''
             }));
         } else {
@@ -259,11 +262,14 @@ async function removeRow(index: number) {
             loading.value = true;
 
             // เรียก API delete
+           
             const deleteResult = await receiveStore.Delete_LotSplit({
-                receiveno: receiveNumber.value,
+                invoiceNumber: invoiceNumber.value,
                 itemNo: dialogRowIndex.value !== null ? tableRows.value[dialogRowIndex.value]?.itemNo || '' : '',
                 lotNo: lotRow.lotNo
             } as any);
+
+            console.log('deleteResult:', deleteResult);
 
             // ถือว่าสำเร็จถ้าไม่มี error throw (ไม่ต้องเช็ค deleteResult)
             toast.add({
@@ -298,6 +304,10 @@ async function removeRow(index: number) {
         }
     }
 }
+
+
+
+
 
 function confirmDelete(index: number, event?: Event) {
     const lotRow = lotRows.value[index];
@@ -417,8 +427,13 @@ function getExpireDateClass(row: any){
     return classes.join(' ');
 }
 function isRowDisabled(row: any) {
+    // Return true for rows that should be disabled (gray color)
     return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
 }
+
+
+
+
 function onRowClick(event: any) {
     // ใช้ itemNo หรือ key ที่ unique
     const row = event.data;
@@ -523,7 +538,6 @@ async function receiveNoLot() {
             rowHover
             :globalFilterFields="['no', 'itemNo', 'description', 'unit', 'lotExpireDate', 'invoice', 'iqaStatus']"
             class="mb-6"
-
             @row-click="onRowClick"
             
         >
@@ -808,3 +822,20 @@ async function receiveNoLot() {
     </div>
 
 </template>
+
+<style>
+/* เพิ่มสีเทา */
+:deep(.highlight-gray-row) {
+    background-color: #e5e7eb !important;
+}
+:deep(.highlight-gray-row:hover) {
+    background-color: #d1d5db !important;
+}
+:deep(.highlight-gray-row td) {
+    background-color: #e5e7eb !important;
+}
+:deep(.highlight-gray-row:hover td) {
+    background-color: #d1d5db !important;
+}
+
+</style>

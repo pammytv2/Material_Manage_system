@@ -16,20 +16,23 @@ import DatePicker from 'primevue/datepicker';
 import Dropdown from 'primevue/dropdown';
 
 // Use the composable
-const {
-    router,
-    receiveStore,
-    handleRowClick,
-    startDate,
-    endDate,
-    onDateSearch,
-    filteredReceiveList,
-    searchQuery,
-    loading,
-    rowClass,
-    ReceptNumber,
-    formatDate
-} = useMaterialSplit();
+const { router, receiveStore, handleRowClick, startDate, endDate, onDateSearch, filteredReceiveList, searchQuery, loading, rowClass, ReceptNumber, formatDate } = useMaterialSplit();
+
+// Add reactive property for checkbox
+const showOnlyIncomplete = ref(false);
+
+// Add missing reactive variables for checkboxes and dialog
+const showComplete = ref(true);
+const showIncomplete = ref(true);
+const showNewItemDialog = ref(false);
+
+// Add missing refreshAllPage method
+function refreshAllPage() {
+    // You can customize this logic as needed
+    receiveStore.fetchReceiveItems(ReceptNumber.value);
+}
+
+
 
 // const loading = receiveStore.loading;
 const filters = ref<{
@@ -49,7 +52,6 @@ const filters = ref<{
     vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
     countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-
 
 function clearFilter() {
     filters.value = {
@@ -74,9 +76,6 @@ onMounted(async () => {
         loading.value = false;
     }
 });
-
-
-
 </script>
 
 <template>
@@ -124,9 +123,19 @@ onMounted(async () => {
             :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
             :loading="loading"
-            
             :rowClass="rowClass"
         >
+            <!-- <div class="flex justify-end">
+                <div class="flex items-center gap-2 mr-4">
+                    <Checkbox v-model="showComplete" :binary="true" inputId="active" />
+                    <label for="active">Complete</label>
+                    <Checkbox v-model="showIncomplete" :binary="true" inputId="inactive" />
+                    <label for="inactive">Incomplete</label>
+                </div>
+                <Button label="Refresh" icon="pi pi-refresh" @click="refreshAllPage" severity="secondary" class="mb-4 mr-2" />
+                <Button label="Add New Material" icon="pi pi-plus" @click="showNewItemDialog = true" severity="primary" class="mb-4" />
+            </div> -->
+
             <template #header>
                 <div class="flex justify-between">
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
@@ -139,7 +148,6 @@ onMounted(async () => {
                     </IconField>
                 </div>
             </template>
-
             <template #empty>No data found.</template>
             <template #loading>
                 <div class="flex justify-center items-center py-8">
@@ -181,12 +189,10 @@ onMounted(async () => {
                 </template>
             </Column>
             <Column field="CountOrder" header="Item Count" sortable>
-            <template #body="{ data }">
-                {{ data.item_count }}
-            </template> 
-            <template #filter="{ filterModel }">
-                <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by total lots" />
-            </template>
+                <template #body="{ data }"> {{ data.TotalItems }}/{{ data.CountOrder }} </template>
+                <template #filter="{ filterModel }">
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by total lots" />
+                </template>
             </Column>
         </DataTable>
     </div>
@@ -229,5 +235,19 @@ onMounted(async () => {
 }
 :deep(.highlight-orange-row:hover td) {
     background-color: #fed7aa !important;
+}
+
+/* เพิ่มสีเทา */
+:deep(.highlight-gray-row) {
+    background-color: #e5e7eb !important;
+}
+:deep(.highlight-gray-row:hover) {
+    background-color: #d1d5db !important;
+}
+:deep(.highlight-gray-row td) {
+    background-color: #e5e7eb !important;
+}
+:deep(.highlight-gray-row:hover td) {
+    background-color: #d1d5db !important;
 }
 </style>

@@ -290,6 +290,25 @@ const useReceiveStore_manual = defineStore('receive_manual', {
             } finally {
                 this.loading = false;
             }
+        },
+        async viewItem_invoice(invoiceNumber: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/view-item-invoice?invoiceNumber=${encodeURIComponent(invoiceNumber)}`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+                return response;
+            } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to view item invoice';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
         }
     }
 });

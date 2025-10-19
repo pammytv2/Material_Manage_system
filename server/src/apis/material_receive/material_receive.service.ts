@@ -9,6 +9,7 @@ import {
 import * as sql from 'mssql';
 
 
+
 @Injectable()
 export class MaterialReceiveService {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -129,6 +130,8 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
+    InvoiceNumber?: string,
+    PORHSEQ?: string | number,
   ): Promise<Item_List_LotSplit[]> {
     // Log เพื่อ debug
     console.log('Received isProblem:', isProblem, 'Type:', typeof isProblem);
@@ -136,10 +139,10 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     const sqlQuery = `
       INSERT INTO mat_lot_Split (
       lot_no, ITEMNO, ReceiveNo, lot_unit, exp_date, 
-      created_at, remark, isProblem, lot_qty
+      created_at, remark, isProblem, lot_qty,InvoiceNumber,PORHSEQ
     ) VALUES (
       @LotSplit, @ItemNo, @ReceptNumber, @LotUnit, @ExpDate,
-      GETDATE(), @Remark, @IsProblem, @LotQty 
+      GETDATE(), @Remark, @IsProblem, @LotQty, @InvoiceNumber, @PORHSEQ
     )                                
   `;
     let booleanValue: boolean;
@@ -161,6 +164,8 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
       { name: 'Remark', type: sql.NVarChar, value: remark },
       { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
       { name: 'LotQty', type: sql.Decimal(18,2), value: lot_qty },
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber || null },
+      { name: 'PORHSEQ', type: sql.NVarChar, value: PORHSEQ ? String(PORHSEQ) : null },
     ]);
   }
 
@@ -200,6 +205,8 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     remark: string,
     isProblem: boolean | string,
     lot_qty: number,
+    InvoiceNumber?: string,
+    PORHSEQ?: string | number,
   ): Promise<Item_List_LotSplit[]> {
     console.log(
       'Update Lot Split - ID:',
@@ -209,6 +216,7 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
       'Type:',
       typeof isProblem,
     );
+
 
     const sqlQuery = `
     UPDATE mat_lot_Split 
@@ -220,10 +228,11 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
       updated_at = GETDATE(),       
       remark = @Remark,
       isProblem = @IsProblem,
+      InvoiceNumber = @InvoiceNumber,
+      PORHSEQ = @PORHSEQ,
       lot_qty = @LotQty
-    WHERE id = @Id           
+    WHERE id = @Id
   `;
-
     let isProblemValue: number;
     if (typeof isProblem === 'string') {
       isProblemValue = isProblem.toLowerCase() === 'true' ? 1 : 0;
@@ -242,39 +251,29 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
       { name: 'ExpDate', type: sql.Date, value: exp_date },
       { name: 'Remark', type: sql.NVarChar, value: remark },
       { name: 'IsProblem', type: sql.Bit, value: isProblemValue },
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber || null },
+      { name: 'PORHSEQ', type: sql.NVarChar, value: PORHSEQ ? String(PORHSEQ) : null },
       { name: 'LotQty', type: sql.Decimal(18,2), value: lot_qty },
     ]);
   }
 
   async delete_LotSplit(
-    receiveno: string,
+    invoiceNumber: string,
     itemNo: string,
     lotNo: string,
   ): Promise<any> {
     const sqlQuery = `
-    DELETE FROM mat_lot_Split WHERE  ReceiveNo = @ReceptNumber AND ITEMNO = @ItemNo AND lot_no = @LotNo
+    DELETE FROM mat_lot_Split WHERE InvoiceNumber = @InvoiceNumber AND ITEMNO = @ItemNo AND lot_no = @LotNo
   `;
     return await this.databaseService.query(sqlQuery, [
-      { name: 'ReceptNumber', type: sql.NVarChar, value: receiveno },
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: invoiceNumber },
       { name: 'ItemNo', type: sql.NVarChar, value: itemNo },
       { name: 'LotNo', type: sql.NVarChar, value: lotNo },
     ]);
   }
 
   async material_split(startDate: string, endDate: string): Promise<any> {
-    const sqlQuery = `SELECT 
-    ReceptNumber,
-    ReciveDate,
-    InvoiceNumber,
-    VendorCode, 
-    VendorName,
-    item_count
-
-    
-FROM view_item_lotsplit
-WHERE ReciveDate BETWEEN @StartDate AND @EndDate
-GROUP BY ReceptNumber, ReciveDate,InvoiceNumber, VendorCode,VendorName,item_count
-
+    const sqlQuery = `SELECT * FROM view_item_detail WHERE ReciveDate BETWEEN @StartDate AND @EndDate
 `;
 
     return await this.databaseService.query(sqlQuery, [

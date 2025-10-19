@@ -252,6 +252,16 @@ async showItem_manual_detail_inv(
     return result.recordset;
   }
 
+  async View_Item_invoice(invoiceNumber: string): Promise<any[]> {
+    const sqlQuery = `
+            SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE   InvoiceNumber  = @InvoiceNumber`;
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+  }
+
   
 }
 

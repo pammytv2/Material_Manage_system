@@ -35,6 +35,7 @@ const {
     // Loading states
     loading,
     pageLoading,
+  
     // Data
     selectedRows,
     poHeader,
@@ -54,7 +55,9 @@ const {
     editingNoPoItemIndex,
     updateNoPoItems,
     confirmUpdateNoPoItems,
+    SearchViewManualDetail,
     viewManualDetail_inv,
+
     // Error states
     invoiceNoError,
     poNumberError,
@@ -230,11 +233,13 @@ onMounted(async () => {
                 <label for="InvoiceNo" class="block font-bold text-sm">Invoice Number</label>
                 <InputText :modelValue="String(receiveForm.InvoiceNo ?? '')" @update:modelValue="(val) => (receiveForm.InvoiceNo = String(val))" placeholder="Invoice Number" class="w-full" :inputStyle="{ minHeight: '40px', fontSize: '1rem' }" />
                 <span v-if="invoiceNoError" class="text-red-500 text-xs">{{ invoiceNoError }}</span>
+                
             </div>
             <div class="space-y-2">
                 <label for="PoNumber" class="block font-bold text-sm">Po Number</label>
                 <Chips v-model="receiveForm.receiveNumberList" separator="," addOnBlur placeholder="Po Number" class="w-full" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" />
                 <span v-if="poNumberError" class="text-red-500 text-xs">{{ poNumberError }}</span>
+
             </div>
             <div class="space-y-2">
                 <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
@@ -262,6 +267,15 @@ onMounted(async () => {
         </div>
 
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
+            <Button
+                label="Search"
+                icon="pi pi-search"
+                severity="primary"
+                outlined
+                style="background-color: #22c55e; color: white;"
+                class="w-full sm:w-auto"
+                @click="() => SearchViewManualDetail(String(receiveForm.InvoiceNo), toast)" >
+            </Button>
             <Button
                 label="Add Material"
                 icon="pi pi-plus"
@@ -596,7 +610,7 @@ onMounted(async () => {
             <Column header="Action" style="min-width: 120px">
                 <template #body="slotProps">
                     <div class="flex gap-2 items-center">
-                        <!-- เฉพาะรายการที่ไม่มี PO -->
+                       
 
                         <Button icon="pi pi-trash" severity="danger" outlined @click="() => confirmRemoveNoPoItem(confirm, slotProps.index, toast)" />
                     </div>
@@ -625,3 +639,4 @@ onMounted(async () => {
         <Button label="Save Receive" @click="() => confirmSave(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
     </div>
 </template>
+ 

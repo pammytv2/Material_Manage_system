@@ -61,6 +61,7 @@ interface filterMeta {
 }
 
 interface IReceiveDetailItem {
+    id: number 
     no: number;
     ReceptNumbar: string;
     ITEMNO: string;
@@ -78,15 +79,17 @@ interface IReceiveDetailItem {
     receiveQty?: string  ;
 }
 interface LotRow {
-    id?: number | null;
+    id: number | null;
     no: string;
     lotNo: string;
     qty:  number;
     unit: string;
-    expireDate: string | null;
+    expireDate: string ;
     takeOutQty?: number;
     problem?: boolean ;
     remark?: string;
+    InvoiceNumber?: string;
+    PORHSEQ?: string | number;
 }
 
 interface ILotSplitData {
