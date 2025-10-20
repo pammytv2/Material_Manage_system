@@ -50,16 +50,18 @@ const filters = ref({
 function onRowClick(event: any) {
     const invoiceNumber = event.data.InvoiceNumber;
     const poNumber = event.data.PoNumber;
-    
-    console.log('Row clicked:', { invoiceNumber, poNumber });
-    
+    const vendorCode = event.data.VendorCode;
+
+    console.log('Row clicked:', { invoiceNumber, poNumber, vendorCode });
+
     // ส่งไปหน้า Receive.Manual_Page.vue พร้อม query
     router.push({
         path: '/receive-manual',
         query: {
             mode: 'view', // เพิ่ม mode สำหรับการดู
             invoiceNumber,
-            poNumber: poNumber || '' // ถ้า poNumber เป็น null ให้เป็น empty string
+            poNumber: poNumber || '', // ถ้า poNumber เป็น null ให้เป็น empty string
+            vendorCode: vendorCode || '' // ถ้า vendorCode เป็น null ให้เป็น empty string
         }
     });
 }

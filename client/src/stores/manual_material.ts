@@ -3,6 +3,8 @@ import { useReceiveStore_manual } from '@/stores/receive_manual';
 import { useRouter } from 'vue-router';
 import { ref, computed } from 'vue';
 import type { receiveForm, receiveItems, NoPoItemType } from '@/interfaces/manual.interfaces';
+import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { todo } from 'node:test';
 
 const receiveQtyNoPoError = ref('');
 const router = useRouter();
@@ -38,7 +40,8 @@ const noPoItem = ref<NoPoItemType>({
     unitCost: 0,
     location: '',
     vdcode: '',
-    invoiceNo: ''
+    invoiceNo: '',
+    QTYONORDER: 0
 });
 const noPoItems = ref<NoPoItemType[]>([]);
 const showNoPoDialog = ref(false);
@@ -61,7 +64,8 @@ function closeNoPoDialog() {
         unitCost: 0,
         location: '',
         vdcode: '',
-        invoiceNo: ''
+        invoiceNo: '',
+        QTYONORDER: 0
     };
     // *** ไม่ต้อง reset noPoItems.value ที่นี่ ***
 }
@@ -266,6 +270,7 @@ async function viewManualDetail(invoiceNumber?: string, poNumber?: string) {
                   PORHSEQ: item.PORHSEQ ?? '',
                   location: item.location ?? '',
                   PoNumber: item.PoNumber ?? '',
+                  QTYONORDER: item.QTYONORDER ?? 0,
                   // location: item.LOCATION ?? '',      // <--- ตรงกับ API
                   vdcode: item.VendorCode ?? '', // <--- ตรงกับ API
                   invoiceNo: item.InvoiceNumber ?? '' // <--- ตรงกับ API
@@ -403,24 +408,27 @@ async function searchItemListManual(toast: any) {
     }
 }
 
-const insertNoPoItemsPost = async (items: any[]) => {
-    try {
-        loading.value = true;
-
-        for (const item of items) {
-            await receiveStore_manual.insertNoPoItems_post(item.vdcode || receiveForm.value.VDCODE, item.invoiceNo || receiveForm.value.InvoiceNo, item.location, item.receiveQty, typeof item.itemNo === 'object' ? item.itemNo.value : item.itemNo);
-        }
-
-        return true;
-    } catch (error) {
-        console.error('Error inserting no po items:', error);
-        throw error;
-    } finally {
-        loading.value = false;
-    }
-};
 
 function confirmSaveNoPoItems(confirm: any, toast: any) {
+    // ตรวจสอบรายการซ้ำก่อนบันทึก
+    const duplicates = noPoItems.value.reduce<string[]>((acc, item) => {
+        const itemNoStr = typeof item.itemNo === 'object' && item.itemNo !== null && 'value' in item.itemNo
+            ? String(item.itemNo.value)
+            : String(item.itemNo);
+        const foundInMain = receiveItems.value.find((m) => {
+            const mainItemNo = typeof m.itemNo === 'object' && m.itemNo !== null && 'value' in m.itemNo ? String((m.itemNo as any).value) : String(m.itemNo);
+            return mainItemNo === itemNoStr;
+        });
+        if (foundInMain) acc.push(itemNoStr);
+        return acc;
+    }, []);
+    if (duplicates.length > 0) {
+        // ถ้าซ้ำ ให้ใช้ฟังก์ชัน NoPoItemitem
+        NoPoItemitem(toast, confirm);
+        console.log('Duplicates detected before saving No PO items:', duplicates);
+        return;
+    }
+
     confirm.require({
         message: 'Are you sure you want to save these No PO items?',
         header: 'Confirm Save',
@@ -434,10 +442,11 @@ function confirmSaveNoPoItems(confirm: any, toast: any) {
             label: 'Save'
         },
         accept: () => {
-            saveNoPoItems(toast);
+            saveNoPoItems(toast); 
         }
     });
 }
+
 
 async function updateNoPoItems(toast: any) {
     if (!noPoItems.value.length) {
@@ -523,7 +532,64 @@ function confirmUpdateNoPoItems(confirm: any, toast: any) {
     });
 }
 
-async function saveNoPoItems(toast: any, confirm?: any) {
+async function NoPoItemitem(toast: any, confirm?: any) {
+    const duplicates = noPoItems.value.reduce<string[]>((acc, item) => {
+        console.log('Checking No PO Item No:', item.itemNo);
+
+        const itemNoStr = typeof item.itemNo === 'object' && item.itemNo !== null && 'value' in item.itemNo
+            ? String(item.itemNo.value)
+            : String(item.itemNo);
+        const foundInMain = receiveItems.value.find((m) => {
+            const mainItemNo = typeof m.itemNo === 'object' && m.itemNo !== null && 'value' in m.itemNo ? String((m.itemNo as any).value) : String(m.itemNo);
+            return mainItemNo === itemNoStr;
+        });
+        if (foundInMain) acc.push(itemNoStr);
+        return acc;
+    }, []);
+
+    if (duplicates.length > 0) {
+        console.log('Duplicates detected before saving No PO items:', duplicates);
+        const uniqueDuplicates = Array.from(new Set(duplicates));
+        const message = `พบ Item No ซ้ำกับ Manual Receive: ${uniqueDuplicates.join(', ')}`;
+        if (confirm) {
+            console.log('Showing confirmation dialog for duplicates');
+            confirm.require({
+                message,
+                header: 'Duplicate Items',
+                icon: 'pi pi-exclamation-triangle',
+                acceptLabel: 'Continue Saving',
+                rejectLabel: 'Cancel',
+                accept: async () => {
+                    await doSaveNoPoItems(toast);
+                },
+                reject: () => {
+                    toast.add({
+                        severity: 'info',
+                        summary: 'Cancelled',
+                        detail: 'No PO items were not saved',
+                        life: 2000
+                    });
+                }
+            });
+            return;
+        } else {
+            // ถ้าไม่มี confirm instance ให้แจ้งเตือนและยกเลิกการบันทึก
+            toast.add({
+                severity: 'warn',
+                summary: 'Duplicate Detected',
+                detail: message,
+                life: 4000
+            });
+            return;
+
+        }
+
+        // console.log('Duplicate Item Nos found:', uniqueDuplicates);
+        // console.log('No PO Items:', noPoItems.value);
+    }
+
+}
+async function saveNoPoItems(toast: any) {
     if (!noPoItems.value.length) {
         toast.add({
             severity: 'warn',
@@ -544,57 +610,10 @@ async function saveNoPoItems(toast: any, confirm?: any) {
         return;
     }
 
-    // ตรวจสอบ duplicate กับ receiveItems.value โดยใช้แค่ itemNo (รองรับทั้ง string และ object)
-    const duplicates = noPoItems.value.reduce<string[]>((acc, item) => {
-        const itemNoStr = typeof item.itemNo === 'object' && item.itemNo !== null && 'value' in item.itemNo
-            ? String(item.itemNo.value)
-            : String(item.itemNo);
-        const foundInMain = receiveItems.value.find((m) => {
-            const mainItemNo = typeof m.itemNo === 'object' && m.itemNo !== null && 'value' in m.itemNo ? String((m.itemNo as any).value) : String(m.itemNo);
-            return mainItemNo === itemNoStr;
-        });
-        if (foundInMain) acc.push(itemNoStr);
-        return acc;
-    }, []);
-
-    if (duplicates.length > 0) {
-        const uniqueDuplicates = Array.from(new Set(duplicates));
-        const message = `พบ Item No ซ้ำกับ Manual Receive: ${uniqueDuplicates.join(', ')}`;
-        if (confirm) {
-            confirm.require({
-                message,
-                header: 'รายการซ้ำ',
-                icon: 'pi pi-exclamation-triangle',
-                acceptLabel: 'บันทึกต่อ',
-                rejectLabel: 'ยกเลิก',
-                accept: async () => {
-                    await doSaveNoPoItems(toast);
-                },
-                reject: () => {
-                    toast.add({
-                        severity: 'info',
-                        summary: 'ยกเลิก',
-                        detail: 'ไม่ได้บันทึก No PO',
-                        life: 2000
-                    });
-                }
-            });
-            return;
-        } else {
-            // ถ้าไม่มี confirm instance ให้แจ้งเตือนและยกเลิกการบันทึก
-            toast.add({
-                severity: 'warn',
-                summary: 'Duplicate Detected',
-                detail: message,
-                life: 4000
-            });
-            return;
-        }
-    }
-
-    // ถ้าไม่มี duplicate ให้บันทึกตามปกติ
     await doSaveNoPoItems(toast);
 }
+
+
 
 // ฟังก์ชันย่อยสำหรับบันทึกจริง
 async function doSaveNoPoItems(toast: any) {
@@ -640,6 +659,9 @@ async function doSaveNoPoItems(toast: any) {
         loading.value = false;
     }
 }
+
+
+
 function addNoPoItem(toast: any, confirm?: any) {
     invoiceNoNoPoError.value = '';
     itemNoNoPoError.value = '';
@@ -721,7 +743,8 @@ function addNoPoItemCore(toast: any, itemNoStr: string, locationStr: string, dup
             description: apiData.ITEMDesc ?? '',
             unit: apiData.UNIT ?? '',
             unitCost: apiData.RECENTCOST ?? 0,
-            location: apiData.LOCATION ?? noPoItem.value.location
+            location: apiData.LOCATION ?? noPoItem.value.location,
+            QTYONORDER: apiData.QTYONORDER ?? 0 // <<== เพิ่มบรรทัดนี้
         });
 
         // reset เฉพาะ noPoItem เพื่อให้กรอกเพิ่มได้ต่อ
@@ -733,6 +756,7 @@ function addNoPoItemCore(toast: any, itemNoStr: string, locationStr: string, dup
             unitCost: 0,
             location: noPoItem.value.location, // เก็บ Location ไว้
             vdcode: noPoItem.value.vdcode,
+            QTYONORDER: noPoItem.value.QTYONORDER,
             invoiceNo: noPoItem.value.invoiceNo // เก็บ Invoice No ไว้
         };
     });
@@ -770,6 +794,7 @@ function editNoPoItem(index: number) {
             receiveQty: typeof item.receiveQty === 'number' ? item.receiveQty : Number(item.receiveQty ?? 0),
             unitCost: typeof item.unitCost === 'number' ? item.unitCost : Number(item.unitCost ?? 0),
             location: item.location ?? '',
+            QTYONORDER: item.QTYONORDER ?? 0,
             vdcode: item.vdcode ?? '',
             invoiceNo: item.invoiceNo ?? ''
         };
@@ -890,7 +915,8 @@ async function editNoPoFromList(index: number, toast?: any) {
                 unitCost: Number(apiItem.UNITCOST ?? 0),
                 location: apiItem.Location ?? '',
                 vdcode: apiItem.VendorCode ?? apiItem.VDCODE ?? '',
-                invoiceNo: String(apiItem.InvoiceNumber ?? apiItem.INVOICENO ?? invoiceNumber)
+                invoiceNo: String(apiItem.InvoiceNumber ?? apiItem.INVOICENO ?? invoiceNumber),
+                QTYONORDER: Number(apiItem.QTYONORDER ?? 0)
             }));
 
             // ใส่ข้อมูลทั้งหมดลงใน noPoItems array
@@ -920,7 +946,8 @@ async function editNoPoFromList(index: number, toast?: any) {
                 unitCost: typeof item.unitCost === 'number' ? item.unitCost : Number(item.unitCost ?? 0),
                 location: item.location ?? '',
                 vdcode: typeof item.vdcode === 'object' && item.vdcode !== null ? { code: item.vdcode.code, name: item.vdcode.name ?? '' } : (item.vdcode ?? ''),
-                invoiceNo: String(item.InvoiceNo ?? receiveForm.value.InvoiceNo ?? '')
+                invoiceNo: String(item.InvoiceNo ?? receiveForm.value.InvoiceNo ?? ''),
+                QTYONORDER: Number(item.QTYONORDER ?? 0)
             };
 
             noPoItem.value = { ...editItem };

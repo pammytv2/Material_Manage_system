@@ -23,6 +23,7 @@ import { todo } from 'node:test';
 
 // Initialize toast and confirm directly in component
 const toast = useToast();
+
 const confirm = useConfirm();
 const route = useRoute();
 const router = useRouter(); // <-- Add this line
@@ -35,7 +36,7 @@ const {
     // Loading states
     loading,
     pageLoading,
-  
+
     // Data
     selectedRows,
     poHeader,
@@ -92,6 +93,8 @@ const {
 
 const receiveStore_manual = useReceiveStore_manual();
 
+const allManualItems = computed(() => [...(receiveItems.value ?? []), ...(noPoItems.value ?? [])]);
+
 // Filters for DataTable
 const filters = ref({
     global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
@@ -122,24 +125,47 @@ function clearFilter() {
 }
 
 function openNoPoDialog() {
-    noPoItem.value.invoiceNo = String(receiveForm.value.InvoiceNo); // ใช้ .value และชื่อ property ให้ตรง
+    noPoItem.value.invoiceNo = String(receiveForm.value.InvoiceNo);
+    noPoItem.value.vdcode = typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null ? receiveForm.value.VDCODE : (vdcodeSuggestions.value.find((v) => v.code === receiveForm.value.VDCODE) ?? '');
     showNoPoDialog.value = true;
 }
 
 onMounted(async () => {
     pageLoading.value = true;
     try {
-        const { mode, invoiceNumber, poNumber } = route.query;
+        const { mode, vendorCode, invoiceNumber, poNumber } = route.query;
 
-        console.log('Route query:', { mode, invoiceNumber, poNumber });
+        console.log('Route query:', { mode, invoiceNumber, poNumber, vendorCode });
 
         // Load initial data
         const response = await receiveStore_manual.fetchVDCODE();
         const itemList = await receiveStore_manual.fetchItemList_spec();
         const locationRaw = await receiveStore_manual.fetchLocation();
-
-        // Setup suggestions and options
         vdcodeSuggestions.value = response ?? [];
+
+        const vendorCodeFromQuery = route.query.vendorCode as string;
+         if (vendorCodeFromQuery && vdcodeSuggestions.value.length > 0) {
+            const selectedVendor = vdcodeSuggestions.value.find(v => v.code === vendorCodeFromQuery)
+            if (selectedVendor) {
+                receiveForm.value.VDCODE = {
+                    VDCODE: selectedVendor.code,
+                    VDNAME: selectedVendor.name,
+                    code: selectedVendor.code,
+                    name: selectedVendor.name
+                };
+                
+            }
+
+        // ถ้า v-model รับ code
+        receiveForm.value.VDCODE = vendorCodeFromQuery;
+        receiveForm.value.VDNAME = vendorCodeFromQuery;
+         console.log('VDCODE set to:', receiveForm.value.VDCODE);
+        
+         console.log('receiveForm after setting VDCODE:', receiveForm.value);
+         console.log('vdcodeSuggestions:', vdcodeSuggestions.value);
+         console.log('vendorCodeFromQuery:', vendorCodeFromQuery);
+       
+    }
         itemNoOptions.value = (itemList ?? []).map((item) => ({
             label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
             value: item.ItemNo.trim()
@@ -171,6 +197,13 @@ onMounted(async () => {
                 detail: 'ไม่พบข้อมูล Location',
                 life: 3000
             });
+        }
+         if (poNumber) {
+            // ถ้า poNumber เป็น string ที่คั่นด้วย , ให้แปลงเป็น array
+            receiveForm.value.receiveNumberList = String(poNumber).split(',').map(p => p.trim());
+        } else {
+            // ถ้าไม่มี ให้เป็น array ว่าง
+            receiveForm.value.receiveNumberList = [];
         }
 
         // Handle different modes
@@ -233,13 +266,11 @@ onMounted(async () => {
                 <label for="InvoiceNo" class="block font-bold text-sm">Invoice Number</label>
                 <InputText :modelValue="String(receiveForm.InvoiceNo ?? '')" @update:modelValue="(val) => (receiveForm.InvoiceNo = String(val))" placeholder="Invoice Number" class="w-full" :inputStyle="{ minHeight: '40px', fontSize: '1rem' }" />
                 <span v-if="invoiceNoError" class="text-red-500 text-xs">{{ invoiceNoError }}</span>
-                
             </div>
             <div class="space-y-2">
                 <label for="PoNumber" class="block font-bold text-sm">Po Number</label>
                 <Chips v-model="receiveForm.receiveNumberList" separator="," addOnBlur placeholder="Po Number" class="w-full" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" />
                 <span v-if="poNumberError" class="text-red-500 text-xs">{{ poNumberError }}</span>
-
             </div>
             <div class="space-y-2">
                 <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
@@ -266,16 +297,9 @@ onMounted(async () => {
             </div>
         </div>
 
+
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
-            <Button
-                label="Search"
-                icon="pi pi-search"
-                severity="primary"
-                outlined
-                style="background-color: #22c55e; color: white;"
-                class="w-full sm:w-auto"
-                @click="() => SearchViewManualDetail(String(receiveForm.InvoiceNo), toast)" >
-            </Button>
+            <Button label="Search" icon="pi pi-search" severity="primary" outlined style="background-color: #22c55e; color: white" class="w-full sm:w-auto" @click="() => SearchViewManualDetail(String(receiveForm.InvoiceNo), toast)"> </Button>
             <Button
                 label="Add Material"
                 icon="pi pi-plus"
@@ -344,7 +368,15 @@ onMounted(async () => {
                     </IconField>
                 </div>
             </template>
-
+            <Column field="PoNumber" header="PoNumber" sortable style="min-width: 120px">
+                <template #body="slotProps">
+                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
+                        <span class="font-medium">
+                            {{ slotProps.data.PoNumber }}
+                        </span>
+                    </template>
+                </template>
+            </Column>
             <Column field="itemNo" header="Item No" sortable style="min-width: 120px">
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
@@ -474,7 +506,7 @@ onMounted(async () => {
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             <div>
                 <label class="block font-bold mb-1 text-sm">Invoice Number</label>
-                <InputText v-model="noPoItem.invoiceNo" placeholder="Invoice No" class="w-full" />
+                <InputText v-model="noPoItem.invoiceNo" placeholder="Invoice No" class="w-full" disabled />
                 <span v-if="invoiceNoNoPoError" class="text-red-500 text-xs">{{ invoiceNoNoPoError }}</span>
             </div>
             <div>
@@ -529,7 +561,8 @@ onMounted(async () => {
                     class="w-full"
                     dropdown
                     :optionLabel="(item) => `[${item.code}] ${item.name}`"
-                    :optionValue="(item) => item.code"
+                    :optionValue="(item) => item"
+                    :disabled="true"
                 >
                     <template #option="slotProps">
                         <div style="white-space: normal; word-break: break-word; max-width: 300px">
@@ -561,24 +594,31 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
-            <Column field="Vdcode" header="VDCODE" style="min-width: 120px">
+            <!-- <Column field="Vdcode" header="VDCODE" style="min-width: 120px">
                 <template #body="slotProps">
                     <span>
                         {{ typeof slotProps.data.vdcode === 'object' && slotProps.data.vdcode !== null && 'code' in slotProps.data.vdcode ? slotProps.data.vdcode.code : slotProps.data.vdcode || slotProps.data.VDCODE }}
                     </span>
                 </template>
-            </Column>
-            <Column field="location" header="Location" style="min-width: 150px">
+            </Column> -->
+            <!-- <Column field="location" header="Location" style="min-width: 150px">
                 <template #body="slotProps">
                     <span>
                         {{ typeof slotProps.data.location === 'object' && slotProps.data.location !== null && 'value' in slotProps.data.location ? slotProps.data.location.value : slotProps.data.location }}
                     </span>
                 </template>
-            </Column>
+            </Column> -->
             <Column field="description" header="Description" style="min-width: 250px">
                 <template #body="slotProps">
                     <span>
                         {{ slotProps.data.description }}
+                    </span>
+                </template>
+            </Column>
+            <Column field="QTYONORDER" header="QtyonOrder" style="min-width: 110px">
+                <template #body="slotProps">
+                    <span>
+                        {{ slotProps.data.QTYONORDER.toLocaleString() }}
                     </span>
                 </template>
             </Column>
@@ -589,12 +629,14 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
+
             <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
                 <template #body="slotProps">
                     <InputNumber v-model="slotProps.data.receiveQty" :min="0" class="w-full" />
                     <span v-if="Number(slotProps.data.receiveQty) <= 0" class="text-red-500 text-xs">Receive Qty ต้องมากกว่า 0</span>
                 </template>
             </Column>
+
             <Column field="Extended Cost" header="Extended Cost" style="min-width: 100px">
                 <template #body="slotProps">
                     <span> {{ ((Number(slotProps.data.receiveQty) || 0) * (Number(slotProps.data.unitCost) || 0)).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
@@ -607,15 +649,21 @@ onMounted(async () => {
                     </span>
                 </template>
             </Column>
+
             <Column header="Action" style="min-width: 120px">
                 <template #body="slotProps">
                     <div class="flex gap-2 items-center">
-                       
-
                         <Button icon="pi pi-trash" severity="danger" outlined @click="() => confirmRemoveNoPoItem(confirm, slotProps.index, toast)" />
                     </div>
                 </template>
             </Column>
+            <!-- <Column field="QTYONORDER" header="QtyonOrder" style="min-width: 180px">
+                <template #body="slotProps">
+                    <span>
+                        {{ slotProps.data.QTYONORDER.toLocaleString() }}
+                    </span>
+                </template>
+            </Column> -->
         </DataTable>
         <div class="flex justify-end mt-2 mb-2">
             <span class="font-bold text-base sm:text-lg"> Receipt Subtotal: {{ noPoSubtotal.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} THB </span>
@@ -639,4 +687,3 @@ onMounted(async () => {
         <Button label="Save Receive" @click="() => confirmSave(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
     </div>
 </template>
- 

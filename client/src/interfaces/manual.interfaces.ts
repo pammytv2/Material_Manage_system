@@ -4,8 +4,8 @@ interface receiveForm {
     receiveDate: string | number;
     ItemCount: number | string;
     InvoiceNo?: string | number;
-    VDCODE?: string | { code: string; name?: string };
-    VDNAME?: string;
+    VDCODE?: string | { VDCODE: string; VDNAME?: string };
+    VDNAME?: string | null;
     location?: string | { code: string; name?: string };
 }
 
@@ -26,6 +26,7 @@ interface receiveItems {
     location?: string;
     vdcode?: string | { code: string; name?: string };
     PORHSEQ?: number;
+    QTYONORDER?: number;
 }
 
 interface NoPoItemType {
@@ -37,6 +38,7 @@ interface NoPoItemType {
     location: string | { label: string; value: string };
     vdcode: string | { code: string; name: string };
     invoiceNo: string;
+    QTYONORDER: number;
 }
 
 export type { receiveForm, receiveItems, NoPoItemType };
