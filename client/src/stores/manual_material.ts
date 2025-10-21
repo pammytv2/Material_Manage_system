@@ -21,6 +21,8 @@ const vdcodeSuggestions = ref<{ code: string; name: string }[]>([]);
 const manualReceives = ref([]);
 const editingNoPoItemIndex = ref<number | null>(null);
 const isEditingNoPoItems = ref(false);
+const showNotFoundDialog = ref(false);
+const notFoundMessage = ref('');
 
 const receiveItems = ref<receiveItems[]>([]);
 const receiveForm = ref<receiveForm & { VDCODE?: string | { code: string; name: string } }>({
@@ -93,7 +95,6 @@ async function searchVDCODE(event: { query: string }) {
                 const [code, name] = item.split('|');
                 return { code: code?.trim() ?? '', name: name?.trim() ?? '' };
             }
-            // ถ้าเป็น object อยู่แล้ว
             return {
                 code: item.VDCODE,
                 name: item.VDNAME
@@ -356,6 +357,11 @@ async function searchItemListManual(toast: any) {
         const invoiceNumber = String(receiveForm.value.InvoiceNo ?? '');
 
         const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
+    if (!result || (Array.isArray(result) && result.length === 0)) {
+        notFoundMessage.value = 'ไม่พบข้อมูล Material ที่ต้องการเพิ่ม กรุณาตรวจสอบข้อมูลอีกครั้ง';
+        showNotFoundDialog.value = true;
+        return;
+    }
 
         // แจ้งเตือนถ้าไม่พบข้อมูลจาก API เลย
 
@@ -1008,6 +1014,7 @@ export function useManualMaterial() {
         selectedRows,
         poHeader,
         receiveItems,
+        showNotFoundDialog,
         receiveForm,
         noPoItem,
         noPoItems,

@@ -43,6 +43,7 @@ const {
     receiveItems,
     receiveForm,
     noPoItem,
+    showNotFoundDialog,
     noPoItems,
     // Options and suggestions
     itemNoOptions,
@@ -142,30 +143,28 @@ onMounted(async () => {
         const itemList = await receiveStore_manual.fetchItemList_spec();
         const locationRaw = await receiveStore_manual.fetchLocation();
         vdcodeSuggestions.value = response ?? [];
+        
 
-        const vendorCodeFromQuery = route.query.vendorCode as string;
-         if (vendorCodeFromQuery && vdcodeSuggestions.value.length > 0) {
-            const selectedVendor = vdcodeSuggestions.value.find(v => v.code === vendorCodeFromQuery)
+        const vendorCodeFromQuery = (route.query.vendorCode as string)?.trim();
+        if (vendorCodeFromQuery && vdcodeSuggestions.value.length > 0) {
+            const selectedVendor = vdcodeSuggestions.value.find((v) => (v.code ? v.code.trim().toUpperCase() : '') === (vendorCodeFromQuery ? vendorCodeFromQuery.trim().toUpperCase() : ''));
+            console.log('Selected vendor from query:', selectedVendor);
+
+            console.log('selectedVendor:', selectedVendor);
             if (selectedVendor) {
-                receiveForm.value.VDCODE = {
-                    VDCODE: selectedVendor.code,
-                    VDNAME: selectedVendor.name,
+                receiveForm.value.vdcode = {
                     code: selectedVendor.code,
                     name: selectedVendor.name
                 };
-                
+                console.log('Selected vendor from query:', selectedVendor);
             }
+            //  receiveForm.value.vdcode = vendorCodeFromQuery;
+            // receiveForm.value.vdname = vendorCodeFromQuery;
+            console.log('VDCODE set to:', receiveForm.value.vdcode);
+            console.log('vdcodeSuggestions:', vdcodeSuggestions.value);
+            console.log('receiveForm after setting VDCODE:', receiveForm.value);
 
-        // ถ้า v-model รับ code
-        receiveForm.value.VDCODE = vendorCodeFromQuery;
-        receiveForm.value.VDNAME = vendorCodeFromQuery;
-         console.log('VDCODE set to:', receiveForm.value.VDCODE);
-        
-         console.log('receiveForm after setting VDCODE:', receiveForm.value);
-         console.log('vdcodeSuggestions:', vdcodeSuggestions.value);
-         console.log('vendorCodeFromQuery:', vendorCodeFromQuery);
-       
-    }
+        }
         itemNoOptions.value = (itemList ?? []).map((item) => ({
             label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
             value: item.ItemNo.trim()
@@ -198,9 +197,11 @@ onMounted(async () => {
                 life: 3000
             });
         }
-         if (poNumber) {
+        if (poNumber) {
             // ถ้า poNumber เป็น string ที่คั่นด้วย , ให้แปลงเป็น array
-            receiveForm.value.receiveNumberList = String(poNumber).split(',').map(p => p.trim());
+            receiveForm.value.receiveNumberList = String(poNumber)
+                .split(',')
+                .map((p) => p.trim());
         } else {
             // ถ้าไม่มี ให้เป็น array ว่าง
             receiveForm.value.receiveNumberList = [];
@@ -281,8 +282,11 @@ onMounted(async () => {
                     placeholder="Search or select VDCODE"
                     class="w-full"
                     dropdown
-                    :optionLabel="(item) => `[${item.code}] ${item.name}`"
-                    :optionValue="(item) => item.code"
+                    optionLabel="name"
+                    optionValue="code"
+                    :itemTemplate="(item) => `[${item.code}] ${item.name}`"
+                    :forceSelection="true"
+                    field="code"
                     :inputStyle="{ whiteSpace: 'normal', wordBreak: 'break-word', minHeight: '40px' }"
                     :panelStyle="{ minWidth: '300px', maxWidth: '100%' }"
                 >
@@ -296,7 +300,6 @@ onMounted(async () => {
                 <span v-if="vdcodeError" class="text-red-500 text-xs">{{ vdcodeError }}</span>
             </div>
         </div>
-
 
         <div class="flex flex-col sm:flex-row gap-4 mb-6">
             <Button label="Search" icon="pi pi-search" severity="primary" outlined style="background-color: #22c55e; color: white" class="w-full sm:w-auto" @click="() => SearchViewManualDetail(String(receiveForm.InvoiceNo), toast)"> </Button>
@@ -686,4 +689,11 @@ onMounted(async () => {
         <ConfirmDialog />
         <Button label="Save Receive" @click="() => confirmSave(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
     </div>
+    <Dialog v-model:visible="showNotFoundDialog" modal header="แจ้งเตือน" :style="{ width: '350px' }" :closable="false" :draggable="false" :position="'center'">
+        <div class="text-center py-4">
+            <i class="pi pi-exclamation-triangle text-4xl text-yellow-500 mb-3"></i>
+            <div class="text-lg font-semibold mb-2">ไม่พบข้อมูล Material ที่ต้องการเพิ่ม กรุณาตรวจสอบข้อมูลอีกครั้ง</div>
+            <Button label="ปิด" @click="showNotFoundDialog = false" class="mt-2" />
+        </div>
+    </Dialog>
 </template>

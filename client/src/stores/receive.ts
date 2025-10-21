@@ -66,6 +66,20 @@ const useReceiveStore = defineStore('receive', {
                 this.loading = false;
             }
         },
+
+        async fetchReceiveItems_Split(InvoiceNumber: string) {
+            this.loading = true;
+            this.error = null;
+            const url: string = `${api}/material-receive/view-item-split?InvoiceNumber=${InvoiceNumber}`;  
+            try {
+                const data = await ApiService.get<IReceiveItem[]>(url);
+                this.item_split = data;
+                return data;
+            } catch (err: any) {
+                this.error = err?.message || 'Failed to fetch receive items split';
+                return null;
+            } 
+        },
         async getComponents(receiptNumber: string) {
             this.loading = true;
             this.error = null;
@@ -439,7 +453,8 @@ const useReceiveStore = defineStore('receive', {
             } finally {
                 this.loading = false;
             }
-        }
+        },
+        
     }
 });
 

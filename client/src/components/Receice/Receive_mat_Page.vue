@@ -3,8 +3,17 @@ import { NodeService } from '@/service/NodeService';
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
-import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
+import Dialog from 'primevue/dialog';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
 import { filterMeta } from '@/interfaces/receive.interfaces';
+import { FilterMatchMode } from '@primevue/core/api';
+import { display } from '@primeuix/themes/lara/inplace';
+import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const loading = ref(false);
 const syncProgress = ref(0); // <-- add for progress bar
@@ -30,35 +39,116 @@ const filters = ref<{
     countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
+const showDetailDialog = ref(false); // Dialog visibility
+const selectedReceipt = ref<any>(null);
+// Store selected receipt
+
+// เพิ่ม state สำหรับ Dialog รายละเอียด
+const showDetailPageDialog = ref(false);
+const detailLoading = ref(false);
+const detailRows = ref<any[]>([]);
+const detailInfo = ref<any>({});
+const viewItemInv = ref<any[]>([]);
+const responseData = ref<any[]>([]);
+
+// Add pagination variables for DataTable
+const rowsPerPage = ref(10);
+const page = ref(0);
+
 async function handleRowClick(receipt: any) {
     const receiveNumber = receipt.ReceptNumber;
     const StatusRecIC = receipt.StatusRecIC;
-    const InvoiceNumber = receipt.InvoiceNumber;
-    const RecReceiveDate = receipt.ReciveDate;
-    const VendorName = receipt.VendorName;
+    // const InvoiceNumber = receipt.InvoiceNumber;
+    // const RecReceiveDate = receipt.ReciveDate;
+    // const VendorName = receipt.VendorName;
 
     loading.value = true;
     try {
         // รอ sync ข้อมูลเข้า DB ให้เสร็จก่อน
         await receiveStore.fetchSyncReceiveDetail(receiveNumber, StatusRecIC);
+        const start = startDate.value.replace(/-/g, '');
+        const end = endDate.value.replace(/-/g, '');
+        await receiveStore.syncItems(start, end);
+
+        const updated = receiveStore.items.find(i => i.ReceptNumber === receipt.ReceptNumber);
+        if (updated) selectedReceipt.value = updated;
 
         // เก็บวันที่ไว้ใน localStorage ก่อนเปลี่ยนหน้า
         localStorage.setItem('receiveStartDate', startDate.value);
         localStorage.setItem('receiveEndDate', endDate.value);
 
+
+
+
         // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
-        const item = receiveStore.items.find((i) => i.ReceptNumber === receiveNumber);
-        if (item) item.total_detail = 1; // หรือค่าที่ถูกต้องหลังรับของ
-        router.push({
-            path: `/uikit/Receive_Detail/${receiveNumber}`,
-            query: { StatusRecIC, InvoiceNumber, RecReceiveDate, VendorName }
-        });
+        // const item = receiveStore.items.find((i) => i.ReceptNumber === receiveNumber);
+        // if (item) item.total_detail = 1; // หรือค่าที่ถูกต้องหลังรับของ
+
+        // selectedReceipt.value = receipt;
+        await openDetailPageDialog();
+        showDetailDialog.value = true;
     } catch (err) {
         alert('เกิดข้อผิดพลาดในการ sync ข้อมูล กรุณาตรวจสอบข้อมูลหรือแจ้งผู้ดูแลระบบ');
     } finally {
         loading.value = false;
     }
 }
+
+// ฟังก์ชันดึงข้อมูล detail และเปิด Dialog
+async function openDetailPageDialog() {
+    page.value = 0; // reset to first page
+    if (!selectedReceipt.value) return;
+    detailLoading.value = true;
+    // ดึงข้อมูล detail จาก store
+    const receiveNumber = selectedReceipt.value.ReceptNumber;
+    const InvoiceNumber = selectedReceipt.value.InvoiceNumber;
+    const response = await receiveStore.getComponents(receiveNumber);
+    const view_item_inv = await receiveStore.fetchReceiveItems_Split(InvoiceNumber);
+
+    responseData.value = response;
+    viewItemInv.value = view_item_inv ?? [];
+
+    // สร้างข้อมูลสำหรับแสดง
+    detailInfo.value = {
+        receiveNumber: receiveNumber,
+        receiveDate: selectedReceipt.value.ReciveDate,
+        invoiceNumber: selectedReceipt.value.InvoiceNumber,
+        vendorName: selectedReceipt.value.VendorName,
+        vdcode: selectedReceipt.value.VendorCode,
+        specialExpDate: selectedReceipt.value.SpecialExpDate || ''
+    };
+    detailRows.value = Array.isArray(response)
+        ? response.map((row: any, idx: number) => ({
+              no: idx + 1,
+              itemNo: row.ITEMNO ?? '',
+              description: row.ITEMDESC ?? '',
+              unit: row.UNIT ?? '',
+              receiveQty: row.RQRECEIVED ?? '',
+              lotExpireDate: row.LotExpireDate ?? '',
+              invoice: row.InvoiceNumber ?? '',
+              vdcode: row.VendorCode ?? '',
+              vdname: row.VendorName ?? '',
+              iqaStatus: row.IQAStatus ?? '',
+              takeOutQty: row.takeOutQty ?? '',
+              returnQty: row.returnQty ?? '',
+              balanceQty: row.balanceQty ?? '',
+              lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
+              lotSplit: row.LotSplit ?? '',
+              ExpDate: row.ExpDate ?? '',
+              IQA: row.IQA ?? ''
+          }))
+        : [];
+    detailLoading.value = false;
+    showDetailPageDialog.value = true;
+
+    console.log('list', detailRows.value);
+    console.log('info', detailInfo.value);
+    console.log('response', responseData.value);
+    console.log('viewItemInv', viewItemInv.value);
+    detailLoading.value = false;
+    showDetailPageDialog.value = true;
+}
+
 const allReceiveList = computed(() => receiveStore.items);
 
 const searchQuery = ref('');
@@ -107,11 +197,7 @@ async function onDateSearch() {
         dateError.value = 'กรุณาเลือกวันที่ให้ครบถ้วน';
         return;
     }
-    if (startDate.value > getTodayStr() || endDate.value > getTodayStr()) {
-        dateError.value = 'วันที่ไม่สามารถเป็นอนาคตได้';
-        return;
-    }
-    
+
     localStorage.setItem('receiveStartDate', startDate.value);
     localStorage.setItem('receiveEndDate', endDate.value);
     const start = startDate.value.replace(/-/g, '');
@@ -169,6 +255,17 @@ function formatDate(dateString: string) {
     const day = dateString.substring(6, 8);
     return `${year}-${month}-${day}`;
 }
+
+// Add page change handler for DataTable pagination
+function onPageChange(event: any) {
+    page.value = event.page;
+    rowsPerPage.value = event.rows;
+}
+const pagedViewItemInv = computed(() => {
+    const start = page.value * rowsPerPage.value;
+    const end = start + rowsPerPage.value;
+    return viewItemInv.value.slice(start, end);
+});
 </script>
 
 <template>
@@ -238,10 +335,14 @@ function formatDate(dateString: string) {
             filterDisplay="menu"
             showGridlines
             rowHover
-            @rowClick="(e) => handleRowClick(e.data)"
+            @rowClick="
+                (e) => {
+                    selectedReceipt = e.data;
+                    showDetailDialog = true;
+                }
+            "
             :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
-            :loading="loading"
             :rowClass="rowClass"
         >
             <template #header>
@@ -297,6 +398,87 @@ function formatDate(dateString: string) {
                 </template>
             </Column>
         </DataTable>
+
+        <!-- Dialog for Receive Detail -->
+        <Dialog v-model:visible="showDetailDialog" modal header="Receive Detail" :style="{ width: '500px', height: '240px' }" :loading="loading">
+            <template v-if="selectedReceipt">
+                <div class="space-y-2">
+                    <div><strong>Receive Number:</strong> {{ selectedReceipt.ReceptNumber }}</div>
+
+                    <div><strong>Invoice Number:</strong> {{ selectedReceipt.InvoiceNumber }}</div>
+                    <div><strong>Receive Date:</strong> {{ formatDate(selectedReceipt.ReciveDate) }}</div>
+                    <div><strong>Vendor Name:</strong> {{ selectedReceipt.VendorName }}</div>
+                    <div><strong>Vendor Code:</strong> {{ selectedReceipt.VendorCode }}</div>
+                </div>
+            </template>
+            <template #footer>
+                <Button label="View" @click="openDetailPageDialog" :disabled="loading || selectedReceipt?.total_detail === 0" />
+                <Button label="Sync" :loading="loading" :disabled="loading" @click="handleRowClick(selectedReceipt)" />
+                <Button label="Close" @click="showDetailDialog = false" :disabled="loading" />
+            </template>
+        </Dialog>
+
+        <!-- Dialog แสดงรายละเอียด (เหมือน Receive.Detail_Page) -->
+        <Dialog v-model:visible="showDetailPageDialog" modal header="Receive Material " :style="{ width: '1100px', maxWidth: '98vw' }">
+            <template v-if="detailInfo">
+                <div class="mb-4">
+                    <div class="flex flex-wrap gap-4">
+                        <div>
+                            <span class="font-medium">Receive Number:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ detailInfo.receiveNumber }}</span>
+                        </div>
+                        <div>
+                            <span class="font-medium">Receive Date:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ detailInfo.receiveDate }}</span>
+                        </div>
+                        <div>
+                            <span class="font-medium">Invoice Number:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ detailInfo.invoiceNumber }}</span>
+                        </div>
+                        <div>
+                            <span class="font-medium">Vendor Name:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ detailInfo.vendorName }}</span>
+                        </div>
+                        <div>
+                            <span class="font-medium">Vendor Code:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ detailInfo.vdcode }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-5">
+                    <h3 class="font-bold text-lg mb-2">Receive Material Detail List</h3>
+                    <DataTable :value="pagedViewItemInv" :loading="detailLoading" showGridlines>
+                        <Column field="ITEMNO" header="Item No" sortable style="width: 120px" />
+                        <Column field="ITEMDESC" header="Description" sortable style="width: 300px" />
+                        <Column field="RQRECEIVED" header="Receive(QTY)" sortable style="width: 100px">
+                            <template #body="{ data }">
+                                {{ Number(data.RQRECEIVED).toLocaleString() }}
+                            </template>
+                        </Column>
+                        <Column field="UNIT" header="Unit" sortable style="width: 100px" />
+                    </DataTable>
+                </div>
+
+                <div class="mt-8">
+                    <h3 class="font-bold text-lg mb-2">Receive Material Detail</h3>
+                    <DataTable :value="detailRows" :loading="detailLoading" showGridlines class="mb-4" paginator :rows="rowsPerPage" :totalRecords="detailRows.length" :first="page * rowsPerPage" @page="onPageChange">
+                        <Column field="itemNo" header="Item No" sortable style="width: 120px" />
+                        <Column field="description" header="Description" sortable style="width: 300px" />
+                        <Column field="receiveQty" header="Receive(QTY)" sortable style="width: 100px">
+                            <template #body="{ data }">
+                                {{ Number(data.receiveQty).toLocaleString() }}
+                            </template>
+                        </Column>
+                        <Column field="unit" header="Unit" sortable style="width: 100px" />
+                    </DataTable>
+                </div>
+            </template>
+            <template #footer>
+                <Button label="Close" @click="showDetailPageDialog = false" />
+            </template>
+        </Dialog>
+
         <!-- Loading overlay for normal loading -->
         <div v-if="loading && syncProgress === 0" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
             <div class="flex flex-col items-center">

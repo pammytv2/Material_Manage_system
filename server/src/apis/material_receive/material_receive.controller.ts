@@ -201,6 +201,11 @@ async view_item(
   return await this.materialReceiveService.view_item(ReceptNumber);
 }
 
+@Get('view-item-split')
+async view_item_split(
+  @Query('InvoiceNumber') InvoiceNumber: string,
+): Promise<any> {
+  return await this.materialReceiveService.view_item_by_InvoiceNumber(InvoiceNumber);
 
-  
+}
 }

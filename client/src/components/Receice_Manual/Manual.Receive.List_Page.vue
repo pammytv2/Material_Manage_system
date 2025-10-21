@@ -50,7 +50,7 @@ const filters = ref({
 function onRowClick(event: any) {
     const invoiceNumber = event.data.InvoiceNumber;
     const poNumber = event.data.PoNumber;
-    const vendorCode = event.data.VendorCode;
+    const vendorCode = (event.data.VendorCode || '').toString().trim();
 
     console.log('Row clicked:', { invoiceNumber, poNumber, vendorCode });
 
@@ -64,6 +64,8 @@ function onRowClick(event: any) {
             vendorCode: vendorCode || '' // ถ้า vendorCode เป็น null ให้เป็น empty string
         }
     });
+
+    console.log(vendorCode)
 }
 
 onMounted(async () => {

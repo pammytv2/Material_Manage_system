@@ -390,6 +390,13 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     ]);
 
   }
+  async view_item_by_InvoiceNumber(InvoiceNumber: string): Promise<Item[]> {
+    const sqlQuery = `  
+    SELECT * FROM view_item_lotsplit WHERE InvoiceNumber = @InvoiceNumber  ORDER BY ITEMNO ASC `  
+    return await this.databaseService.query(sqlQuery, [
+      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber },
+    ]);
+  }
 
   async unitpacking(): Promise<any> {
     const sqlQuery = `EXEC sp_Get_Dropdown`;

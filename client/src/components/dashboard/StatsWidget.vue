@@ -59,4 +59,5 @@
             <span class="text-muted-color">responded</span>
         </div>
     </div>
+    
 </template>
