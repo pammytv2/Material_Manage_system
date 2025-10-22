@@ -90,16 +90,16 @@ const model = computed<MenuItem[]>(() => [
     },
     {
         label: 'IQA',
-        items: [
-            {
-                label: 'IQA Checklist Material',
-                icon: 'pi pi-fw pi-list-check', // รายการตรวจสอบ
-                to: '/documentation'
-            },
+        items: [ 
             {
                 label: 'Check Material Receive',
+                icon: 'pi pi-fw pi-list-check', // รายการตรวจสอบ
+                to: '/Iqa_checklist'
+            },
+            {
+                label: 'IQA Checklist Material',
                 icon: 'pi pi-fw pi-check-square', // ตรวจสอบการรับวัสดุ
-                to: '/documentation'
+                to: '/Iqa_checklist_test'
             }
         ]
     },

@@ -10,7 +10,6 @@ import { Item_manual } from 'shared/interfaces/mms-system/ManualReceiv';
 import * as sql from 'mssql';
 import * as request from 'supertest';
 
-
 @Injectable()
 export class MaterialReceiveManualService {
   constructor(private readonly databaseService: DatabaseService) {}
@@ -201,10 +200,10 @@ GROUP BY d1.InvoiceNumber, d1.VendorCode, d1.VendorName, h.ImportDate;`;
     return await this.databaseService.query(sqlQuery);
   }
 
-async showItem_manual_detail(
+  async showItem_manual_detail(
     invoiceNumber: string,
     poString?: string,
-): Promise<any[]> {
+  ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
     let sqlQuery = `
@@ -221,11 +220,9 @@ async showItem_manual_detail(
 
     const result = await request.query(sqlQuery);
     return result.recordset;
-}
+  }
 
-async showItem_manual_detail_inv(
-    invoiceNumber: string,
-): Promise<any[]> {
+  async showItem_manual_detail_inv(invoiceNumber: string): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
     let sqlQuery = `
@@ -235,12 +232,8 @@ async showItem_manual_detail_inv(
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     const result = await request.query(sqlQuery);
     return result.recordset;
-}
+  }
 
-
-
-
-  
   async DeleteItem_manual(invoiceNumber: string, ItemNo: string): Promise<any> {
     const sqlQuery = `
             DELETE FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] WHERE InvoiceNumber = @InvoiceNumber AND ItemNo = @ItemNo`;
@@ -262,6 +255,22 @@ async showItem_manual_detail_inv(
     return result.recordset;
   }
 
-  
-}
+  async DeleteItem_invoice_list(invoiceNumber: string): Promise<any> {
+    const sqlQuery = `
+          BEGIN TRANSACTION
 
+DELETE FROM [dbo].[accpac_sync_poreceipt_icshipment_h]
+WHERE InvoiceNumber = @InvoiceNumber;
+
+DELETE FROM [dbo].[accpac_sync_poreceipt_icshipment_detail]
+WHERE InvoiceNumber = @InvoiceNumber AND Ismanual = 1;
+
+COMMIT TRANSACTION`;
+
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
+    const result = await request.query(sqlQuery);
+    return result.recordset;
+  }
+}

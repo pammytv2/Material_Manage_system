@@ -28,6 +28,8 @@ declare module 'vue' {
     InputIcon: typeof import('primevue/inputicon')['default']
     InputNumber: typeof import('primevue/inputnumber')['default']
     InputText: typeof import('primevue/inputtext')['default']
+    Iqa_Check_page: typeof import('./src/components/Iqa_Checklist/Iqa_Check_page.vue')['default']
+    Iqa_Checklist_Page: typeof import('./src/components/IQA_Checklist/Iqa_Checklist_Page.vue')['default']
     'Manage.Material_Page': typeof import('./src/components/Manage_Material/Manage.Material_Page.vue')['default']
     'Manual.Receive.List_Page': typeof import('./src/components/Receice_Manual/Manual.Receive.List_Page.vue')['default']
     'Materials.Split_Delail_Page': typeof import('./src/components/Split_Materials/Materials.Split_Delail_Page.vue')['default']
@@ -41,9 +43,11 @@ declare module 'vue' {
     RevenueStreamWidget: typeof import('./src/components/dashboard/RevenueStreamWidget.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Select: typeof import('primevue/select')['default']
     SelectButton: typeof import('primevue/selectbutton')['default']
     StatsWidget: typeof import('./src/components/dashboard/StatsWidget.vue')['default']
     Tag: typeof import('primevue/tag')['default']
+    Testvue: typeof import('./src/components/IQA_Checklist/testvue.vue')['default']
     TopbarWidget: typeof import('./src/components/landing/TopbarWidget.vue')['default']
   }
   export interface ComponentCustomProperties {

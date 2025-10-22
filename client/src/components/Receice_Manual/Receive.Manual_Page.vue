@@ -57,6 +57,7 @@ const {
     editingNoPoItemIndex,
     updateNoPoItems,
     confirmUpdateNoPoItems,
+
     SearchViewManualDetail,
     viewManualDetail_inv,
 
@@ -89,7 +90,9 @@ const {
     removeNoPoItem,
     editNoPoItem,
     editNoPoFromList,
-    loadManualReceives
+    loadManualReceives,
+    fetchVendors,
+    vendors
 } = useManualMaterial();
 
 const receiveStore_manual = useReceiveStore_manual();
@@ -127,52 +130,56 @@ function clearFilter() {
 
 function openNoPoDialog() {
     noPoItem.value.invoiceNo = String(receiveForm.value.InvoiceNo);
-    noPoItem.value.vdcode = typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null ? receiveForm.value.VDCODE : (vdcodeSuggestions.value.find((v) => v.code === receiveForm.value.VDCODE) ?? '');
+
+    if (typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null) {
+        noPoItem.value.vdcode = receiveForm.value.VDCODE;
+    } else if (typeof receiveForm.value.VDCODE === 'string' && receiveForm.value.VDCODE) {
+        const found = vdcodeSuggestions.value.find((v) => v.code === receiveForm.value.VDCODE || v.code === receiveForm.value.VDCODE);
+        noPoItem.value.vdcode = found || receiveForm.value.VDCODE;
+    } else {
+        noPoItem.value.vdcode = '';
+    }
+
     showNoPoDialog.value = true;
 }
 
 onMounted(async () => {
     pageLoading.value = true;
     try {
-        const { mode, vendorCode, invoiceNumber, poNumber } = route.query;
-
-        console.log('Route query:', { mode, invoiceNumber, poNumber, vendorCode });
+        await fetchVendors();
+        const { mode, vendorCode, invoiceNumber, poNumber, vdcode } = route.query;
 
         // Load initial data
-        const response = await receiveStore_manual.fetchVDCODE();
-        const itemList = await receiveStore_manual.fetchItemList_spec();
-        const locationRaw = await receiveStore_manual.fetchLocation();
+        const response = await useReceiveStore_manual().fetchVDCODE();
+        const itemList = await useReceiveStore_manual().fetchItemList_spec();
+        const locationRaw = await useReceiveStore_manual().fetchLocation();
         vdcodeSuggestions.value = response ?? [];
-        
 
-        const vendorCodeFromQuery = (route.query.vendorCode as string)?.trim();
-        if (vendorCodeFromQuery && vdcodeSuggestions.value.length > 0) {
-            const selectedVendor = vdcodeSuggestions.value.find((v) => (v.code ? v.code.trim().toUpperCase() : '') === (vendorCodeFromQuery ? vendorCodeFromQuery.trim().toUpperCase() : ''));
-            console.log('Selected vendor from query:', selectedVendor);
-
-            console.log('selectedVendor:', selectedVendor);
-            if (selectedVendor) {
-                receiveForm.value.vdcode = {
-                    code: selectedVendor.code,
-                    name: selectedVendor.name
-                };
-                console.log('Selected vendor from query:', selectedVendor);
-            }
-            //  receiveForm.value.vdcode = vendorCodeFromQuery;
-            // receiveForm.value.vdname = vendorCodeFromQuery;
-            console.log('VDCODE set to:', receiveForm.value.vdcode);
-            console.log('vdcodeSuggestions:', vdcodeSuggestions.value);
-            console.log('receiveForm after setting VDCODE:', receiveForm.value);
-
+        // --- Auto select VDCODE from query ---
+        let vdcodeQuery = vendorCode || vdcode;
+        if (Array.isArray(vdcodeQuery)) {
+            vdcodeQuery = vdcodeQuery[0];
         }
+        vdcodeQuery = (vdcodeQuery ?? '').toString().trim();
+
+        if (vdcodeQuery && vdcodeSuggestions.value.length > 0) {
+            const selectedVendor = vdcodeSuggestions.value.find((v) => (v.code ? v.code.trim().toUpperCase() : '') === vdcodeQuery.trim().toUpperCase());
+            if (selectedVendor) {
+                receiveForm.value.VDCODE = selectedVendor; // <-- set เป็น object
+            } else {
+                receiveForm.value.VDCODE = vdcodeQuery; // fallback เป็น string
+            }
+        }
+
         itemNoOptions.value = (itemList ?? []).map((item) => ({
             label: `${item.ItemNo.trim()} - ${item.SPEC?.trim() ?? ''}`,
             value: item.ItemNo.trim()
         }));
         locationList.value = (locationRaw ?? []).map((loc) => ({
-            label: loc.LOCATION?.trim() ?? '', // ใช้ชื่อสั้นๆ เช่น SMT
+            label: loc.LOCATION?.trim() ?? '',
             value: loc.LOCATION?.trim() ?? ''
         }));
+
         if (!response || response.length === 0) {
             toast.add({
                 severity: 'error',
@@ -198,18 +205,14 @@ onMounted(async () => {
             });
         }
         if (poNumber) {
-            // ถ้า poNumber เป็น string ที่คั่นด้วย , ให้แปลงเป็น array
             receiveForm.value.receiveNumberList = String(poNumber)
                 .split(',')
                 .map((p) => p.trim());
         } else {
-            // ถ้าไม่มี ให้เป็น array ว่าง
             receiveForm.value.receiveNumberList = [];
         }
 
-        // Handle different modes
         if (mode === 'create') {
-            // Clear form for new creation
             receiveForm.value = {
                 PoNumber: '',
                 receiveNumberList: [],
@@ -219,18 +222,9 @@ onMounted(async () => {
                 VDCODE: ''
             };
             receiveItems.value = [];
-            console.log('Create mode: Form cleared for new manual receive');
         } else if (invoiceNumber) {
-            // Load existing data for edit/view - รองรับทั้ง PO และ No PO
             await viewManualDetail_inv(String(invoiceNumber));
-            console.log('Edit/View mode: Loaded manual detail for:', invoiceNumber, poNumber || 'No PO');
-
-            // await viewManualDetail(String(invoiceNumber), poNumber ? String(poNumber) : undefined);
-            // console.log('Edit/View mode: Loaded manual detail for:', invoiceNumber, poNumber || 'No PO');
         }
-
-        console.log('locationList:', locationList.value);
-        console.log('itemNoOptions:', itemNoOptions.value);
     } catch (error) {
         console.error('Error in onMounted:', error);
         toast.add({
@@ -244,6 +238,20 @@ onMounted(async () => {
         pageLoading.value = false;
     }
 });
+
+// Refresh only the Manual Receive List table data (not full page reload)
+async function refreshAllPage() {
+    loading.value = true;
+    try {
+        if (receiveForm.value.InvoiceNo) {
+            await SearchViewManualDetail(String(receiveForm.value.InvoiceNo), toast);
+        } else {
+            await loadManualReceives(toast);
+        }
+    } finally {
+        loading.value = false;
+    }
+}
 </script>
 
 <template>
@@ -275,28 +283,7 @@ onMounted(async () => {
             </div>
             <div class="space-y-2">
                 <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
-                <AutoComplete
-                    v-model="receiveForm.VDCODE"
-                    :suggestions="vdcodeSuggestions"
-                    @complete="searchVDCODE"
-                    placeholder="Search or select VDCODE"
-                    class="w-full"
-                    dropdown
-                    optionLabel="name"
-                    optionValue="code"
-                    :itemTemplate="(item) => `[${item.code}] ${item.name}`"
-                    :forceSelection="true"
-                    field="code"
-                    :inputStyle="{ whiteSpace: 'normal', wordBreak: 'break-word', minHeight: '40px' }"
-                    :panelStyle="{ minWidth: '300px', maxWidth: '100%' }"
-                >
-                    <template #option="slotProps">
-                        <div style="white-space: normal; word-break: break-word; max-width: 300px">
-                            <span class="font-semibold">[{{ slotProps.option.code }}]</span>
-                            <span class="ml-2">{{ slotProps.option.name }}</span>
-                        </div>
-                    </template>
-                </AutoComplete>
+                <Select v-model="receiveForm.VDCODE" filter :options="vendors" optionValue="VDCODE" :optionLabel="(item) => `[${item.VDCODE}] ${item.VDNAME}`" placeholder="Select a Vendor" class="w-full" />
                 <span v-if="vdcodeError" class="text-red-500 text-xs">{{ vdcodeError }}</span>
             </div>
         </div>
@@ -332,6 +319,7 @@ onMounted(async () => {
                         }
                         if (hasError) return;
                         searchItemListManual(toast);
+                        // refreshAllPage();
                     }
                 "
             />
@@ -360,8 +348,9 @@ onMounted(async () => {
             scrollHeight="flex"
         >
             <template #header>
-                <div class="font-semibold text-lg sm:text-xl mb-4">Manual Receive List</div>
-                <div class="flex flex-col sm:flex-row justify-between gap-4">
+                <div class="font-semibold text-lg sm:text-xl mb-4">Manual Receive List</div>  
+                <div class="flex flex-col sm:flex-row flex justify-end gap-4">
+                    <Button type="button" icon="pi pi-refresh" label="Refresh"  severity="secondary" @click="refreshAllPage()" class="w-full sm:w-auto"  />
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" class="w-full sm:w-auto" />
                     <IconField class="w-full sm:w-auto">
                         <InputIcon>
@@ -488,6 +477,7 @@ onMounted(async () => {
                     <template v-if="!slotProps.data.PoNumber || slotProps.data.PoNumber === null">
                         <div class="flex flex-col sm:flex-row gap-2">
                             <Button icon="pi pi-pencil" severity="warning" outlined @click="() => editNoPoFromList(slotProps.index)" class="w-full sm:w-auto" />
+                            <!-- <Button icon="pi pi-trash" severity="danger" outlined @click="() => confirmRemoveNoPoItem(confirm, slotProps.index, toast)" class="w-full sm:w-auto" /> -->
                         </div>
                     </template>
                 </template>
@@ -563,7 +553,7 @@ onMounted(async () => {
                     placeholder="Search or select VDCODE"
                     class="w-full"
                     dropdown
-                    :optionLabel="(item) => `[${item.code}] ${item.name}`"
+                    :optionLabel="(item) => `[${item.VDCODE || item.code}] ${item.VDNAME || item.name}`"
                     :optionValue="(item) => item"
                     :disabled="true"
                 >
@@ -689,11 +679,11 @@ onMounted(async () => {
         <ConfirmDialog />
         <Button label="Save Receive" @click="() => confirmSave(confirm, toast)" :loading="loading" icon="pi pi-save" class="w-full sm:w-auto order-1 sm:order-2" />
     </div>
-    <Dialog v-model:visible="showNotFoundDialog" modal header="แจ้งเตือน" :style="{ width: '350px' }" :closable="false" :draggable="false" :position="'center'">
+    <Dialog v-model:visible="showNotFoundDialog" modal header="Notification" :style="{ width: '350px' }" :closable="false" :draggable="false" :position="'center'">
         <div class="text-center py-4">
             <i class="pi pi-exclamation-triangle text-4xl text-yellow-500 mb-3"></i>
-            <div class="text-lg font-semibold mb-2">ไม่พบข้อมูล Material ที่ต้องการเพิ่ม กรุณาตรวจสอบข้อมูลอีกครั้ง</div>
-            <Button label="ปิด" @click="showNotFoundDialog = false" class="mt-2" />
+            <div class="text-lg font-semibold mb-2">No material data found to add. Please check your information again.</div>
+            <Button label="Close" @click="showNotFoundDialog = false" class="mt-2" />
         </div>
     </Dialog>
 </template>

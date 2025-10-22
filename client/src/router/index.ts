@@ -62,6 +62,19 @@ const routes: RouteRecordRaw[] = [
                 component: () => import('@/components/Manage_Material/Manage.Material_Page.vue')
 
             },
+            {
+                path: '/Iqa_checklist',
+                name: 'Iqa_checklist',
+                component: () => import('@/components/IQA_Checklist/Iqa_Checklist_Page.vue')
+
+
+            },
+            {
+                path: '/Iqa_checklist_test',
+                name: 'Iqa_checklist_test',
+                component: () => import('@/components/IQA_Checklist/testvue.vue')
+
+            },
 
         
 

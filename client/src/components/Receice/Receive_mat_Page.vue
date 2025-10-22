@@ -475,7 +475,7 @@ const pagedViewItemInv = computed(() => {
                 </div>
             </template>
             <template #footer>
-                <Button label="Close" @click="showDetailPageDialog = false" />
+                <Button label="Close" @click="() => {showDetailPageDialog = false; showDetailDialog = false; }" />
             </template>
         </Dialog>
 

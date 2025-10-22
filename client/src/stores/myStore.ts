@@ -1,0 +1,18 @@
+// stores/counter.js
+import { defineStore } from 'pinia'
+
+export const useCounterStore = defineStore('counter', {
+  state: () => ({
+    count: 0,
+    name: 'Pinia'
+  }),
+  getters: {
+    doubleCount: (state) => state.count * 2,
+    nameWithCount: (state) => `${state.name} (${state.count})`
+  },
+  actions: {
+    increment() {
+      this.count++
+    }
+  }
+})

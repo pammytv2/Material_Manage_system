@@ -189,7 +189,9 @@ onMounted(async () => {
                 </template>
             </Column>
             <Column field="CountOrder" header="Item Count" sortable>
-                <template #body="{ data }"> {{ data.TotalItems }}/{{ data.CountOrder }} </template>
+                <template #body="{ data }">
+                    {{ data.CompletedSplitItems }}/{{ data.TotalItems }}
+                </template> 
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by total lots" />
                 </template>

@@ -310,7 +310,26 @@ const useReceiveStore_manual = defineStore('receive_manual', {
             } finally {
                 this.loading = false;
             }
+        },
+        async deleteInvoice_manual_list(invoiceNumber: string) {
+            try {
+                this.loading = true;
+                this.error = null;
+                const url: string = `${api}/material-receive-manual/delete-invoice-manual_list?invoiceNumber=${encodeURIComponent(invoiceNumber)}`;
+                const response = await ApiService.get<any>(url);
+                this.items = response;
+             } catch (error) {
+                if (error instanceof Error) {
+                    this.error = error.message;
+                } else {
+                    this.error = 'Failed to delete invoice manual list';
+                }
+                return null;
+            } finally {
+                this.loading = false;
+            }
         }
-    }
+}
 });
+
 export { useReceiveStore_manual };

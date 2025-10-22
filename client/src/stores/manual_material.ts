@@ -5,6 +5,9 @@ import { ref, computed } from 'vue';
 import type { receiveForm, receiveItems, NoPoItemType } from '@/interfaces/manual.interfaces';
 import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 import { todo } from 'node:test';
+import ConfirmDialog from 'primevue/confirmdialog'; // Add this import
+
+import vueDevTools from 'vite-plugin-vue-devtools';
 
 const receiveQtyNoPoError = ref('');
 const router = useRouter();
@@ -23,6 +26,7 @@ const editingNoPoItemIndex = ref<number | null>(null);
 const isEditingNoPoItems = ref(false);
 const showNotFoundDialog = ref(false);
 const notFoundMessage = ref('');
+const vendors = ref<{ VDCODE: string; VDNAME: string }[]>([]);
 
 const receiveItems = ref<receiveItems[]>([]);
 const receiveForm = ref<receiveForm & { VDCODE?: string | { code: string; name: string } }>({
@@ -86,10 +90,13 @@ function filterItemNoOptions(event: { query: string }) {
         .filter((option) => option.label.toLowerCase().includes(event.query.toLowerCase()));
 }
 
+async function fetchVendors() {
+     vendors.value = await receiveStore_manual.fetchVDCODE();
+}
+
 async function searchVDCODE(event: { query: string }) {
-    const allVDCodes = await receiveStore_manual.fetchVDCODE();
     // ถ้า API ส่งมาเป็น array ของ string เช่น ['V1001|SHINDENGEN ELECTRIC MFG.CO.,LTD.', ...]
-    vdcodeSuggestions.value = (allVDCodes ?? [])
+    vdcodeSuggestions.value = (vendors.value ?? [])
         .map((item: any) => {
             if (typeof item === 'string') {
                 const [code, name] = item.split('|');
@@ -120,6 +127,8 @@ const isFormValid = computed(() => {
     const hasValidItems = receiveItems.value.some((item) => item.itemNo && Number(item.receiveQty) > 0);
     return hasPo && hasValidItems;
 });
+
+
 
 function confirmRemoveNoPoItem(confirm: any, index: number, toast?: any) {
     confirm.require({
@@ -336,15 +345,15 @@ async function searchItemListManual(toast: any) {
 
     let hasError = false;
     if (!receiveForm.value.InvoiceNo) {
-        invoiceNoError.value = 'กรุณากรอก Invoice Number';
+        invoiceNoError.value = 'Please enter Invoice Number';
         hasError = true;
     }
     if (!receiveForm.value.receiveNumberList || !Array.isArray(receiveForm.value.receiveNumberList) || receiveForm.value.receiveNumberList.length === 0) {
-        poNumberError.value = 'กรุณากรอก Po Number';
+        poNumberError.value = 'Please enter Po Number';
         hasError = true;
     }
     if (!receiveForm.value.VDCODE) {
-        vdcodeError.value = 'กรุณากรอก VDCODE';
+        vdcodeError.value = 'Please enter VDCODE';
         hasError = true;
     }
     if (hasError) return;
@@ -358,7 +367,7 @@ async function searchItemListManual(toast: any) {
 
         const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
     if (!result || (Array.isArray(result) && result.length === 0)) {
-        notFoundMessage.value = 'ไม่พบข้อมูล Material ที่ต้องการเพิ่ม กรุณาตรวจสอบข้อมูลอีกครั้ง';
+        notFoundMessage.value = 'Material not found. Please check your information and try again.';
         showNotFoundDialog.value = true;
         return;
     }
@@ -368,12 +377,11 @@ async function searchItemListManual(toast: any) {
         // เก็บ PO Header (array แรก)
         poHeader.value = Array.isArray(result) && result.length > 0 ? result[0] : [];
         if (!poHeader.value || poHeader.value.length === 0) {
-            toast.add({
-                severity: 'warn',
-                summary: 'ไม่พบข้อมูล',
-                detail: 'ไม่พบข้อมูล PO Header',
-                life: 3000
-            });
+            notFoundMessage.value = `Not Found PO [${receiveForm.value.PoNumber}]`;
+            showNotFoundDialog.value = true;
+            receiveItems.value = [];
+            receiveForm.value.ItemCount = 0;
+            return;
         }
 
         // เก็บ PO Items (array ที่สอง)
@@ -767,6 +775,7 @@ function addNoPoItemCore(toast: any, itemNoStr: string, locationStr: string, dup
         };
     });
 }
+
 // Remove No PO item row
 async function removeNoPoItem(index: number) {
     const item = noPoItems.value[index];
@@ -785,7 +794,7 @@ async function removeNoPoItem(index: number) {
     }
 
     // ปิด dialog
-    showNoPoDialog.value = false;
+    // showNoPoDialog.value = false;
     isEditingNoPoItems.value = false;
     editingNoPoItemIndex.value = null;
 }
@@ -929,10 +938,18 @@ async function editNoPoFromList(index: number, toast?: any) {
             noPoItems.value = [...convertedItems];
 
             // ใส่ข้อมูล item แรกลงฟอร์ม (สำหรับการแก้ไข)
-            if (convertedItems.length > 0) {
+                      if (convertedItems.length > 0) {
                 noPoItem.value = { ...convertedItems[0] };
+                // --- เพิ่มเติม: เซ็ต Invoice Number และ VDCODE ให้กับ noPoItem ---
+                noPoItem.value.invoiceNo = String(item.InvoiceNo ?? receiveForm.value.InvoiceNo ?? '');
+                let vdcodeObj2: string | { code: string; name: string } | null = null;
+                if (typeof convertedItems[0].vdcode === 'object' && convertedItems[0].vdcode !== null) {
+                    vdcodeObj2 = convertedItems[0].vdcode;
+                } else if (typeof convertedItems[0].vdcode === 'string' && convertedItems[0].vdcode) {
+                    vdcodeObj2 = vdcodeSuggestions.value.find(v => v.code === convertedItems[0].vdcode) || convertedItems[0].vdcode;
+                }
+                noPoItem.value.vdcode = vdcodeObj2 || '';
             }
-
             console.log('Loaded all No PO items for editing:', convertedItems);
             toast?.add({
                 severity: 'success',
@@ -968,6 +985,25 @@ async function editNoPoFromList(index: number, toast?: any) {
         }
     }
 }
+
+async function DeleteManualReceive(invoiceNumber: string, toast: any) {
+    loading.value = true;
+    try {
+        await receiveStore_manual.deleteInvoice_manual_list(invoiceNumber);
+    } catch (error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: 'Failed to delete manual receive',
+        });
+    } finally {
+        loading.value = false;
+    }
+}
+
+
+
+
 
 async function loadManualReceives(toast: any) {
     loading.value = true;
@@ -1050,6 +1086,7 @@ export function useManualMaterial() {
         saveReceive,
         confirmSave,
         loadManualReceives,
+
         searchItemListManual,
         confirmSaveNoPoItems,
         saveNoPoItems,
@@ -1059,6 +1096,7 @@ export function useManualMaterial() {
         confirmUpdateNoPoItems,
         viewManualDetail_inv,
 
+
         // Functions that don't need parameters
         closeNoPoDialog,
         filterItemNoOptions,
@@ -1066,9 +1104,13 @@ export function useManualMaterial() {
         filterLocationOptions,
         goBack,
         viewManualDetail,
+
         SearchViewManualDetail,
         removeNoPoItem,
         editNoPoItem,
-        editNoPoFromList
+        DeleteManualReceive,
+        editNoPoFromList,
+        fetchVendors,
+        vendors
     };
 }

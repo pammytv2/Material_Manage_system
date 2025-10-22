@@ -167,5 +167,13 @@ async insertNoPoItems_post(
       ItemNo,
     );
   }
+  @Get('delete-invoice-manual_list')
+  async deleteInvoice_manual_list(
+    @Query('invoiceNumber') invoiceNumber: string
+  ) {
+    return await this.materialReceiveManualService.DeleteItem_invoice_list(
+      invoiceNumber
+    );
+  }
 
 }

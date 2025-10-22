@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { FilterMatchMode } from '@primevue/core/api';
@@ -10,9 +11,11 @@ import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const router = useRouter();
 const toast = useToast();
+const confirm = useConfirm();
 
 // Get functions and data from composable - add error handling
 let composableData;
@@ -33,7 +36,8 @@ const {
     loading,
     manualReceives,
     selectedRows,
-    loadManualReceives
+    loadManualReceives,
+    DeleteManualReceive
 } = composableData;
 
 // Filters for DataTable
@@ -60,7 +64,7 @@ function onRowClick(event: any) {
         query: {
             mode: 'view', // เพิ่ม mode สำหรับการดู
             invoiceNumber,
-            poNumber: poNumber || '', // ถ้า poNumber เป็น null ให้เป็น empty string
+            poNumber: poNumber || '', 
             vendorCode: vendorCode || '' // ถ้า vendorCode เป็น null ให้เป็น empty string
         }
     });
@@ -71,10 +75,19 @@ function onRowClick(event: any) {
 onMounted(async () => {
     try {
         await loadManualReceives(toast);
-         manualReceives.value = manualReceives.value.map(item => ({
-            ...item,
-            PoNumber: Array.isArray(item.PoNumber) ? item.PoNumber.join(', ') : (item.PoNumber ?? ''),
-        }));
+        manualReceives.value = manualReceives.value.map(item => {
+            let poArr: string[] = [];
+            if (Array.isArray(item.PoNumber)) {
+                poArr = item.PoNumber;
+            } else if (typeof item.PoNumber === 'string' && item.PoNumber.trim() !== '') {
+                poArr = item.PoNumber.split(',').map(p => p.trim()).filter(Boolean);
+            }
+            // ถ้าไม่มี PO เลย ให้เป็น array ว่าง
+            return {
+                ...item,
+                PoNumber: poArr.join(', ')
+            };
+        });
         console.log('Manual Receives:', manualReceives.value);
     } catch (error) {
         console.error('Error loading manual receives:', error);
@@ -86,6 +99,43 @@ onMounted(async () => {
         });
     }
 });
+function onDeleteManualReceive(confirm: any, invoiceNumber: string, toast: any) {
+    // console.log('Delete clicked for Invoice Number:', invoiceNumber);
+    confirm.require({
+        message: 'Are you sure you want to delete this record?',
+        header: 'Delete Confirmation',
+        icon: 'pi pi-exclamation-triangle',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Delete',
+            severity: 'danger'
+        },
+        accept: async () => {
+            try {
+                await DeleteManualReceive(invoiceNumber, toast);
+                toast.add({
+                    severity: 'success',
+                    summary: 'Deleted',
+                    detail: 'Manual receive deleted successfully',
+                    life: 2000
+                });
+                await loadManualReceives(toast);
+            } catch (error) {
+                console.error('Error deleting manual receive:', error);
+                toast.add({
+                    severity: 'error',
+                    summary: 'Error',
+                    detail: 'Failed to delete manual receive',
+                    life: 3000
+                });
+            }
+        }
+    });
+}
 // Create new manual receive
 async function createNew() {
     // Clear any existing data before navigation
@@ -205,6 +255,18 @@ function refreshAllPage() {
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by vendor name" />
                 </template>
             </Column>
+            <Column field="Action" header="Action" style="width: 100px">
+
+                <template #body="slotProps">
+                    <Button
+                        label="Delete"
+                        icon="pi pi-trash"
+                        severity="danger"
+                        class="p-button-text"
+                        @click="onDeleteManualReceive(confirm, slotProps.data.InvoiceNumber, toast);"
+                    />
+                </template>
+            </Column>
 
             <template #empty>
                 <div class="text-center py-8">
@@ -214,6 +276,8 @@ function refreshAllPage() {
                 </div>
             </template>
         </DataTable>
+        <ConfirmDialog />
+
     </div>
     </div>
 </template>
