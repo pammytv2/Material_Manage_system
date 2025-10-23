@@ -6,6 +6,7 @@ import { useReceiveStore } from '@/stores/receive';
 import { useMaterialSplit } from '@/stores/split_material';
 import { IReceiveDetailItem, LotRow, IReceiveItem } from '@/interfaces/receive.interfaces';
 import { getIQAStatusText, getIQARequiredClass, getLotSplitStatusText, getLotSplitStatusClass } from '@/stores/recive_material';
+import { useIqaCheckMaterialStore } from '@/stores/iqa_check_material';
 
 // Add missing PrimeVue imports
 import DataTable from 'primevue/datatable';
@@ -21,6 +22,8 @@ import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 
 const router = useRouter();
+const iqaCheckMaterialStore = useIqaCheckMaterialStore();
+console.log('iqaCheckMaterialStore:', iqaCheckMaterialStore);
 const route = useRoute();
 const detailTableScrollRef = ref<HTMLElement | null>(null);
 const confirmPopup = useConfirm();
@@ -355,18 +358,42 @@ function confirm(event: Event) {
         }
     });
 }
-
+function canSubmitToIQA(row: any) {
+    // ถ้าต้องแบ่ง lot (lotSplit = 1) ต้องแบ่งครบ (balanceQty = 0)
+    if (row.lotSplit === 1 || row.lotSplit === '1') {
+        return getRowBalanceQty(row) === 0;
+    }
+    // ถ้าไม่ต้องแบ่ง lot แต่ต้องส่ง IQA (IQA = 1 หรือ '1')
+    if (row.IQA === 1 || row.IQA === '1') {
+        return true;
+    }
+    return false;
+}
+function canSubmitSelected() {
+    // ส่งได้เฉพาะแถวที่ผ่านเงื่อนไขทุกแถว
+    return selectedRows.value.length > 0 && selectedRows.value.every(canSubmitToIQA);
+}
 async function Success() {
-    try {
-        const lotStatusIQAResponse = await receiveStore.fetchLotStatusIQA(2);
-        selectedRows.value.forEach((row) => {
-            row.iqaStatus = lotStatusIQAResponse[0]?.IQAStatusName || 'PENDING';
+    console.log('iqaCheckMaterialStore:', iqaCheckMaterialStore);
+    // ส่งเฉพาะแถวที่ผ่านเงื่อนไข
+    const canSend = selectedRows.value.every(canSubmitToIQA);
+    if (!canSend) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Warning',
+            detail: 'เลือกได้เฉพาะรายการที่แบ่ง lot ครบ หรือไม่ต้องแบ่งแต่ต้องส่ง IQA เท่านั้น',
+            life: 3000
         });
-        console.log('lotStatusIQAResponse_Success:', lotStatusIQAResponse);
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Submitted to IQA', life: 3000 });
+        return;
+    }
+    try {
+        console.log('Submitting to IQA for invoiceNumber:', invoiceNumber.value);
+        await iqaCheckMaterialStore.sumIqaItems(invoiceNumber.value);
+
+        toast.add({ severity: 'success', summary: 'Success', detail: 'ส่ง IQA สำเร็จ', life: 3000 });
     } catch (error) {
-        console.error('Error submitting to IQA:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to submit to IQA', life: 3000 });
+        console.log('Error submitting to IQA:', error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'ส่ง IQA ไม่สำเร็จ', life: 3000 });
     }
 }
 
@@ -620,7 +647,7 @@ async function receiveNoLot() {
                 </template>
             </Column>
 
-            <!-- <Column field="iqaRequirement" header="IQA Requirement" sortable>
+             <Column field="iqaRequirement" header="IQA Requirement" sortable>
                 <template #body="{ data }">
                     <span :class="getIQARequiredClass(getIQAStatusText(data.IQA))">
                         {{ getIQAStatusText(data.IQA) }}
@@ -636,12 +663,12 @@ async function receiveNoLot() {
                         </template>
                     </Dropdown>
                 </template>
-            </Column> -->   
+            </Column>    
 
             <Column field="iqaStatus" header="IQA Status" sortable>
                 <template #body="{ data }">
                     <span :class="getIQAStatusClass(data.iqaStatus || 'PENDING')">
-                        {{ data.iqaStatus || 'PENDING' }}
+                        {{ data.status || 'PENDING' }}
                     </span>
                 </template>
             </Column>
@@ -651,7 +678,14 @@ async function receiveNoLot() {
 
         <div class="flex justify-end">
             <ConfirmPopup></ConfirmPopup>
-            <Button ref="popup" @click="Success()" icon="pi pi-check" label="Submit to IQA" class="mr-2" :disabled="!selectedRows.length"></Button>
+           <Button
+    ref="popup"
+    @click="Success()"
+    icon="pi pi-check"
+    label="Submit to IQA"
+    class="mr-2"
+    :disabled="!canSubmitSelected()"
+/>
            <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" severity="success"></Button>
         </div>
 

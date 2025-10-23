@@ -19,6 +19,7 @@ export class MaterialReceiveManualService {
             SELECT DISTINCT VDCODE, VDNAME FROM view_vendor`;
     return await this.databaseService.query(sqlQuery);
   }
+  
   async getItemList_manual(
     PONUMBER: string[],
     VDCODE: string,

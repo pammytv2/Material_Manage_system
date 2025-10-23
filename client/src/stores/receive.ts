@@ -110,20 +110,20 @@ const useReceiveStore = defineStore('receive', {
             }
         },
 
-        async fetchLotStatusIQA(IQAStatusID: number) {
-            this.loading = true;
-            this.error = null;
+        // async fetchLotStatusIQA(IQAStatusID: number) {
+        //     this.loading = true;
+        //     this.error = null;
 
-            const url: string = `${api}/material-receive/lot-status-iqa/${IQAStatusID}?IQAStatusID=${IQAStatusID}`;
-            try {
-                const data = await ApiService.get<any>(url);
-                return data;
-            } catch (err: any) {
-                this.error = err?.message || 'Failed to fetch lot status IQA';
-            } finally {
-                this.loading = false;
-            }
-        },
+        //     const url: string = `${api}/material-receive/lot-status-iqa/${IQAStatusID}?IQAStatusID=${IQAStatusID}`;
+        //     try {
+        //         const data = await ApiService.get<any>(url);
+        //         return data;
+        //     } catch (err: any) {
+        //         this.error = err?.message || 'Failed to fetch lot status IQA';
+        //     } finally {
+        //         this.loading = false;
+        //     }
+        // },
 
         async createLotSplit(lotSplitData: ILotSplitData) {
             this.loading = true;

@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { MaterialReceiveModule } from './apis/material_receive/material_receive.module';
 import { MaterialManageModule } from './apis/material_manage/material_manage.module';
 import { MaterialReceiveManualModule } from './apis/material_receive_manual/material_receive_manual.module';
+import {CheckMaterialReceiveModule} from './apis/check_material_receive/check_material_receive.module';
 
 
 @Module({
@@ -25,6 +26,7 @@ import { MaterialReceiveManualModule } from './apis/material_receive_manual/mate
      MaterialReceiveModule,
      MaterialManageModule,
      MaterialReceiveManualModule,
+    CheckMaterialReceiveModule,
      
 
     

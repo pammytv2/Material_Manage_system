@@ -13,6 +13,7 @@ import Dropdown from 'primevue/dropdown';
 import { FilterMatchMode } from '@primevue/core/api';
 import { filterMeta } from '@/interfaces/receive.interfaces';
 import { useIqaCheckMaterialStore } from '@/stores/iqa_check_material';
+import { s } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const searchQuery = ref('');
 const selectedReceipt = ref<any>(null);
@@ -22,43 +23,17 @@ const iqaCheckMaterialStore = useIqaCheckMaterialStore();
 
 
 // Mock data
-const filteredReceiveListRaw = ref([
-    {
-        ReceptNumber: 'RCV001',
-        ReciveDate: '2024-06-01',
-        InvoiceNumber: 'INV123',
-        VendorCode: 'V001',
-        VendorName: 'Vendor A',
-        CountOrder: 10,
-        total_detail: 8,
-        status: 'pending'
-    },
-    {
-        ReceptNumber: 'RCV002',
-        ReciveDate: '2024-06-02',
-        InvoiceNumber: 'INV124',
-        VendorCode: 'V002',
-        VendorName: 'Vendor B',
-        CountOrder: 5,
-        total_detail: 5,
-        status: 'pass'
-    },
-    {
-        ReceptNumber: 'RCV003',
-        ReciveDate: '2024-06-03',
-        InvoiceNumber: 'INV125',
-        VendorCode: 'V003',
-        VendorName: 'Vendor C',
-        CountOrder: 7,
-        total_detail: 7,
-        status: 'fail'
-    }
-]);
+onMounted(async () => {
+  await iqaCheckMaterialStore.IqaCheckMaterialItems();
+
+  console.log('IQA Check Material Items:', iqaCheckMaterialStore.items);
+});
 
 const filteredReceiveList = computed(() => {
-    if (iqaCheckMaterialStore.selectedStatus === 'all') return filteredReceiveListRaw.value;
-    return filteredReceiveListRaw.value.filter(item => item.status === iqaCheckMaterialStore.selectedStatus);
+  if (iqaCheckMaterialStore.selectedStatus === 'all') return iqaCheckMaterialStore.items;
+  return iqaCheckMaterialStore.items.filter(item => item.status === iqaCheckMaterialStore.selectedStatus);
 });
+
 const filters = ref<{
     global: filterMeta;
     receiveNumber: filterMeta;
@@ -66,6 +41,7 @@ const filters = ref<{
     invoiceNumber: filterMeta;
     vendorCode: filterMeta;
     vendorName: filterMeta;
+    Status: filterMeta;
     countOrder: filterMeta;
 }>({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -73,6 +49,7 @@ const filters = ref<{
     receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
     invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
     vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
+    Status: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
     vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
     countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
@@ -85,6 +62,7 @@ function clearFilter() {
         invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        Status: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
         countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
     };
 }
@@ -94,61 +72,68 @@ function clearFilter() {
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
         <div class="flex items-center gap-2 mb-2">
-           <select v-model="iqaCheckMaterialStore.selectedStatus" showClear optionLabel="name" placeholder="Select a City" class="w-full md:w-56">
-    <option v-for="opt in iqaCheckMaterialStore.statusOptions" :key="opt.value" :value="opt.value">
-     สถานะ : {{ opt.label }}
-    </option>
-  </select>
-
+    <span class="font-medium">Status:</span>
+    <Dropdown v-model="iqaCheckMaterialStore.selectedStatus" :options="iqaCheckMaterialStore.statusOptions" optionLabel="label" placeholder="Status" class="w-60" />
         </div>
     </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material List</div>
 
-        <DataTable
-            :value="filteredReceiveList"
-            v-model:filters="filters"
-            paginator
-            :rows="10"
-            dataKey="ReceptNumber"
-            filterDisplay="menu"
-            showGridlines
-            rowHover
-            @rowClick="
-                (e) => {
-                    selectedReceipt = e.data;
-                    showDetailDialog = true;
-                }
-            "
-            :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
-            class="mb-6"
-        >
-            <template #header>
-                <div class="flex justify-end gap-2">
-                    <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
-                    <IconField>
-                        <InputIcon>
-                            <i class="pi pi-search" />
-                        </InputIcon>
-                        <InputText v-model="searchQuery" placeholder="Keyword Search" />
-                    </IconField>
-                </div>
-            </template>
+      <DataTable
+    :value="filteredReceiveList"
+    v-model:filters="filters"
+    paginator
+    :rows="10"
+    dataKey="ReceiveNo"
+    filterDisplay="menu"
+    showGridlines
+    rowHover
+    @rowClick="
+        (e) => {
+            selectedReceipt = e.data;
+            showDetailDialog = true;
+        }
+    "
+    :globalFilterFields="['ReceiveNo', 'InvoiceNumber','Status','VendorCode', 'VendorName', 'CountOrder']"
+    class="mb-6"
+>
+    <template #header>
+        <div class="flex justify-end gap-2">
+            <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
+            <IconField>
+                <InputIcon>
+                    <i class="pi pi-search" />
+                </InputIcon>
+                <InputText v-model="searchQuery" placeholder="Keyword Search" />
+            </IconField>
+        </div>
+    </template>
 
-            <template #empty>No data found.</template>
-            <Column field="ReceptNumber" header="Receive Number" sortable>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive number" />
-                </template>
-            </Column>
+    <template #empty>No data found.</template>
+    <Column field="ReceiveNo" header="Receive Number" sortable>
+        <template #filter="{ filterModel }">
+            <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive number" />
+        </template>
+    </Column>
 
-            <Column field="InvoiceNumber" header="Invoice Number" sortable> </Column>
+    <Column field="InvoiceNumber" header="Invoice Number" sortable>
+        <template #body="{ data }">
+            <span>{{ data.InvoiceNumber || 'N/A' }}</span>
+        </template>
+    </Column>
 
-            <Column field="VendorCode" header="Vendor Code" sortable> </Column>
-
-            <Column field="VendorName" header="Vendor Name" sortable> </Column>
-
-            <Column field="CountOrder" header="Count Order" sortable> </Column>
-        </DataTable>
+    <Column field="VendorCode" header="Vendor Code" sortable />
+    <Column field="VendorName" header="Vendor Name" sortable />
+    <Column field="Status" header="Status" sortable >
+        <template #body="{ data }">
+            <span>{{'รอการตรวจสอบ'}}</span>
+        </template>
+    </Column>
+    <Column field="CountOrder" header="Count Order" sortable >
+        <template #body="{ data }">
+            <span>{{ data.lotcount}}</span>
+        </template>
+    </Column>
+</DataTable>
     </div>
 </template>

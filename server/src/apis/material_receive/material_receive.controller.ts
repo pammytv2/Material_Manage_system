@@ -30,10 +30,10 @@ export class MaterialReceiveController {
 syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
     return this.materialReceiveService.syncData_Detail_Split(InvoiceNumber);
 }
-  @Get('lot-status-iqa/:IQAStatusID')
-  lot_statusIQA(@Query('IQAStatusID') IQAStatusID: number) {
-    return this.materialReceiveService.lot_statusIQA(Number(IQAStatusID));
-  }
+  // @Get('lot-status-iqa/:IQAStatusID')
+  // lot_statusIQA(@Query('IQAStatusID') IQAStatusID: number) {
+  //   return this.materialReceiveService.lot_statusIQA(Number(IQAStatusID));
+  // }
 
   @Get('sync')
   async syncRecHICH(

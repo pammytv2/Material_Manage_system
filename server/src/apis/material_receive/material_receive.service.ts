@@ -104,14 +104,14 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     return await this.databaseService.query(sqlQuery);
   }
 
-  async lot_statusIQA(IQAStatusID: number): Promise<any> {
-    const sqlQuery = `
-      SELECT * FROM lot_status_IQA  WHERE @IQAStatusID = IQAStatusID
-    `;
-    return await this.databaseService.query(sqlQuery, [
-      { name: 'IQAStatusID', type: sql.Int, value: IQAStatusID },
-    ]);
-  }
+  // async lot_statusIQA(IQAStatusID: number): Promise<any> {
+  //   const sqlQuery = `
+  //     SELECT * FROM lot_status_IQA  WHERE @IQAStatusID = IQAStatusID
+  //   `;
+  //   return await this.databaseService.query(sqlQuery, [
+  //     { name: 'IQAStatusID', type: sql.Int, value: IQAStatusID },
+  //   ]);
+  // }
   async lot_SplitStatus(ItemNo: number): Promise<any> {
     const sqlQuery = `
       SELECT ItemNo , LotSplit FROM item_test WHERE ItemNo = @ItemNo
