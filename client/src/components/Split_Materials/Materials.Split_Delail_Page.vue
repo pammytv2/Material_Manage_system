@@ -20,6 +20,7 @@ import Checkbox from 'primevue/checkbox';
 import ConfirmPopup from 'primevue/confirmpopup';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
+import { s } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const router = useRouter();
 const iqaCheckMaterialStore = useIqaCheckMaterialStore();
@@ -141,7 +142,8 @@ onMounted(async () => {
                 lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
                 lotSplit: row.LotSplit ?? 0,
                 ExpDate: row.ExpDate ?? '',
-                IQA: row.IQA ?? ''
+                IQA: row.IQA ?? '',
+                status: row.status ?? 'PENDING'
             }))
         };
 
@@ -667,7 +669,7 @@ async function receiveNoLot() {
 
             <Column field="iqaStatus" header="IQA Status" sortable>
                 <template #body="{ data }">
-                    <span :class="getIQAStatusClass(data.iqaStatus || 'PENDING')">
+                    <span :class="getIQAStatusClass(data.status || 'PENDING')">
                         {{ data.status || 'PENDING' }}
                     </span>
                 </template>

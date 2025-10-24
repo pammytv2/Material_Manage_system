@@ -138,9 +138,15 @@ export function useManageMaterialStore() {
         }
     }
 
+
+
+    
+
     function getIQAStatusText(iqa: any) {
         if (iqa === true || iqa === 1 || iqa === '1') return 'Yes';
         if (iqa === false || iqa === 0 || iqa === '0') return 'No';
+        if (iqa === 'PASS') return 'PASS';
+        if (iqa === 'FAIL') return 'FAIL';
         return 'Not Specified';
     }
 
@@ -148,14 +154,25 @@ export function useManageMaterialStore() {
         switch (text) {
             case 'Yes':
                 return 'p-tag p-tag-success';
+            case 'PASS':
+                return 'p-tag p-tag-success';
+            case 'FAIL':
+                return 'p-tag p-tag-danger';
             case 'No':
                 return 'p-tag p-tag-danger';
             case 'Not Specified':
                 return 'p-tag p-tag-secondary';
+            
             default:
                 return 'p-tag';
         }
     }
+    function getIQARequiredClass1(status: string) {
+    if (!status) return '';
+    if (status.toUpperCase() === 'PASS') return 'p-tag p-tag-success';
+    if (status.toUpperCase() === 'FAIL') return 'p-tag p-tag-danger';
+    return '';
+}
 
     function getExpireDateStatusText(ExpDate: any) {
         if (ExpDate === true || ExpDate === 1 || ExpDate === '1') return 'Yes';
@@ -350,6 +367,7 @@ export function useManageMaterialStore() {
         getLotSplitStatusClass,
         getIQAStatusText,
         getIQARequiredClass,
+         getIQARequiredClass1,
         getExpireDateStatusText,
         getExpireDateStatusClass,
         customFilterFunction,
