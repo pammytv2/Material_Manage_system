@@ -32,7 +32,7 @@ const receiveItems = ref<receiveItems[]>([]);
 const receiveForm = ref<receiveForm & { VDCODE?: string | { code: string; name: string } }>({
     PoNumber: '',
     receiveNumberList: [],
-    receiveDate: '',
+    receiveDate: new Date(),
     ItemCount: 0,
     InvoiceNo: '',
 
@@ -109,10 +109,6 @@ async function searchVDCODE(event: { query: string }) {
         })
         .filter((item: { code: string; name: string }) => `[${item.code}] ${item.name}`.toLowerCase().includes(event.query.toLowerCase()));
 }
-// Remove item row
-// function removeItem(index: number) {
-//     receiveItems.value.splice(index, 1);
-// }
 
 function filterLocationOptions(event: { query: string }) {
     if (!event.query) {
@@ -338,7 +334,7 @@ const invoiceNoError = ref('');
 const poNumberError = ref('');
 const vdcodeError = ref('');
 
-async function searchItemListManual(toast: any) {
+async function searchItemListManual(toast: any, receiveDateStr?: string) {
     invoiceNoError.value = '';
     poNumberError.value = '';
     vdcodeError.value = '';
@@ -348,6 +344,16 @@ async function searchItemListManual(toast: any) {
         invoiceNoError.value = 'Please enter Invoice Number';
         hasError = true;
     }
+    let receiveDateStrLocal = '';
+    if (receiveForm.value.receiveDate instanceof Date) {
+        const d = receiveForm.value.receiveDate;
+        receiveDateStrLocal = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    } else if (typeof receiveForm.value.receiveDate === 'string') {
+        const d = new Date(receiveForm.value.receiveDate);
+        receiveDateStrLocal = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+
     if (!receiveForm.value.receiveNumberList || !Array.isArray(receiveForm.value.receiveNumberList) || receiveForm.value.receiveNumberList.length === 0) {
         poNumberError.value = 'Please enter Po Number';
         hasError = true;
@@ -365,7 +371,8 @@ async function searchItemListManual(toast: any) {
             typeof receiveForm.value.VDCODE === 'string' ? receiveForm.value.VDCODE : typeof receiveForm.value.VDCODE === 'object' && receiveForm.value.VDCODE !== null && 'code' in receiveForm.value.VDCODE ? receiveForm.value.VDCODE.code : '';
         const invoiceNumber = String(receiveForm.value.InvoiceNo ?? '');
 
-        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber);
+        const result = await receiveStore_manual.fetchItemList_manual(poNumbers, vdcode, invoiceNumber, receiveDateStrLocal);
+        console.log('API Result for Item List Manual:', result);
     if (!result || (Array.isArray(result) && result.length === 0)) {
         notFoundMessage.value = 'Material not found. Please check your information and try again.';
         showNotFoundDialog.value = true;
@@ -393,7 +400,7 @@ async function searchItemListManual(toast: any) {
             Quantity: item.RQRECEIVED ?? 0,
             unitCost: item.UNITCOST ?? 0,
             InvoiceNo: receiveForm.value.InvoiceNo,
-            PoNumber: item.PORHSEQ,
+            PoNumber: Array.isArray(item.PoNumber) ? item.PoNumber[0] ?? '' : item.PoNumber ?? '',
             vdcode: item.VDCODE?.trim() ?? '',
             vdname: item.VDNAME?.trim() ?? '',
             receiveQty: item.ReceiveQty ?? 0
@@ -749,6 +756,19 @@ function addNoPoItemCore(toast: any, itemNoStr: string, locationStr: string, dup
             });
             return;
         }
+
+        if (apiData.QTYONORDER !== 0 && apiData.QTYONORDER !== '') {
+            toast.add({
+                severity: 'warn',
+                summary: 'ไม่สามารถเพิ่มรายการ',
+                detail: 'QTYONORDER ไม่เป็น 0 ไม่สามารถเพิ่มรายการนี้ได้',
+                life: 3000
+
+
+
+            });
+            return;
+        }
         noPoItem.value.description = apiData.ITEMDesc ?? '';
 
         // เพิ่มรายการใหม่เข้าไปใน noPoItems (ไม่ลบรายการเดิม)
@@ -758,7 +778,7 @@ function addNoPoItemCore(toast: any, itemNoStr: string, locationStr: string, dup
             unit: apiData.UNIT ?? '',
             unitCost: apiData.RECENTCOST ?? 0,
             location: apiData.LOCATION ?? noPoItem.value.location,
-            QTYONORDER: apiData.QTYONORDER ?? 0 // <<== เพิ่มบรรทัดนี้
+            QTYONORDER: apiData.QTYONORDER  // <<== เพิ่มบรรทัดนี้
         });
 
         // reset เฉพาะ noPoItem เพื่อให้กรอกเพิ่มได้ต่อ
@@ -1022,6 +1042,9 @@ async function loadManualReceives(toast: any) {
     }
 }
 
+
+
+
 const grandTotal = computed(() =>
     receiveItems.value.reduce((sum, item) => {
         const qty = Number(item.receiveQty) || 0;
@@ -1101,6 +1124,7 @@ export function useManualMaterial() {
         closeNoPoDialog,
         filterItemNoOptions,
         searchVDCODE,
+
         filterLocationOptions,
         goBack,
         viewManualDetail,

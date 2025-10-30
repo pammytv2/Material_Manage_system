@@ -34,15 +34,31 @@ function getLotSplitStatusClass(status: string) {
         default:
             return 'bg-white text-gray-900 transition-colors duration-200';
     }
-
-    
 }
 
+function getIqaApprovalClass(status: string) {  
+    switch (status) {
+        case 'Inspected by IQA':
+            return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
+        case 'Pending IQA Approval':
+            return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
+        default:
+            return 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
+    }
+}
 
-
-
-
-
+function getIqaResultClass(status: string) {
+    switch (status) {
+        case 'PASS':
+            return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
+        case 'REVISE':
+            return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
+        case 'REJECT':
+            return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
+        default:
+            return 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
+    }
+}
 
 function getTodayStr() {
     const d = new Date();
@@ -58,8 +74,31 @@ function formatDate(dateString: string) {
     const day = dateString.substring(6, 8);
     return `${year}-${month}-${day}`;
 }
+function getIQAStatusTextD(status: string) {
+    switch (status) {
+        case 'IQA ตรวจสอบแล้ว':
+            return 'IQA ตรวจสอบแล้ว';
+        case 'IQA ตรวจสอบแล้ว ไม่ผ่าน':
+            return 'IQA ตรวจสอบแล้ว ไม่ผ่าน';
+        case 'รอIQAตรวจสอบ':
+            return 'รอIQAตรวจสอบ';
+        case 'IQA ตรวจแล้วส่งแก้ไข':
+            return 'IQA ตรวจแล้วส่งแก้ไข';
+    }
+}
+function getIqaResultClassD(status: string) {
+    switch (status) {
+        case 'IQA ตรวจสอบแล้ว':
+            return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
+        case 'IQA ตรวจสอบแล้ว ไม่ผ่าน':
+            return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
+        case 'รอIQAตรวจสอบ':
+            return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
+        case 'IQA ตรวจแล้วส่งแก้ไข':
+            return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
+        default:
+            return 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
+    }
+}
 
-
-
-
-export { getIQARequiredClass,formatDate,getTodayStr ,getLotSplitStatusText,  getIQAStatusText,getLotSplitStatusClass };
+export { getIqaResultClassD,getIQAStatusTextD,getIqaResultClass, getIqaApprovalClass, getIQARequiredClass, formatDate, getTodayStr, getLotSplitStatusText, getIQAStatusText, getLotSplitStatusClass };

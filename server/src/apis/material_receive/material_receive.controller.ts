@@ -43,7 +43,7 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
     return await this.materialReceiveService.syncRecHICH(startDate, endDate);
   }
 
-  @Post('insert_lot-split')
+ @Post('insert_lot-split')
   async createLotSplit(@Body() lotSplitData: any) {
     const {
       ItemNo,
@@ -56,6 +56,7 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       lot_qty,
       InvoiceNumber,
       PORHSEQ,
+      IQA,
     } = lotSplitData;
     return await this.materialReceiveService.insert_LotSplit(
       ItemNo,
@@ -68,6 +69,7 @@ syncData_Detail_Split(@Param('InvoiceNumber') InvoiceNumber: string) {
       lot_qty,
       InvoiceNumber,
       PORHSEQ,
+      IQA,
     );
   }
   @Post('update_lot-split')

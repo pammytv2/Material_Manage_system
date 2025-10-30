@@ -29,6 +29,7 @@ export class MaterialReceiveManualController {
     @Query('PONUMBER') PONUMBER: string,
     @Query('VDCODE') VDCODE: string,
     @Query('invoiceNumber') invoiceNumber?: string,
+    @Query('ReceiveDate') ReceiveDate?: string,
   ) {
     // Convert PONUMBER to string array (assuming comma-separated input)
     const poNumbersArray = PONUMBER
@@ -38,6 +39,8 @@ export class MaterialReceiveManualController {
       poNumbersArray,
       VDCODE,
       invoiceNumber,
+      ReceiveDate,
+      
     );
   }
 

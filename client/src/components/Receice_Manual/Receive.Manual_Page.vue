@@ -19,7 +19,6 @@ import Column from 'primevue/column';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import ConfirmDialog from 'primevue/confirmdialog';
-import { todo } from 'node:test';
 
 // Initialize toast and confirm directly in component
 const toast = useToast();
@@ -216,12 +215,13 @@ onMounted(async () => {
             receiveForm.value = {
                 PoNumber: '',
                 receiveNumberList: [],
-                receiveDate: '',
+                receiveDate: new Date(),
                 ItemCount: 0,
                 InvoiceNo: '',
                 VDCODE: ''
             };
             receiveItems.value = [];
+            console.log('Create mode: Initialized empty form', receiveForm.value);
         } else if (invoiceNumber) {
             await viewManualDetail_inv(String(invoiceNumber));
         }
@@ -276,6 +276,7 @@ async function refreshAllPage() {
                 <InputText :modelValue="String(receiveForm.InvoiceNo ?? '')" @update:modelValue="(val) => (receiveForm.InvoiceNo = String(val))" placeholder="Invoice Number" class="w-full" :inputStyle="{ minHeight: '40px', fontSize: '1rem' }" />
                 <span v-if="invoiceNoError" class="text-red-500 text-xs">{{ invoiceNoError }}</span>
             </div>
+
             <div class="space-y-2">
                 <label for="PoNumber" class="block font-bold text-sm">Po Number</label>
                 <Chips v-model="receiveForm.receiveNumberList" separator="," addOnBlur placeholder="Po Number" class="w-full" :inputStyle="{ minHeight: '25px', fontSize: '1rem' }" />
@@ -285,6 +286,17 @@ async function refreshAllPage() {
                 <label for="VDCODE" class="block font-bold text-sm">VDCODE</label>
                 <Select v-model="receiveForm.VDCODE" filter :options="vendors" optionValue="VDCODE" :optionLabel="(item) => `[${item.VDCODE}] ${item.VDNAME}`" placeholder="Select a Vendor" class="w-full" />
                 <span v-if="vdcodeError" class="text-red-500 text-xs">{{ vdcodeError }}</span>
+            </div>
+            <div class="space-y-2">
+                <label for="ReceiveDate" class="block font-bold text-sm">Receive Date</label>
+                <InputText
+                    type="date"
+                    :modelValue="receiveForm.receiveDate ? new Date(receiveForm.receiveDate).toISOString().substring(0, 10) : ''"
+                    placeholder="Receive Date"
+                    @update:modelValue="(val) => (receiveForm.receiveDate = val ? new Date(val) : new Date())"
+                    class="w-full"
+                    :inputStyle="{ minHeight: '40px', fontSize: '1rem', backgroundColor: '#f3f4f6' }"
+                />
             </div>
         </div>
 
@@ -317,8 +329,15 @@ async function refreshAllPage() {
                             vdcodeError = 'กรุณากรอก VDCODE';
                             hasError = true;
                         }
+
                         if (hasError) return;
-                        searchItemListManual(toast);
+                        let receiveDateStr = '';
+                        if (receiveForm.receiveDate instanceof Date) {
+                            receiveDateStr = receiveForm.receiveDate.toISOString().substring(0, 10);
+                        } else if (typeof receiveForm.receiveDate === 'string') {
+                            receiveDateStr = receiveForm.receiveDate;
+                        }
+                        searchItemListManual(toast,receiveDateStr);
                         // refreshAllPage();
                     }
                 "
@@ -348,9 +367,9 @@ async function refreshAllPage() {
             scrollHeight="flex"
         >
             <template #header>
-                <div class="font-semibold text-lg sm:text-xl mb-4">Manual Receive List</div>  
+                <div class="font-semibold text-lg sm:text-xl mb-4">Manual Receive List</div>
                 <div class="flex flex-col sm:flex-row flex justify-end gap-4">
-                    <Button type="button" icon="pi pi-refresh" label="Refresh"  severity="secondary" @click="refreshAllPage()" class="w-full sm:w-auto"  />
+                    <Button type="button" icon="pi pi-refresh" label="Refresh" severity="secondary" @click="refreshAllPage()" class="w-full sm:w-auto" />
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" class="w-full sm:w-auto" />
                     <IconField class="w-full sm:w-auto">
                         <InputIcon>
@@ -418,12 +437,10 @@ async function refreshAllPage() {
                 <template #body="slotProps">
                     <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
                         <InputNumber v-model="slotProps.data.receiveQty" :min="0" :max="slotProps.data.Quantity" placeholder="Qty" class="w-full" :format="true" :useGrouping="true" />
-                        <span v-if="Number(slotProps.data.receiveQty) > Number(slotProps.data.Quantity)" class="text-red-500 text-xs"> Receive Qty must not exceed Quantity! </span>
-                    </template>
-                </template>
-                <template #filter="{ filterModel }">
-                    <template v-if="receiveForm.ItemCount && Number(receiveForm.ItemCount) > 0">
-                        <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by qty" />
+                        <span v-if="Number(slotProps.data.receiveQty) === Number(slotProps.data.Quantity)" class="text-red-500 text-xs"> Receive Qty ต้องไม่เกิน Quantity! </span>
+                        <span v-if="receiveQtyNoPoError && editingNoPoItemIndex === slotProps.index" class="text-red-500 text-xs">
+                            {{ receiveQtyNoPoError }}
+                        </span>
                     </template>
                 </template>
             </Column>
@@ -625,8 +642,9 @@ async function refreshAllPage() {
 
             <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
                 <template #body="slotProps">
-                    <InputNumber v-model="slotProps.data.receiveQty" :min="0" class="w-full" />
-                    <span v-if="Number(slotProps.data.receiveQty) <= 0" class="text-red-500 text-xs">Receive Qty ต้องมากกว่า 0</span>
+                    <InputNumber v-model="slotProps.data.receiveQty" :min="1" :max="slotProps.data.QTYONORDER" class="w-full" />
+                    <span v-if="Number(slotProps.data.receiveQty) === Number(slotProps.data.QTYONORDER)" class="text-red-500 text-xs"> Receive Qty ต้องไม่เกิน QtyonOrder! </span>
+                    <span v-else-if="Number(slotProps.data.receiveQty) <= 0" class="text-red-500 text-xs"> Receive Qty ต้องมากกว่า 0 </span>
                 </template>
             </Column>
 

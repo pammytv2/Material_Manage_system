@@ -146,7 +146,8 @@ export function useManageMaterialStore() {
         if (iqa === true || iqa === 1 || iqa === '1') return 'Yes';
         if (iqa === false || iqa === 0 || iqa === '0') return 'No';
         if (iqa === 'PASS') return 'PASS';
-        if (iqa === 'FAIL') return 'FAIL';
+        if (iqa === 'REJECT') return 'REJECT';
+        if (iqa ==='REVISE' ) return 'REVISE';
         return 'Not Specified';
     }
 
@@ -156,8 +157,10 @@ export function useManageMaterialStore() {
                 return 'p-tag p-tag-success';
             case 'PASS':
                 return 'p-tag p-tag-success';
-            case 'FAIL':
+            case 'REJECT':
                 return 'p-tag p-tag-danger';
+            case 'REVISE':
+                return 'p-tag p-tag-warning';
             case 'No':
                 return 'p-tag p-tag-danger';
             case 'Not Specified':
@@ -167,12 +170,9 @@ export function useManageMaterialStore() {
                 return 'p-tag';
         }
     }
-    function getIQARequiredClass1(status: string) {
-    if (!status) return '';
-    if (status.toUpperCase() === 'PASS') return 'p-tag p-tag-success';
-    if (status.toUpperCase() === 'FAIL') return 'p-tag p-tag-danger';
-    return '';
-}
+
+
+
 
     function getExpireDateStatusText(ExpDate: any) {
         if (ExpDate === true || ExpDate === 1 || ExpDate === '1') return 'Yes';
@@ -367,7 +367,7 @@ export function useManageMaterialStore() {
         getLotSplitStatusClass,
         getIQAStatusText,
         getIQARequiredClass,
-         getIQARequiredClass1,
+        
         getExpireDateStatusText,
         getExpireDateStatusClass,
         customFilterFunction,

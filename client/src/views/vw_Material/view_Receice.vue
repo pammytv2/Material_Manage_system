@@ -20,12 +20,12 @@ export default defineComponent({
   name: 'ViewReceice',
   components: {
     Receice, 
-    Receive_Detail, 
-    Receiv_Manual, 
-    Materials_Split, 
-    Materials_Split_Detail, 
-    Manual_Receive_List,
-    Manage_Material
+    // Receive_Detail, 
+    // Receiv_Manual, 
+    // Materials_Split, 
+    // Materials_Split_Detail, 
+    // Manual_Receive_List,
+    // Manage_Material
   },
   setup() {
     // component logic here

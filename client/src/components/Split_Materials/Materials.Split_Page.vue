@@ -14,6 +14,7 @@ import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import DatePicker from 'primevue/datepicker';
 import Dropdown from 'primevue/dropdown';
+import { item } from '@primeuix/themes/aura/breadcrumb';
 
 // Use the composable
 const { router, receiveStore, handleRowClick, startDate, endDate, onDateSearch, filteredReceiveList, searchQuery, loading, rowClass, ReceptNumber, formatDate } = useMaterialSplit();
@@ -80,7 +81,7 @@ onMounted(async () => {
 
 <template>
     <div class="card">
-        <div class="font-semibold text-xl mb-4">Receive Material</div>
+        <div class="font-semibold text-xl mb-4">Material Split</div>
         <form class="mb-4 flex flex-col gap-4">
             <div class="flex flex-col md:flex-row md:items-end gap-4">
                 <div class="flex gap-4">
@@ -111,7 +112,7 @@ onMounted(async () => {
     <div class="card">
         <div class="font-semibold text-xl mb-4">Receive Material List</div>
         <DataTable
-            :value="filteredReceiveList"
+            :value="filteredReceiveList = filteredReceiveList.filter(item => item.TotalItems !== 0)"
             v-model:filters="filters"
             paginator
             :rows="10"
@@ -226,18 +227,33 @@ onMounted(async () => {
 :deep(.highlight-yellow-row:hover td) {
     background-color: #fde047 !important;
 }
-:deep(.highlight-orange-row) {
-    background-color: #ffedd5 !important;
+:deep(.highlight-green-row) {
+    background-color: #bbf7d0 !important;
 }
-:deep(.highlight-orange-row:hover) {
-    background-color: #fed7aa !important;
+:deep(.highlight-green-row:hover) {
+    background-color: #4ade80 !important;
 }
-:deep(.highlight-orange-row td) {
-    background-color: #ffedd5 !important;
+:deep(.highlight-green-row td) {
+    background-color: #bbf7d0 !important;
 }
-:deep(.highlight-orange-row:hover td) {
-    background-color: #fed7aa !important;
+:deep(.highlight-green-row:hover td) {
+    background-color: #4ade80 !important;
 }
+
+:deep(.highlight-red-row) {
+    background-color: #fecaca !important;
+}
+:deep(.highlight-red-row:hover) {
+    background-color: #f87171 !important;
+}
+:deep(.highlight-red-row td) {
+    background-color: #fecaca !important;
+}
+:deep(.highlight-red-row:hover td) {
+    background-color: #f87171 !important;
+}
+
+
 
 /* เพิ่มสีเทา */
 :deep(.highlight-gray-row) {

@@ -3,6 +3,7 @@ interface Iqa_Checklist {
     InvoiceNumber: string ;
     status: string ;
     created_at: Date ;
+    IQA_Status: string ;
     checked_at: Date ;
     remark: string ;
     PORHSEQ?: string;

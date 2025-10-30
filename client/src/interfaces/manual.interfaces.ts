@@ -1,7 +1,7 @@
 interface receiveForm {
     PoNumber: string | number;
     receiveNumberList: string[];
-    receiveDate: string | number;
+    receiveDate: Date ;
     ItemCount: number | string;
     InvoiceNo?: string | number;
     vdcode?: string | { code: string; name?: string };

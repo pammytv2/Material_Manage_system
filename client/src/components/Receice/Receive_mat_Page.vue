@@ -69,16 +69,14 @@ async function handleRowClick(receipt: any) {
         const start = startDate.value.replace(/-/g, '');
         const end = endDate.value.replace(/-/g, '');
         await receiveStore.syncItems(start, end);
+        console.log('After sync, store items1:', receiveStore.items);
 
-        const updated = receiveStore.items.find(i => i.ReceptNumber === receipt.ReceptNumber);
+        const updated = receiveStore.items.find((i) => i.ReceptNumber === receipt.ReceptNumber);
         if (updated) selectedReceipt.value = updated;
 
         // เก็บวันที่ไว้ใน localStorage ก่อนเปลี่ยนหน้า
         localStorage.setItem('receiveStartDate', startDate.value);
         localStorage.setItem('receiveEndDate', endDate.value);
-
-
-
 
         // ค่อยเปลี่ยนหน้า หรือทำอย่างอื่นต่อ
         // const item = receiveStore.items.find((i) => i.ReceptNumber === receiveNumber);
@@ -204,6 +202,7 @@ async function onDateSearch() {
     const end = endDate.value.replace(/-/g, '');
     loading.value = true;
     await receiveStore.syncItems(start, end);
+    console.log('After sync, store items2:', receiveStore.items);
     loading.value = false;
 }
 
@@ -295,18 +294,22 @@ const pagedViewItemInv = computed(() => {
                     >
                         Sync Date
                     </button>
-                    <button
-                        type="button"
-                        class="px-4 py-2 bg-green-500 text-white rounded h-fit md:mb-0 mt-6"
-                        :disabled="filteredReceiveList.filter((item) => item.total_detail === 0).length === 0"
-                        @click="
-                            async () => {
-                                await syncMaterials();
-                            }
-                        "
-                    >
-                        Sync Materials ALL
-                    </button>
+                  <button
+    type="button"
+    class="px-4 py-2 rounded h-fit md:mb-0 mt-6
+        text-white
+        transition
+        duration-200
+        ease-in-out
+        bg-green-500
+        hover:bg-green-600
+        disabled:bg-gray-400
+        disabled:cursor-not-allowed"
+    :disabled="filteredReceiveList.filter((item) => item.total_detail === 0).length === 0 || loading"
+    @click="async () => { await syncMaterials(); }"
+>
+    Sync Materials ALL
+</button>
                 </div>
             </div>
         </form>
@@ -392,7 +395,15 @@ const pagedViewItemInv = computed(() => {
                 </template>
             </Column>
             <Column field="CountOrder" header="Material Count" sortable>
-                <template #body="{ data }"> {{ data.total_detail }}/{{ data.CountOrder }} </template>
+                <!-- data.total_detail -->
+                <template #body="{ data }">
+                    {{ data.total_detail }}/
+                    {{
+                        data.ReceptNumber?.startsWith('RT') || data.ReceptNumber?.startsWith('M')
+                            ? data.CountOrder
+                            : data.total_item
+                    }}
+                </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by material count" />
                 </template>
@@ -446,36 +457,48 @@ const pagedViewItemInv = computed(() => {
                     </div>
                 </div>
 
-                <div class="mt-5">
-                    <h3 class="font-bold text-lg mb-2">Receive Material Detail List</h3>
-                    <DataTable :value="pagedViewItemInv" :loading="detailLoading" showGridlines>
-                        <Column field="ITEMNO" header="Item No" sortable style="width: 120px" />
-                        <Column field="ITEMDESC" header="Description" sortable style="width: 300px" />
-                        <Column field="RQRECEIVED" header="Receive(QTY)" sortable style="width: 100px">
-                            <template #body="{ data }">
-                                {{ Number(data.RQRECEIVED).toLocaleString() }}
-                            </template>
-                        </Column>
-                        <Column field="UNIT" header="Unit" sortable style="width: 100px" />
-                    </DataTable>
-                </div>
-
-                <div class="mt-8">
-                    <h3 class="font-bold text-lg mb-2">Receive Material Detail</h3>
-                    <DataTable :value="detailRows" :loading="detailLoading" showGridlines class="mb-4" paginator :rows="rowsPerPage" :totalRecords="detailRows.length" :first="page * rowsPerPage" @page="onPageChange">
-                        <Column field="itemNo" header="Item No" sortable style="width: 120px" />
-                        <Column field="description" header="Description" sortable style="width: 300px" />
-                        <Column field="receiveQty" header="Receive(QTY)" sortable style="width: 100px">
-                            <template #body="{ data }">
-                                {{ Number(data.receiveQty).toLocaleString() }}
-                            </template>
-                        </Column>
-                        <Column field="unit" header="Unit" sortable style="width: 100px" />
-                    </DataTable>
+                <div class="mt-5 flex flex-col md:flex-row gap-8">
+                    <!-- Left: ACCPAC -->
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg mb-2">Receive Material Detail List (ACCPAC)</h3>
+                        <DataTable :value="pagedViewItemInv" :loading="detailLoading" showGridlines>
+                            <Column field="ITEMNO" header="Item No" sortable style="width: 120px" />
+                            <Column field="ITEMDESC" header="Description" sortable style="width: 300px" />
+                            <Column field="RQRECEIVED" header="Receive(QTY)" sortable style="width: 100px">
+                                <template #body="{ data }">
+                                    {{ Number(data.RQRECEIVED).toLocaleString() }}
+                                </template>
+                            </Column>
+                            <Column field="UNIT" header="Unit" sortable style="width: 100px" />
+                        </DataTable>
+                    </div>
+                    <!-- Right: MMS  -->
+                    <div class="flex-1">
+                        <h3 class="font-bold text-lg mb-2">Receive Material Detail (MMS)</h3>
+                        <!-- paginator-->
+                        <DataTable :value="detailRows" :loading="detailLoading" showGridlines class="mb-4" paginator :rows="rowsPerPage" :totalRecords="detailRows.length" :first="page * rowsPerPage" @page="onPageChange">
+                            <Column field="itemNo" header="Item No" sortable style="width: 120px" />
+                            <Column field="description" header="Description" sortable style="width: 300px" />
+                            <Column field="receiveQty" header="Receive(QTY)" sortable style="width: 100px">
+                                <template #body="{ data }">
+                                    {{ Number(data.receiveQty).toLocaleString() }}
+                                </template>
+                            </Column>
+                            <Column field="unit" header="Unit" sortable style="width: 100px" />
+                        </DataTable>
+                    </div>
                 </div>
             </template>
             <template #footer>
-                <Button label="Close" @click="() => {showDetailPageDialog = false; showDetailDialog = false; }" />
+                <Button
+                    label="Close"
+                    @click="
+                        () => {
+                            showDetailPageDialog = false;
+                            showDetailDialog = false;
+                        }
+                    "
+                />
             </template>
         </Dialog>
 

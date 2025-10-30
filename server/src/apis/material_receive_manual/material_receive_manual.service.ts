@@ -24,6 +24,7 @@ export class MaterialReceiveManualService {
     PONUMBER: string[],
     VDCODE: string,
     invoiceNumber?: string,
+    ReceiveDate?: string,
   ): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
@@ -31,8 +32,10 @@ export class MaterialReceiveManualService {
     const poString = PONUMBER.join(',');
     request.input('PONUMBER', sql.VarChar, poString);
     request.input('VDCODE', sql.VarChar, VDCODE);
+    request.input('ReceiveDate', sql.VarChar, ReceiveDate);
     request.input('InvoiceNumber', sql.VarChar, invoiceNumber);
     const result = await request.execute('sp_Receive_Material_Manual');
+    // console.log('SP Result:', result.recordsets);
     return result.recordsets;
   }
 
@@ -55,6 +58,7 @@ export class MaterialReceiveManualService {
     request.input('ItemNo', sql.VarChar, itemNoString); // ตรงกับ @ItemNo ใน SP
     request.input('ReceiveQtyList', sql.VarChar, receiveQtyString);
     request.input('Location', sql.VarChar, LOCATION); // ตรงกับ @Location ใน SP
+    
 
     const result = await request.execute('sp_Insert_Manual');
     return result.recordsets;

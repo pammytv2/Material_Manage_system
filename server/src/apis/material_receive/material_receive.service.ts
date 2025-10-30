@@ -84,13 +84,70 @@ export class MaterialReceiveService {
 async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     // Sync data
     const syncQuery = `
-      SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE InvoiceNumber = @InvoiceNumber
+    WITH ranked_lot AS (
+    SELECT
+        d.*,
+        t.status,
+        m.isProblem,
+       t.remark_iqa,
+        ROW_NUMBER() OVER (
+            PARTITION BY d.ReceptNumber, d.ITEMNO
+            ORDER BY CASE WHEN t.status = 'FAIL' THEN 1 ELSE 2 END
+        ) AS rn
+    FROM
+        accpac_sync_poreceipt_icshipment_detail d
+        LEFT JOIN test_lot_status_iqa_check t
+            ON d.ReceptNumber = t.ReceiveNo
+            AND d.InvoiceNumber = t.InvoiceNumber
+            AND d.ITEMNO = t.ITEMNO
+        LEFT JOIN lot_status_iqa_check s
+            ON t.status = s.IQA_Name
+          LEFT JOIN mat_lot_Split m
+          ON d.ITEMNO = m.ITEMNO
+    WHERE
+        d.InvoiceNumber = @InvoiceNumber  
+)
+SELECT
+    *
+FROM
+    ranked_lot
+WHERE
+    rn = 1
     `;
     await this.databaseService.query(syncQuery, [
       { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber },
     ]);
     // Return detail
-    const selectQuery = `SELECT * FROM accpac_sync_poreceipt_icshipment_detail WHERE InvoiceNumber = @InvoiceNumber`;
+    const selectQuery = `
+    WITH ranked_lot AS (
+    SELECT
+        d.*,
+        t.status,
+        m.isProblem,
+       t.remark_iqa,
+        ROW_NUMBER() OVER (
+            PARTITION BY d.ReceptNumber, d.ITEMNO
+            ORDER BY CASE WHEN t.status = 'FAIL' THEN 1 ELSE 2 END
+        ) AS rn
+    FROM
+        accpac_sync_poreceipt_icshipment_detail d
+        LEFT JOIN test_lot_status_iqa_check t
+            ON d.ReceptNumber = t.ReceiveNo
+            AND d.InvoiceNumber = t.InvoiceNumber
+            AND d.ITEMNO = t.ITEMNO
+        LEFT JOIN lot_status_iqa_check s
+            ON t.status = s.IQA_Name
+          LEFT JOIN mat_lot_Split m
+          ON d.ITEMNO = m.ITEMNO
+    WHERE
+        d.InvoiceNumber = @InvoiceNumber
+)
+SELECT
+    *
+FROM
+    ranked_lot
+WHERE
+    rn = 1`;
     return await this.databaseService.query(selectQuery, [
       { name: 'InvoiceNumber', type: sql.VarChar, value: InvoiceNumber },
     ]);
@@ -121,6 +178,7 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     ]);
   }
 
+
   async insert_LotSplit(
     ItemNo: string,
     LotSplit: string,
@@ -132,6 +190,7 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     lot_qty: number,
     InvoiceNumber?: string,
     PORHSEQ?: string | number,
+    IQA?: number,
   ): Promise<Item_List_LotSplit[]> {
     // Log เพื่อ debug
     console.log('Received isProblem:', isProblem, 'Type:', typeof isProblem);
@@ -139,10 +198,10 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     const sqlQuery = `
       INSERT INTO mat_lot_Split (
       lot_no, ITEMNO, ReceiveNo, lot_unit, exp_date, 
-      created_at, remark, isProblem, lot_qty,InvoiceNumber,PORHSEQ
+      created_at, remark, isProblem, lot_qty,InvoiceNumber,PORHSEQ,IQA
     ) VALUES (
       @LotSplit, @ItemNo, @ReceptNumber, @LotUnit, @ExpDate,
-      GETDATE(), @Remark, @IsProblem, @LotQty, @InvoiceNumber, @PORHSEQ
+      GETDATE(), @Remark, @IsProblem, @LotQty, @InvoiceNumber, @PORHSEQ,@IQA
     )                                
   `;
     let booleanValue: boolean;
@@ -166,6 +225,7 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
       { name: 'LotQty', type: sql.Decimal(18,2), value: lot_qty },
       { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber || null },
       { name: 'PORHSEQ', type: sql.NVarChar, value: PORHSEQ ? String(PORHSEQ) : null },
+      { name: 'IQA', type: sql.Int, value: IQA},
     ]);
   }
 

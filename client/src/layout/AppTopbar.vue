@@ -30,8 +30,8 @@ onMounted(() => {
             </router-link>
         </div>
         
-        <div class="layout-topbar-actions flex flex-row items-center mr-4">
-            <div class="user-info-block flex items-center mr-4">
+        <div class="layout-topbar-actions flex flex-row items-center mr-6">
+            <div class="user-info-block flex items-center mr-16">
                 <img
                   v-if="mainStore && mainStore._userInfo?.cardcode"
                   :src="imageUrl(mainStore._userInfo.cardcode)"
@@ -45,7 +45,7 @@ onMounted(() => {
                   margin-right: 12px;"
                 />
                 <i v-else class="pi pi-user" style="font-size: 40px; margin-right: 12px;"></i>
-                <div>
+                <div class="flex flex-col">
                   <div class="user-name">
                     {{ mainStore?._userInfo?.eng_name }} 
                   
@@ -84,11 +84,25 @@ onMounted(() => {
 
 
 <style scoped>
+.layout-topbar {
+  height: 70px; /* ปรับความสูงตามต้องการ */
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.layout-topbar-logo img {
+  height: 3rem; /* ปรับขนาดโลโก้ */
+}
+
 .user-info-block {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
   min-width: 200px;
+  margin-top: 5px;
+  
   /* ปรับขนาดได้ตามต้องการ */
 }
 

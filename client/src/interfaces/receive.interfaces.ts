@@ -18,6 +18,7 @@ interface IReceiveItem {
     startDate: Date;
     ITEMNO: string;
     iTEMDESC: string;
+    TotalItems: number;
     RQRECEIVED: Date;
     UNIT: string;
     LotSplitStatus: number;
@@ -108,6 +109,7 @@ interface ReceiveItem {
     receiveno: string | number;
     invoiceNumber: string | number;
     lotNo: string | number;
+    
     
 }
 

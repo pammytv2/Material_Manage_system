@@ -5,25 +5,19 @@ import { Iqa_Checklist } from '@/interfaces/iqa.interfaces';
 import { s } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 import Iqa_Checklist_Page from '@/components/IQA_Checklist/Iqa_Checklist_Page.vue';
 import { item } from '@primeuix/themes/aura/breadcrumb';
+import { console } from 'inspector';
 
 const api = import.meta.env.VITE_API_URL;
 
 const statusOptions = [
-    { label: 'ทั้งหมด', value: 'all' },
-    { label: 'รอการตรวจสอบ', value: 'pending' },
-    { label: 'PASS', value: 'PASS' },
-    { label: 'FAIL', value: 'FAIL' }
-];
-
-const iqaCheckOptions = [
-    { label: 'Pass', value: 'pass', color: 'p-tag p-tag-success' },
-    { label: 'Fail', value: 'fail', color: 'p-tag p-tag-danger' }
+    { label: 'ทั้งหมด', value: 'all' }, // ค่าเริ่มต้น
+    { label: 'รอการตรวจสอบ', value: 'Pending IQA Approval' },
+   
 ];
 
 const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
     state: () => ({
         statusOptions, // เก็บ options ไว้ใน state
-        // iqaCheckOptions,
         selectedStatus: 'all',
         items: [] as any[],
         itemLotSplits: [] as ILotSplitData[],
@@ -35,25 +29,35 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
         selectedStatusLabel: (state) => {
             const found = state.statusOptions.find((opt) => opt.value === state.selectedStatus);
             return found ? found.label : '';
-        },
+        },                                
+       filteredReceiveList: (state) => {
+    let status: string | { value: string } = state.selectedStatus as string | { value: string };
+    if (status && typeof status === 'object' && 'value' in status) {
+        status = status.value;
+    }
+    return !status || status === 'all'
+        ? state.IqaCheckMaterialItems
+        : state.IqaCheckMaterialItems.filter((item) => item.IQA_Status === status);
+},
         _itemLotSplits: (state) => state.itemLotSplits,
         _sumIqaItem: (state) => state.Iqa_Checklists,
         _iqaItems: (state) => state.IqaCheckMaterialItems,
         _iqaStatus: (state) => state.Iqa_status,
         iqaCheckOptions: (state) =>
             state.Iqa_status.filter((item: any) => item.IsActive) // เฉพาะที่ active
-                .map((item: any) => ({ label: item.IQA_Name, value: item.IQA_Name, color: item.IQA_Name === 'PASS' ? 'p-tag p-tag-success' : item.IQA_Name === 'FAIL' ? 'p-tag p-tag-danger' : ''}))
-        
+                .map((item: any) => ({ label: item.IQA_Name, value: item.IQA_Name, color: item.IQA_Name === 'PASS' ? 'p-tag p-tag-success' : item.IQA_Name === 'REVISE' ? 'p-tag p-tag-warning' : item.IQA_Name === 'REJECT' ? 'p-tag p-tag-danger' : 'p-tag p-tag-info' })),
+       
     },
     actions: {
+        
         setStatus(status) {
             this.selectedStatus = status;
         },
         async fetchIqaCheckMaterialItems() {
             this.IqaCheckMaterialItems = await ApiService.get<Iqa_Checklist[]>(`${api}/check-material-receive/item-iqa`);
         },
-        async sumIqaItems(invoiceNumber: Iqa_Checklist['InvoiceNumber']): Promise<Iqa_Checklist[]> {
-            this.Iqa_Checklists = await ApiService.post<Iqa_Checklist[]>(`${api}/check-material-receive/sumitem-iqa`, { invoiceNumber });
+        async sumIqaItems(invoiceNumber: string, itemNo: string): Promise<Iqa_Checklist[]> {
+            this.Iqa_Checklists = await ApiService.post<Iqa_Checklist[]>(`${api}/check-material-receive/sumitem-iqa`, { invoiceNumber, itemNo });
             return this.Iqa_Checklists;
         },
         async itemLotSplit(invoiceNumber: ReceiveItem['invoiceNumber']): Promise<void> {
@@ -63,10 +67,16 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
         async status_iqa_check(): Promise<void> {
             this.Iqa_status = await ApiService.get<Iqa_Checklist[]>(`${api}/check-material-receive/status-iqa-check`);
         },
-        async submitIqaCheck({ invoiceNumber, ReceiveNo, lotNo, status }: { invoiceNumber: string; ReceiveNo: string; lotNo: string; status: string }) {
-            await ApiService.post(`${api}/check-material-receive/iqa-check-submit`,{},{params: {invoiceNumber,ReceiveNo,lotNo,status}});
+        async submitIqaCheck({ invoiceNumber, ReceiveNo, lotNo, status, remark_iqa }: { invoiceNumber: string; ReceiveNo: string; lotNo: string; status: string; remark_iqa: string }) {
+            // status จะเป็น "PASS" หรือ "FAIL" ตามที่เลือกใน dropdown
+            await ApiService.post(`${api}/check-material-receive/iqa-check-submit`, {}, { params: { invoiceNumber, ReceiveNo, lotNo, status, remark_iqa } });
+        },
+        async completeIqaCheck({ invoiceNumber, ReceiveNo, lotNo }: { invoiceNumber: string; ReceiveNo: string; lotNo: string }) {
+            // ค่า status ที่บันทึกลง DB จะเป็น "PASS" หรือ "FAIL" ตามที่เลือก
+            await ApiService.post(`${api}/check-material-receive/iqa-check-complete`, {}, { params: { invoiceNumber, ReceiveNo, lotNo} });
         }
+        
     }
 });
-
-export { useIqaCheckMaterialStore };
+    
+export { useIqaCheckMaterialStore};

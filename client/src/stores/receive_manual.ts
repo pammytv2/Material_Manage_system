@@ -3,6 +3,7 @@ import { ref, onMounted, reactive } from 'vue';
 import { ApiService } from '@/service/api.service';
 import { IReceiveItem, ILotSplitData, ReceiveItem, ReceiveStoreState } from '@/interfaces/receive.interfaces';
 import { item } from '@primeuix/themes/aura/breadcrumb';
+import Receice from '@/components/Receice/Receive_mat_Page.vue';
 const api = import.meta.env.VITE_API_URL;
 const default_state: ReceiveStoreState = {
     items: [],
@@ -56,13 +57,13 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 this.loading = false;
             }
         },
-        async fetchItemList_manual(PONUMBER: string[], VDCODE: string | { code: string }, invoiceNumber?: string) {
+        async fetchItemList_manual(PONUMBER: string[], VDCODE: string | { code: string }, invoiceNumber?: string, ReceiveDate?: string) {
             try {
                 this.loading = true;
                 this.error = null;
                 const poString = PONUMBER.join(',');
                 const vdcode = typeof VDCODE === 'string' ? VDCODE : (VDCODE.code ?? '');
-                const url = `${api}/material-receive-manual/item-list-manual?PONUMBER=${encodeURIComponent(poString)}&VDCODE=${encodeURIComponent(vdcode)}&invoiceNumber=${encodeURIComponent(invoiceNumber ?? '')}`;
+                const url = `${api}/material-receive-manual/item-list-manual?PONUMBER=${encodeURIComponent(poString)}&VDCODE=${encodeURIComponent(vdcode)}&invoiceNumber=${encodeURIComponent(invoiceNumber ?? '')}&ReceiveDate=${encodeURIComponent(ReceiveDate ?? '')}`;
                 const response = await ApiService.get<any>(url);
                 this.items = response;
                 return response;
@@ -291,7 +292,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 this.loading = false;
             }
         },
-        
+
         async viewItem_invoice(invoiceNumber: string) {
             try {
                 this.loading = true;
@@ -318,7 +319,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 const url: string = `${api}/material-receive-manual/delete-invoice-manual_list?invoiceNumber=${encodeURIComponent(invoiceNumber)}`;
                 const response = await ApiService.get<any>(url);
                 this.items = response;
-             } catch (error) {
+            } catch (error) {
                 if (error instanceof Error) {
                     this.error = error.message;
                 } else {
@@ -329,7 +330,7 @@ const useReceiveStore_manual = defineStore('receive_manual', {
                 this.loading = false;
             }
         }
-}
+    }
 });
 
 export { useReceiveStore_manual };

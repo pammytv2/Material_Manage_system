@@ -20,7 +20,7 @@ import Checkbox from 'primevue/checkbox';
 import ConfirmPopup from 'primevue/confirmpopup';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
-import { s } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { s, c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 
 const router = useRouter();
 const iqaCheckMaterialStore = useIqaCheckMaterialStore();
@@ -143,7 +143,9 @@ onMounted(async () => {
                 lotSplit: row.LotSplit ?? 0,
                 ExpDate: row.ExpDate ?? '',
                 IQA: row.IQA ?? '',
-                status: row.status ?? 'PENDING'
+                status: row.status ?? 'PENDING',
+                Description: row.Description ?? '',
+                remark_iqa: row.remark_iqa ?? ''
             }))
         };
 
@@ -193,7 +195,7 @@ async function openEditDialog(rowIndex: number) {
                 {
                     id: null,
                     no: '',
-                    lotNo: '',
+                    lotNo: isLotSplitRequired ? '' : 'N/A', // เพิ่มตรงนี้
                     qty: 0,
                     unit: currentRow?.unit || '',
                     expireDate: '',
@@ -221,7 +223,7 @@ async function openEditDialog(rowIndex: number) {
             {
                 id: null,
                 no: '',
-                lotNo: '',
+                lotNo: isLotSplitRequired ? '' : 'N/A', // เพิ่มตรงนี้
                 qty: 0,
                 unit: currentRow?.unit || '',
                 expireDate: '',
@@ -375,28 +377,94 @@ function canSubmitSelected() {
     // ส่งได้เฉพาะแถวที่ผ่านเงื่อนไขทุกแถว
     return selectedRows.value.length > 0 && selectedRows.value.every(canSubmitToIQA);
 }
-async function Success() {
-    console.log('iqaCheckMaterialStore:', iqaCheckMaterialStore);
-    // ส่งเฉพาะแถวที่ผ่านเงื่อนไข
-    const canSend = selectedRows.value.every(canSubmitToIQA);
-    if (!canSend) {
+function Success(event?: Event) {
+    const validRows = selectedRows.value.filter(row => {
+        const lots = allLotRows[row.no - 1] || [];
+        return lots.every(lot => !lot.problem);
+    });
+    const hasProblemLot = selectedRows.value.some(row => {
+        const lots = allLotRows[row.no - 1] || [];
+        return lots.some(lot => lot.problem);
+    });
+    if (hasProblemLot) {
         toast.add({
             severity: 'warn',
             summary: 'Warning',
-            detail: 'เลือกได้เฉพาะรายการที่แบ่ง lot ครบ หรือไม่ต้องแบ่งแต่ต้องส่ง IQA เท่านั้น',
+            detail: 'ไม่สามารถส่ง IQA ได้ เนื่องจากมี Lot ที่มีปัญหา',
             life: 3000
         });
         return;
     }
-    try {
-        console.log('Submitting to IQA for invoiceNumber:', invoiceNumber.value);
-        await iqaCheckMaterialStore.sumIqaItems(invoiceNumber.value);
 
-        toast.add({ severity: 'success', summary: 'Success', detail: 'ส่ง IQA สำเร็จ', life: 3000 });
-    } catch (error) {
-        console.log('Error submitting to IQA:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'ส่ง IQA ไม่สำเร็จ', life: 3000 });
+    const canSend = validRows.every(canSubmitToIQA);
+    if (!canSend || validRows.length === 0) {
+        toast.add({
+            severity: 'warn',
+            summary: 'Warning',
+            detail: 'เลือกได้เฉพาะรายการที่แบ่ง lot ครบ หรือไม่ต้องแบ่งแต่ต้องส่ง IQA และ lot ต้องไม่มีปัญหา',
+            life: 3000
+        });
+        return;
     }
+    confirmPopup.require({
+        target: event?.target as HTMLElement,
+        message: 'Are you sure you want to submit selected items to IQA?',
+        icon: 'pi pi-exclamation-triangle',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Submit',
+            severity: 'success'
+        },
+        accept: async () => {
+            try {
+                for (const row of validRows) { 
+                    await iqaCheckMaterialStore.sumIqaItems(invoiceNumber.value, row.itemNo);
+                }
+                toast.add({ severity: 'success', summary: 'Success', detail: 'ส่ง IQA สำเร็จ', life: 3000 });
+
+                // รีเฟรชข้อมูลหลังส่ง IQA สำเร็จ
+                loading.value = true;
+                const response = await receiveStore.Components_Split(invoiceNumber.value);
+                if (Array.isArray(response)) {
+                    receiveStore.detail = {
+                        ...receiveStore.detail,
+                        tableRows: response.map((row, idx) => ({
+                            no: idx + 1,
+                            itemNo: row.ITEMNO ?? '',
+                            description: row.ITEMDESC ?? '',
+                            unit: row.UNIT ?? '',
+                            receiveQty: row.RQRECEIVED ?? '',
+                            lotExpireDate: row.LotExpireDate ?? '',
+                            invoice: row.Invoice ?? '',
+                            iqaStatus: row.IQAStatus ?? '',
+                            takeOutQty: row.takeOutQty ?? '',
+                            returnQty: row.returnQty ?? '',
+                            balanceQty: row.balanceQty ?? '',
+                            PORHSEQ: row.PORHSEQ ?? '',
+                            lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
+                            lotSplit: row.LotSplit ?? 0,
+                            ExpDate: row.ExpDate ?? '',
+                            IQA: row.IQA ?? '',
+                            status: row.status ?? 'PENDING',
+                            Description: row.Description ?? '',
+                            remark_iqa: row.remark_iqa ?? ''
+                        }))
+                    };
+                    await updateRowBalanceQtys();
+                }
+                loading.value = false;
+            } catch (error) {
+                toast.add({ severity: 'error', summary: 'Error', detail: 'ส่ง IQA ไม่สำเร็จ', life: 3000 });
+            }
+        },
+        reject: () => {
+            toast.add({ severity: 'info', summary: 'Cancelled', detail: 'Operation cancelled', life: 3000 });
+        }
+    });
 }
 
 function clearFilter() {
@@ -472,7 +540,7 @@ function onRowClick(event: any) {
         openEditDialog(realIndex);
     }
 }
-async function receiveNoLot() {
+async function receiveNoLot(event?: Event) {
     const noLotRows = selectedRows.value.filter(row => {
         return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
     });
@@ -482,27 +550,51 @@ async function receiveNoLot() {
         return;
     }
 
-    for (const row of noLotRows) {
-        const receiveQty = parseFloat(row.receiveQty || '0') || 0;
-        // สร้าง lotRow สำหรับรับ lot
-        lotRows.value = [{
-            id: null,
-            no: '',
-            lotNo: 'N/A',
-            qty: receiveQty,
-            unit: row.unit || '',
-            expireDate: '',
-            takeOutQty: receiveQty,
-            problem: false,
-            remark: ''
-        }];
-        // เซ็ต dialogRowIndex ให้ตรงกับแถวที่กำลังจะบันทึก
-        dialogRowIndex.value = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
-        // เรียก saveLotSplit เพื่อบันทึก
-        await saveLotSplit();
-    }
-    
+    confirmPopup.require({
+        target: event?.target as HTMLElement,
+        message: 'Are you sure you want to receive selected items without lot?',
+        icon: 'pi pi-exclamation-triangle',
+        rejectProps: {
+            label: 'Cancel',
+            severity: 'secondary',
+            outlined: true
+        },
+        acceptProps: {
+            label: 'Receive',
+            severity: 'success'
+        },
+        accept: async () => {
+            for (const row of noLotRows) {
+                const receiveQty = parseFloat(row.receiveQty || '0') || 0;
+                // สร้าง lotRow สำหรับรับ lot
+                lotRows.value = [{
+                    id: null,
+                    no: '',
+                    lotNo: 'N/A',
+                    qty: receiveQty,
+                    unit: row.unit || '',
+                    expireDate: '',
+                    takeOutQty: receiveQty,
+                    problem: false,
+                    remark: ''
+                }];
+                // เซ็ต dialogRowIndex ให้ตรงกับแถวที่กำลังจะบันทึก
+                dialogRowIndex.value = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
+                // เรียก saveLotSplit เพื่อบันทึก
+                await saveLotSplit();
+            }
+        }
+    });
 }
+
+// Add computed property to check if Lot Information is editable
+const isLotInfoEditable = computed(() => {
+    if (dialogRowIndex.value !== null && tableRows.value && tableRows.value[dialogRowIndex.value]) {
+        const status = tableRows.value[dialogRowIndex.value].status;
+        return !(status === 'UNDER_REVIEW' || status === 'PASS');
+    }
+    return true;
+});
 </script>
 
 <template>
@@ -674,13 +766,31 @@ async function receiveNoLot() {
                     </span>
                 </template>
             </Column>
+            <!-- <Column field="iqaStatus" header="IQA Status test" sortable>
+                <template #body="{ data }">
+                    <span>
+                        {{ data.Description}}
+                    </span>
+                </template>
+            </Column> -->
+
+            <Column field="iqaremark" header="IQA Remark" sortable class="w-40">
+                <template #body="{ data }">
+                    {{ data.remark_iqa || '-' }}
+                </template>
+            
+            
+            
+            </Column>
 
             
         </DataTable>
 
         <div class="flex justify-end">
             <ConfirmPopup></ConfirmPopup>
-           <Button
+         
+           <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" class="mr-2" severity="success"></Button>
+              <Button
     ref="popup"
     @click="Success()"
     icon="pi pi-check"
@@ -688,7 +798,7 @@ async function receiveNoLot() {
     class="mr-2"
     :disabled="!canSubmitSelected()"
 />
-           <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" severity="success"></Button>
+           
         </div>
 
         <div v-if="isDialogOpen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-40">
@@ -753,10 +863,12 @@ async function receiveNoLot() {
                                 class="border rounded px-2 py-1 w-36" 
                                 placeholder="Enter Lot No" 
                                 v-model="row.lotNo"
+                                :disabled="!isLotInfoEditable || !isLotSplitRequired()" 
                                 :class="{
                                     'border-yellow-400 bg-yellow-50': !row.lotNo || row.lotNo.trim() === '',
                                     'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== ''
                                 }"
+                                :readonly="!isLotSplitRequired()"
                             />
                            
                         </td>
@@ -771,7 +883,7 @@ async function receiveNoLot() {
                                 placeholder="0.00"
                                 v-model.number="row.takeOutQty"
                                 step="0.01"
-                                :disabled="!row.lotNo || row.lotNo.trim() === '' || (!isLotSplitRequired() && idx === 0)"
+                                :disabled="!isLotInfoEditable || !row.lotNo || row.lotNo.trim() === '' || (!isLotSplitRequired() && idx === 0)"
                                 :class="{
                                     'bg-gray-100 cursor-not-allowed': !row.lotNo || row.lotNo.trim() === '',
                                     'border-yellow-400 bg-yellow-50': row.lotNo && row.lotNo.trim() !== '' && (!row.takeOutQty || row.takeOutQty <= 0),
@@ -788,7 +900,7 @@ async function receiveNoLot() {
                              type="date" 
                              class="border rounded px-2 py-1 w-36" 
                              v-model="row.expireDate" 
-                             :disabled="!canEditExpireDate(row)"
+                             :disabled="!isLotInfoEditable || !canEditExpireDate(row)"
                              :class="getExpireDateClass(row)"
                              :required="isExpireDateRequired()"
                               />
@@ -802,6 +914,7 @@ async function receiveNoLot() {
                                 name="option"
                                 :binary="true"
                                 v-model="row.problem"
+                                :disabled="!isLotInfoEditable"
                             />
                         </td>
                         
@@ -812,6 +925,7 @@ async function receiveNoLot() {
                                 class="border rounded px-2 py-1 w-36" 
                                 v-model="row.remark" 
                                 placeholder="Optional remarks" 
+                                :disabled="!isLotInfoEditable"
                             />
                         </td>
                         
@@ -823,7 +937,7 @@ async function receiveNoLot() {
                                 severity="danger" 
                                 size="small"
                                 @click="confirmDelete(idx, $event)"
-                                :disabled="lotRows.length <= 1"
+                                :disabled="lotRows.length <= 1 || !isLotInfoEditable"
                             />
                         </td>
                     </tr>
@@ -840,15 +954,16 @@ async function receiveNoLot() {
             <div class="flex justify-end gap-2">
                 <button 
                     class="px-4 py-2 text-white rounded transition-all duration-200" 
-                    :class="canAddRow && isLotSplitRequired() ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" 
-                    :disabled="!canAddRow || !isLotSplitRequired()" 
-                    @click="canAddRow && isLotSplitRequired() && addRow()"
+                    :class="canAddRow && isLotSplitRequired() && isLotInfoEditable ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" 
+                    :disabled="!canAddRow || !isLotSplitRequired() || !isLotInfoEditable" 
+                    @click="canAddRow && isLotSplitRequired() && isLotInfoEditable && addRow()"
                 >
                 + Add Row
                 </button>
+                <!-- Always allow closing the dialog -->
                 <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
                 <ConfirmPopup></ConfirmPopup>
-                <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading"></Button>
+                <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading || !isLotInfoEditable"></Button>
             </div>
             <div class="flex flex-col gap-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
