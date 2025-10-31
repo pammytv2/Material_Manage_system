@@ -51,7 +51,7 @@ function getIqaResultClass(status: string) {
     switch (status) {
         case 'PASS':
             return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
-        case 'REVISE':
+        case 'REWORK':
             return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
         case 'REJECT':
             return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';

@@ -147,7 +147,7 @@ export function useManageMaterialStore() {
         if (iqa === false || iqa === 0 || iqa === '0') return 'No';
         if (iqa === 'PASS') return 'PASS';
         if (iqa === 'REJECT') return 'REJECT';
-        if (iqa ==='REVISE' ) return 'REVISE';
+        if (iqa ==='REWORK' ) return 'REWORK';
         return 'Not Specified';
     }
 
@@ -159,7 +159,7 @@ export function useManageMaterialStore() {
                 return 'p-tag p-tag-success';
             case 'REJECT':
                 return 'p-tag p-tag-danger';
-            case 'REVISE':
+            case 'REWORK':
                 return 'p-tag p-tag-warning';
             case 'No':
                 return 'p-tag p-tag-danger';

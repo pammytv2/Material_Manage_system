@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
-import { onMounted, reactive, ref, toRefs, nextTick, computed } from 'vue';
+import { onMounted, reactive, ref, toRefs, nextTick, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';
 import { useMaterialSplit } from '@/stores/split_material';
@@ -21,6 +21,8 @@ import ConfirmPopup from 'primevue/confirmpopup';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import { s, c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import Breadcrumb from '@/components/Breadcrumb.vue'
+import { icon } from '@primeuix/themes/aura/avatar';
 
 const router = useRouter();
 const iqaCheckMaterialStore = useIqaCheckMaterialStore();
@@ -29,11 +31,19 @@ const route = useRoute();
 const detailTableScrollRef = ref<HTMLElement | null>(null);
 const confirmPopup = useConfirm();
 const toast = useToast();
+const isChecked = ref(true); // ค่าเริ่มต้นติ๊กไว้
+const expiryDate = ref('');
 
-
+watch([isChecked, expiryDate], ([checked, date]) => {
+    if (checked && date) {
+        lotRows.value.forEach((row) => {
+            row.expireDate = date;
+        });
+    }
+});
 // Use the composable to get all necessary variables and functions
 const {
-    receiveStore, 
+    receiveStore,
     loading,
     isDialogOpen,
     dialogRowIndex,
@@ -41,7 +51,7 @@ const {
     receiveNumber,
     receiveDate,
     invoiceNumber,
-    
+
     specialExpDate,
     vendorName,
     detailTableRef,
@@ -62,8 +72,7 @@ const {
     getIQAStatusClass,
     expireDateEnd,
     saveLotSplit,
-    getReturnQty,
-   
+    getReturnQty
 } = useMaterialSplit();
 
 // Add isLotSplitRequired function for template usage
@@ -190,7 +199,7 @@ async function openEditDialog(rowIndex: number) {
             // Check if lot splitting is required
             const isLotSplitRequired = currentRow?.lotSplit === 1 || currentRow?.lotSplit === '1';
             const receiveQty = parseFloat(currentRow?.receiveQty || '0') || 0;
-            
+
             lotRows.value = [
                 {
                     id: null,
@@ -237,7 +246,6 @@ async function openEditDialog(rowIndex: number) {
         loading.value = false;
         isDialogOpen.value = true;
     }
-
 }
 
 async function closeEditDialog(save = false) {
@@ -253,12 +261,11 @@ async function closeEditDialog(save = false) {
     lotRows.value = [];
     // scroll กลับไปยังตาราง Detail
     nextTick(() => {
-    if (detailTableScrollRef.value) {
-        detailTableScrollRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-});
+        if (detailTableScrollRef.value) {
+            detailTableScrollRef.value.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 }
-
 
 async function removeRow(index: number) {
     const lotRow = lotRows.value[index];
@@ -269,7 +276,7 @@ async function removeRow(index: number) {
             loading.value = true;
 
             // เรียก API delete
-           
+
             const deleteResult = await receiveStore.Delete_LotSplit({
                 invoiceNumber: invoiceNumber.value,
                 itemNo: dialogRowIndex.value !== null ? tableRows.value[dialogRowIndex.value]?.itemNo || '' : '',
@@ -311,10 +318,6 @@ async function removeRow(index: number) {
         }
     }
 }
-
-
-
-
 
 function confirmDelete(index: number, event?: Event) {
     const lotRow = lotRows.value[index];
@@ -378,13 +381,13 @@ function canSubmitSelected() {
     return selectedRows.value.length > 0 && selectedRows.value.every(canSubmitToIQA);
 }
 function Success(event?: Event) {
-    const validRows = selectedRows.value.filter(row => {
+    const validRows = selectedRows.value.filter((row) => {
         const lots = allLotRows[row.no - 1] || [];
-        return lots.every(lot => !lot.problem);
+        return lots.every((lot) => !lot.problem);
     });
-    const hasProblemLot = selectedRows.value.some(row => {
+    const hasProblemLot = selectedRows.value.some((row) => {
         const lots = allLotRows[row.no - 1] || [];
-        return lots.some(lot => lot.problem);
+        return lots.some((lot) => lot.problem);
     });
     if (hasProblemLot) {
         toast.add({
@@ -421,7 +424,7 @@ function Success(event?: Event) {
         },
         accept: async () => {
             try {
-                for (const row of validRows) { 
+                for (const row of validRows) {
                     await iqaCheckMaterialStore.sumIqaItems(invoiceNumber.value, row.itemNo);
                 }
                 toast.add({ severity: 'success', summary: 'Success', detail: 'ส่ง IQA สำเร็จ', life: 3000 });
@@ -490,32 +493,30 @@ function validateTakeOutQty(row: any, idx: number) {
         const totalTakeOutQty = lotRows.value.reduce((sum, r) => {
             return sum + (parseFloat(String(r.takeOutQty || '0')) || 0);
         }, 0);
-        
+
         const receiveQty = parseFloat(String(tableRows.value[dialogRowIndex.value].receiveQty || '0')) || 0;
 
         if (totalTakeOutQty > receiveQty) {
             const otherRowsSum = totalTakeOutQty - currentValue;
             const maxAllowed = Math.max(receiveQty - otherRowsSum, 0);
             row.takeOutQty = Number(maxAllowed.toFixed(2));
-            toast.add({ 
-                severity: 'warn', 
-                summary: 'Warning', 
-                detail: 'Total Take Out Qty cannot exceed Receive Qty', 
-                life: 2000 
+            toast.add({
+                severity: 'warn',
+                summary: 'Warning',
+                detail: 'Total Take Out Qty cannot exceed Receive Qty',
+                life: 2000
             });
         }
     }
 }
 
 function canEditExpireDate(row: any): boolean {
-    return isExpireDateRequired() && 
-           row.lotNo && row.lotNo.trim() !== '' && 
-           row.takeOutQty && row.takeOutQty > 0;
+    return isExpireDateRequired() && row.lotNo && row.lotNo.trim() !== '' && row.takeOutQty && row.takeOutQty > 0;
 }
 
-function getExpireDateClass(row: any){
+function getExpireDateClass(row: any) {
     const classes = [expireDateEnd(row.expireDate)];
-    
+
     if (!canEditExpireDate(row)) {
         classes.push('bg-gray-100 cursor-not-allowed');
     } else if (isExpireDateRequired() && (!row.expireDate || row.expireDate.trim() === '')) {
@@ -525,24 +526,21 @@ function getExpireDateClass(row: any){
 }
 function isRowDisabled(row: any) {
     // Return true for rows that should be disabled (gray color)
-    return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
+    return row.lotSplit !== 1 && row.lotSplit !== '1' && row.ExpDate !== 1 && row.ExpDate !== '1';
 }
-
-
-
 
 function onRowClick(event: any) {
     // ใช้ itemNo หรือ key ที่ unique
     const row = event.data;
-    if (isRowDisabled(row)) return; 
-    const realIndex = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
+    if (isRowDisabled(row)) return;
+    const realIndex = tableRows.value.findIndex((r) => r.itemNo === row.itemNo);
     if (realIndex !== -1) {
         openEditDialog(realIndex);
     }
 }
 async function receiveNoLot(event?: Event) {
-    const noLotRows = selectedRows.value.filter(row => {
-        return (row.lotSplit !== 1 && row.lotSplit !== '1') && (row.ExpDate !== 1 && row.ExpDate !== '1');
+    const noLotRows = selectedRows.value.filter((row) => {
+        return +row.lotSplit !== 1 && +row.ExpDate !== 1;
     });
 
     if (noLotRows.length === 0) {
@@ -567,24 +565,29 @@ async function receiveNoLot(event?: Event) {
             for (const row of noLotRows) {
                 const receiveQty = parseFloat(row.receiveQty || '0') || 0;
                 // สร้าง lotRow สำหรับรับ lot
-                lotRows.value = [{
-                    id: null,
-                    no: '',
-                    lotNo: 'N/A',
-                    qty: receiveQty,
-                    unit: row.unit || '',
-                    expireDate: '',
-                    takeOutQty: receiveQty,
-                    problem: false,
-                    remark: ''
-                }];
+                lotRows.value = [
+                    {
+                        id: null,
+                        no: '',
+                        lotNo: 'N/A',
+                        qty: receiveQty,
+                        unit: row.unit || '',
+                        expireDate: '',
+                        takeOutQty: receiveQty,
+                        problem: false,
+                        remark: ''
+                    }
+                ];
                 // เซ็ต dialogRowIndex ให้ตรงกับแถวที่กำลังจะบันทึก
-                dialogRowIndex.value = tableRows.value.findIndex(r => r.itemNo === row.itemNo);
+                dialogRowIndex.value = tableRows.value.findIndex((r) => r.itemNo === row.itemNo);
                 // เรียก saveLotSplit เพื่อบันทึก
                 await saveLotSplit();
             }
         }
     });
+}
+function refreshAllPage() {
+    window.location.reload();
 }
 
 // Add computed property to check if Lot Information is editable
@@ -595,10 +598,18 @@ const isLotInfoEditable = computed(() => {
     }
     return true;
 });
+
+const breadcrumbItems = [
+  { label: 'Home', to: '/', icon: 'pi pi-home' },
+{ label: 'Material Split', to: '/materials-split', icon: 'pi pi-box' },
+{ label: 'Receive Material Detail', to: '', icon: 'pi pi-list' }
+]
 </script>
 
 <template>
-    <div class="card mb-6">
+  
+  <div class="card mb-6">
+         <Breadcrumb :items="breadcrumbItems" class="mb-4" />
         <Button icon="pi pi-arrow-left" @click="goBack" severity="secondary" outlined />
         <div class="flex items-center gap-4 mb-4">
             <div class="text-2xl font-bold">Receive Material Detail</div>
@@ -619,10 +630,14 @@ const isLotInfoEditable = computed(() => {
                     <span class="inline-block text-muted-color font-medium mb-2 mr-2">Invoice Number:</span>
                     <span class="inline-block font-semibold mb-2 bg-blue-100 text-blue-600 px-2 py-1 rounded cursor-pointer select-text">{{ invoiceNumber }}</span>
                 </div>
-                <div class="ml-1">
-                    <span class="inline-block text-muted-color font-medium mb-2 mr-2">Special Exp:</span>
-                    <span class="inline-block font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded cursor-pointer select-text">{{ specialExpDate }}</span>
-                </div>
+                <!-- <div class="ml-1">
+                    
+                     <div class="ml-1 mr-6">
+                        <label for="Expiry Date:" class="inline-block text-muted-color font-medium mb-2 mr-2">Expiry Date : </label>
+                        <input id="startDate"  type="date" class="p-2 border rounded md:w-40" />
+                    </div>
+                   
+                </div> -->
             </div>
 
             <div class="grid justify-items-end sm:justify-items-start sm:flex-1 sm:flex sm:justify-end gap-4">
@@ -660,11 +675,13 @@ const isLotInfoEditable = computed(() => {
             :globalFilterFields="['no', 'itemNo', 'description', 'unit', 'lotExpireDate', 'invoice', 'iqaStatus']"
             class="mb-6"
             @row-click="onRowClick"
-            
         >
             <template #header>
                 <div class="flex justify-between">
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
+                    <div class="flex justify-end w-full mr-4">
+                        <Button label="Refresh" icon="pi pi-refresh" @click="refreshAllPage" severity="secondary" class="" />
+                    </div>
                     <IconField>
                         <InputIcon>
                             <i class="pi pi-search" />
@@ -741,7 +758,7 @@ const isLotInfoEditable = computed(() => {
                 </template>
             </Column>
 
-             <Column field="iqaRequirement" header="IQA Requirement" sortable>
+            <!-- <Column field="iqaRequirement" header="IQA Requirement" sortable>
                 <template #body="{ data }">
                     <span :class="getIQARequiredClass(getIQAStatusText(data.IQA))">
                         {{ getIQAStatusText(data.IQA) }}
@@ -757,7 +774,7 @@ const isLotInfoEditable = computed(() => {
                         </template>
                     </Dropdown>
                 </template>
-            </Column>    
+            </Column> -->
 
             <Column field="iqaStatus" header="IQA Status" sortable>
                 <template #body="{ data }">
@@ -778,200 +795,161 @@ const isLotInfoEditable = computed(() => {
                 <template #body="{ data }">
                     {{ data.remark_iqa || '-' }}
                 </template>
-            
-            
-            
             </Column>
-
-            
         </DataTable>
 
         <div class="flex justify-end">
             <ConfirmPopup></ConfirmPopup>
-         
-           <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" class="mr-2" severity="success"></Button>
-              <Button
-    ref="popup"
-    @click="Success()"
-    icon="pi pi-check"
-    label="Submit to IQA"
-    class="mr-2"
-    :disabled="!canSubmitSelected()"
-/>
-           
+
+            <Button @click="receiveNoLot" icon="pi pi-box" label="Receive No Lot" class="mr-2" severity="success"></Button>
+            <Button ref="popup" @click="Success()" icon="pi pi-check" label="Submit to IQA" class="mr-2" :disabled="!canSubmitSelected()" />
         </div>
 
         <div v-if="isDialogOpen" class="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-40">
-            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative" style="min-height: 50vh;">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                <div class="flex flex-col gap-4">
-                <div class="flex items-center gap-2">
-                    <span class="text-muted-color font-medium">Item No:</span>
-                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.itemNo : '' }}
-                    </span>
+            <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl relative" style="min-height: 50vh">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-muted-color font-medium">Item No:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.itemNo : '' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-muted-color font-medium">Description:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.description : '' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label for="Expiry Date:" class="inline-block text-muted-color font-medium mb-2 mr-2">Expiry Date : </label>
+                            <input id="startDate" type="date" class="p-2 border rounded md:w-40" v-model="expiryDate" />
+                            <input type="checkbox" id="defaultCheck" v-model="isChecked" checked class="ml-2" />
+                            <label for="defaultCheck" class="ml-1">Default</label>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-muted-color font-medium">Receive QTY:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-muted-color font-medium">Unit:</span>
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                                {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.unit : '' }}
+                            </span>
+                        </div>
+                    </div>
                 </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-muted-color font-medium">Description:</span>
-                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.description : '' }}
-                    </span>
-                </div>
-                </div>
-                <div class="flex flex-col gap-4">
-                <div class="flex items-center gap-2">
-                    <span class="text-muted-color font-medium">Receive QTY:</span>
-                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
-                    </span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="text-muted-color font-medium">Unit:</span>
-                    <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
-                    {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.unit : '' }}
-                    </span>
-                </div>
-                </div>
-            </div>
-            
-            <!-- Lot Split Status Information -->
 
-            <div class="text-lg font-semibold mb-4">Lot Information</div>
-           <div class="overflow-x-auto mb-4" style="max-height: 50vh;">
-                <table class="min-w-full border border-gray-300">
-                <thead class="bg-gray-100">
-                    <tr>
-                    <th class="border px-2 py-1">No</th>
-                    <th class="border px-2 py-1">Lot No</th>
-                    <th class="border px-2 py-1">TAKE OUT QTY</th>
-                    <th class="border px-2 py-1">EXPIRE DATE</th>
-                    <th class="border px-2 py-1">have a problem?</th>
-                    <th class="border px-2 py-1">REMARK</th>
-                    <th class="border px-2 py-1" v-if="isLotSplitRequired()">ACTIONS</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr v-for="(row, idx) in lotRows" :key="idx">
-                        <td class="border px-2 py-1">
-                            {{ idx + 1 }}
-                        </td>
-                        
-                        <!-- Lot No Input -->
-                        <td class="border px-2 py-1">
-                            <input 
-                                type="text" 
-                                class="border rounded px-2 py-1 w-36" 
-                                placeholder="Enter Lot No" 
-                                v-model="row.lotNo"
-                                :disabled="!isLotInfoEditable || !isLotSplitRequired()" 
-                                :class="{
-                                    'border-yellow-400 bg-yellow-50': !row.lotNo || row.lotNo.trim() === '',
-                                    'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== ''
-                                }"
-                                :readonly="!isLotSplitRequired()"
-                            />
-                           
-                        </td>
-                        
-                        <!-- Take Out QTY Input -->
-                        <td class="border px-2 py-1">
-                            <input
-                                type="number"
-                                min="0"
-                                :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
-                                class="border rounded px-2 py-1 w-32"
-                                placeholder="0.00"
-                                v-model.number="row.takeOutQty"
-                                step="0.01"
-                                :disabled="!isLotInfoEditable || !row.lotNo || row.lotNo.trim() === '' || (!isLotSplitRequired() && idx === 0)"
-                                :class="{
-                                    'bg-gray-100 cursor-not-allowed': !row.lotNo || row.lotNo.trim() === '',
-                                    'border-yellow-400 bg-yellow-50': row.lotNo && row.lotNo.trim() !== '' && (!row.takeOutQty || row.takeOutQty <= 0),
-                                    'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== '' && row.takeOutQty && row.takeOutQty > 0
-                                }"
-                                @input="validateTakeOutQty(row, idx)"
-                            />
-                           
-                        </td>
-                        
-                        <!-- Expire Date Input -->
-                        <td class="border px-2 py-1">
-                             <input 
-                             type="date" 
-                             class="border rounded px-2 py-1 w-36" 
-                             v-model="row.expireDate" 
-                             :disabled="!isLotInfoEditable || !canEditExpireDate(row)"
-                             :class="getExpireDateClass(row)"
-                             :required="isExpireDateRequired()"
-                              />
+                <!-- Lot Split Status Information -->
 
-                        </td>
-                        
-                        <!-- Problem Checkbox -->
-                        <td class="border px-2 py-1 text-center">
-                            <Checkbox
-                                :id="'checkOption' + idx"
-                                name="option"
-                                :binary="true"
-                                v-model="row.problem"
-                                :disabled="!isLotInfoEditable"
-                            />
-                        </td>
-                        
-                        <!-- Remark Input -->
-                        <td class="border px-2 py-1">
-                            <input 
-                                type="text" 
-                                class="border rounded px-2 py-1 w-36" 
-                                v-model="row.remark" 
-                                placeholder="Optional remarks" 
-                                :disabled="!isLotInfoEditable"
-                            />
-                        </td>
-                        
-                        <!-- Actions Column (only for lot split required items) -->
-                        <td class="border px-2 py-1 text-center" v-if="isLotSplitRequired()">
-                            <Button 
-                                label="Delete" 
-                                icon="pi pi-trash" 
-                                severity="danger" 
-                                size="small"
-                                @click="confirmDelete(idx, $event)"
-                                :disabled="lotRows.length <= 1 || !isLotInfoEditable"
-                            />
-                        </td>
-                    </tr>
-                </tbody>
-                <tfoot>
-                    <tr>
-                    <td :colspan="isLotSplitRequired() ? 7 : 6" class="text-left font-semibold py-2 pl-4">
-                        Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}
-                    </td>
-                    </tr>
-                </tfoot>
-                </table>
-            </div>
-            <div class="flex justify-end gap-2">
-                <button 
-                    class="px-4 py-2 text-white rounded transition-all duration-200" 
-                    :class="canAddRow && isLotSplitRequired() && isLotInfoEditable ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'" 
-                    :disabled="!canAddRow || !isLotSplitRequired() || !isLotInfoEditable" 
-                    @click="canAddRow && isLotSplitRequired() && isLotInfoEditable && addRow()"
-                >
-                + Add Row
-                </button>
-                <!-- Always allow closing the dialog -->
-                <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
-                <ConfirmPopup></ConfirmPopup>
-                <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading || !isLotInfoEditable"></Button>
-            </div>
-            <div class="flex flex-col gap-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
-            </div>
+                <div class="text-lg font-semibold mb-4">Lot Information</div>
+                <div class="overflow-x-auto mb-4" style="max-height: 50vh">
+                    <table class="min-w-full border border-gray-300">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="border px-2 py-1">No</th>
+                                <th class="border px-2 py-1">Lot No</th>
+                                <th class="border px-2 py-1">TAKE OUT QTY</th>
+                                <th class="border px-2 py-1">EXPIRE DATE</th>
+                                <th class="border px-2 py-1">have a problem?</th>
+                                <th class="border px-2 py-1">REMARK</th>
+                                <th class="border px-2 py-1" v-if="isLotSplitRequired()">ACTIONS</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="(row, idx) in lotRows" :key="idx">
+                                <td class="border px-2 py-1">
+                                    {{ idx + 1 }}
+                                </td>
+
+                                <!-- Lot No Input -->
+                                <td class="border px-2 py-1">
+                                    <input
+                                        type="text"
+                                        class="border rounded px-2 py-1 w-36"
+                                        placeholder="Enter Lot No"
+                                        v-model="row.lotNo"
+                                        :disabled="!isLotInfoEditable || !isLotSplitRequired()"
+                                        :class="{
+                                            'border-yellow-400 bg-yellow-50': !row.lotNo || row.lotNo.trim() === '',
+                                            'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== ''
+                                        }"
+                                        :readonly="!isLotSplitRequired()"
+                                    />
+                                </td>
+
+                                <!-- Take Out QTY Input -->
+                                <td class="border px-2 py-1">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        :max="dialogRowIndex !== null && tableRows && tableRows[dialogRowIndex] ? tableRows[dialogRowIndex].receiveQty : ''"
+                                        class="border rounded px-2 py-1 w-32"
+                                        placeholder="0.00"
+                                        v-model.number="row.takeOutQty"
+                                        step="0.01"
+                                        :disabled="!isLotInfoEditable || !row.lotNo || row.lotNo.trim() === '' || (!isLotSplitRequired() && idx === 0)"
+                                        :class="{
+                                            'bg-gray-100 cursor-not-allowed': !row.lotNo || row.lotNo.trim() === '',
+                                            'border-yellow-400 bg-yellow-50': row.lotNo && row.lotNo.trim() !== '' && (!row.takeOutQty || row.takeOutQty <= 0),
+                                            'border-green-400 bg-green-50': row.lotNo && row.lotNo.trim() !== '' && row.takeOutQty && row.takeOutQty > 0
+                                        }"
+                                        @input="validateTakeOutQty(row, idx)"
+                                    />
+                                </td>
+
+                                <!-- Expire Date Input -->
+                                <td class="border px-2 py-1">
+                                    <input type="date" class="border rounded px-2 py-1 w-36" v-model="row.expireDate" :disabled="!isLotInfoEditable || !canEditExpireDate(row)" :class="getExpireDateClass(row)" :required="isExpireDateRequired()" />
+                                </td>
+
+                                <!-- Problem Checkbox -->
+                                <td class="border px-2 py-1 text-center">
+                                    <Checkbox :id="'checkOption' + idx" name="option" :binary="true" v-model="row.problem" :disabled="!isLotInfoEditable" />
+                                </td>
+
+                                <!-- Remark Input -->
+                                <td class="border px-2 py-1">
+                                    <input type="text" class="border rounded px-2 py-1 w-36" v-model="row.remark" placeholder="Optional remarks" :disabled="!isLotInfoEditable" />
+                                </td>
+
+                                <!-- Actions Column (only for lot split required items) -->
+                                <td class="border px-2 py-1 text-center" v-if="isLotSplitRequired()">
+                                    <Button label="Delete" icon="pi pi-trash" severity="danger" size="small" @click="confirmDelete(idx, $event)" :disabled="lotRows.length <= 1 || !isLotInfoEditable" />
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td :colspan="isLotSplitRequired() ? 7 : 6" class="text-left font-semibold py-2 pl-4">Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button
+                        class="px-4 py-2 text-white rounded transition-all duration-200"
+                        :class="canAddRow && isLotSplitRequired() && isLotInfoEditable ? 'bg-blue-500 hover:bg-blue-600' : 'bg-gray-400 cursor-not-allowed'"
+                        :disabled="!canAddRow || !isLotSplitRequired() || !isLotInfoEditable"
+                        @click="canAddRow && isLotSplitRequired() && isLotInfoEditable && addRow()"
+                    >
+                        + Add Row
+                    </button>
+                    <!-- Always allow closing the dialog -->
+                    <button class="px-4 py-2 bg-red-500 text-white rounded" @click="closeEditDialog()">Cancel</button>
+                    <ConfirmPopup></ConfirmPopup>
+                    <Button ref="popup" @click="confirm($event)" icon="pi pi-check" label="Save" class="mr-2" :loading="loading" :disabled="loading || !isLotInfoEditable"></Button>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8"></div>
+                </div>
             </div>
         </div>
     </div>
-
 </template>
 
 <style>
@@ -988,5 +966,4 @@ const isLotInfoEditable = computed(() => {
 :deep(.highlight-gray-row:hover td) {
     background-color: #d1d5db !important;
 }
-
 </style>

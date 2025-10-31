@@ -15,6 +15,8 @@ import InputIcon from 'primevue/inputicon';
 import DatePicker from 'primevue/datepicker';
 import Dropdown from 'primevue/dropdown';
 import { item } from '@primeuix/themes/aura/breadcrumb';
+import Breadcrumb from '@/components/Breadcrumb.vue'
+import { icon } from '@primeuix/themes/aura/avatar';
 
 // Use the composable
 const { router, receiveStore, handleRowClick, startDate, endDate, onDateSearch, filteredReceiveList, searchQuery, loading, rowClass, ReceptNumber, formatDate } = useMaterialSplit();
@@ -77,10 +79,17 @@ onMounted(async () => {
         loading.value = false;
     }
 });
+
+const breadcrumbItems = [
+  { label: 'Home', to: '/',icon: 'pi pi-home' },
+{ label: 'Material Split', to: '/materials-split', icon: 'pi pi-box' }
+]
 </script>
 
 <template>
+  
     <div class="card">
+        <Breadcrumb :items="breadcrumbItems" class="mb-4" />
         <div class="font-semibold text-xl mb-4">Material Split</div>
         <form class="mb-4 flex flex-col gap-4">
             <div class="flex flex-col md:flex-row md:items-end gap-4">

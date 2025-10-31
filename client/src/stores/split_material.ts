@@ -4,6 +4,7 @@ import { useReceiveStore } from '@/stores/receive';
 import { filterMeta, IReceiveDetailItem, LotRow } from '@/interfaces/receive.interfaces';
 import { useToast } from 'primevue/usetoast';
 import { a } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { useIqaCheckMaterialStore } from './iqa_check_material';
 
 // Material Split_Page functions (can be at module level)
 function getTodayStr() {
@@ -56,7 +57,7 @@ export function useMaterialSplit() {
     const lotSplitStatusList = reactive([{ value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }, { value: 'Not Specified' }]);
     // Extend LotRow type to include IQA property
     type LotRowWithIQA = LotRow & { IQA?: number | string };
-    
+
     const lotRows = ref<LotRowWithIQA[]>([]);
     const lotStatusIQA = ref<any[]>([]);
     const rowBalanceQtys = ref<{ [key: string]: number }>({});
@@ -192,7 +193,6 @@ export function useMaterialSplit() {
     }
 
     function rowClass(data: any) {
-      
         if (data.CompletedSplitItems < data.TotalItems) {
             return 'highlight-yellow-row';
         }
@@ -341,7 +341,7 @@ export function useMaterialSplit() {
                 return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
             case 'PASS':
                 return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
-            case 'REVISE':
+            case 'REWORK':
                 return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
             case 'REJECT':
                 return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
@@ -349,6 +349,8 @@ export function useMaterialSplit() {
                 return 'bg-orange-200 text-orange-700 font-semibold px-2 py-1 rounded';
             case 'RESUBMITTED':
                 return 'bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded';
+            case 'NOT_REQUIRED':
+               return 'bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded';
             default:
                 return 'bg-white text-gray-900 px-2 py-1 rounded';
         }
@@ -419,19 +421,25 @@ export function useMaterialSplit() {
 
             if (lotRow.id) {
                 const updatePayload = { ...payload, id: lotRow.id };
+                console.log('Updating lot split with payload:', updatePayload);
+                console.log('Updating lot split with payload:', updatePayload);
                 return receiveStore.updateLotSplit(updatePayload);
+                
             } else {
+                console.log('Creating lot split with payload:', payload);
                 return receiveStore.createLotSplit(payload);
             }
         });
 
         try {
+            const iqaCheckMaterialStore = useIqaCheckMaterialStore();
             loading.value = true;
             const results = await Promise.all(lotSplitPromises);
             const allSuccess = results.every((result) => result !== null && result !== undefined);
             if (allSuccess) {
                 toast.add({ severity: 'success', summary: 'Success', detail: 'Lot split data saved successfully', life: 3000 });
                 await updateRowBalanceQtys();
+                await iqaCheckMaterialStore.addItemListTransaction_MC_PROD();
                 closeEditDialog(true);
                 await receiveStore.fetchMaterialSplit(startDate.value.replace(/-/g, ''), endDate.value.replace(/-/g, ''));
             } else {

@@ -46,4 +46,10 @@ async iqa_check_submit(
   ): Promise<void> {
     await this.checkMaterialReceiveService.Complete_iqa_check(lotNo, invoiceNumber, ReceiveNo);
   }
+
+  @Get('add-item-transaction-mc-prod')
+  async addItemListTransaction_MC_PROD(): Promise<IqaCheck[]> {
+    return await this.checkMaterialReceiveService.addItemListTransaction_MC_PROD();
+  }
+
 }

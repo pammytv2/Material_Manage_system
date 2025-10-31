@@ -77,6 +77,13 @@ const model = computed<MenuItem[]>(() => [
                 to: '/materials-split'
             },
             {
+                label: 'Material IQA Status',
+                icon: 'pi pi-fw pi-database', // ไอคอนเกี่ยวกับ IQA (shield = quality/inspection)
+                to: '/Mc_view_iqa'
+
+
+            },
+            {
                 label: 'Return Material',
                 icon: 'pi pi-fw pi-upload', // คืนวัสดุ
                 to: '/documentation'

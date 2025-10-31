@@ -95,7 +95,11 @@ const {
 } = useManualMaterial();
 
 const receiveStore_manual = useReceiveStore_manual();
-
+const breadcrumbItems = [
+  { label: 'Home', to: '/', icon: 'pi pi-home' },
+{ label: 'Manual Receive', to: '/manual-receive-list', icon: 'pi pi-box' },
+{ label: 'Manual Receive List', to: '', icon: 'pi pi-file' }
+]
 const allManualItems = computed(() => [...(receiveItems.value ?? []), ...(noPoItems.value ?? [])]);
 
 // Filters for DataTable
@@ -255,6 +259,7 @@ async function refreshAllPage() {
 </script>
 
 <template>
+     
     <!-- Full Page Loading Overlay -->
     <div v-if="pageLoading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
         <div class="flex flex-col items-center">
@@ -264,6 +269,7 @@ async function refreshAllPage() {
     </div>
 
     <div class="card mb-6">
+        <Breadcrumb :items="breadcrumbItems" class="mb-4" />
         <Button icon="pi pi-arrow-left" @click="goBack" severity="secondary" outlined class="mb-4" />
         <div class="flex items-center gap-4 mb-6">
             <div class="text-xl sm:text-2xl font-bold">Manual Receive</div>

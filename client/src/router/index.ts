@@ -76,6 +76,16 @@ const routes: RouteRecordRaw[] = [
 
             },
 
+            {
+                path: '/Mc_view_iqa',
+                name: 'Mc_view_iqa',
+                component: () => import('@/components/IQA_Checklist/Mc_view_Iqa.vue')
+
+            },
+
+            
+
+
         
 
             {
@@ -83,6 +93,7 @@ const routes: RouteRecordRaw[] = [
                 name: 'documentation',
                 component: () => import('@/views/pages/Documentation.vue')
             }
+            
         ]
     },
     {

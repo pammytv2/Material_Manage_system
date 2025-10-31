@@ -75,8 +75,8 @@ interface IReceiveDetailItem {
     ItemStatusIqaID: number;
     iqaStatus: number ;
     unit: string ;
-    ExpDate?: string | number;
-    lotSplit?: number | string;
+    ExpDate: string | number;
+    lotSplit: number ;
     receiveQty?: string  ;
 }
 interface LotRow {

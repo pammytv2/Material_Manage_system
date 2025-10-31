@@ -23,7 +23,9 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
         itemLotSplits: [] as ILotSplitData[],
         Iqa_Checklists: [] as Iqa_Checklist[],
         IqaCheckMaterialItems: [] as Iqa_Checklist[],
-        Iqa_status: [] as Iqa_Checklist[]
+        Iqa_status: [] as Iqa_Checklist[],
+        ItemListTransaction_MC_PROD: [] as Iqa_Checklist[]
+        
     }),
     getters: {
         selectedStatusLabel: (state) => {
@@ -43,9 +45,10 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
         _sumIqaItem: (state) => state.Iqa_Checklists,
         _iqaItems: (state) => state.IqaCheckMaterialItems,
         _iqaStatus: (state) => state.Iqa_status,
+        _itemListTransaction_MC_PROD: (state) => state.ItemListTransaction_MC_PROD,
         iqaCheckOptions: (state) =>
             state.Iqa_status.filter((item: any) => item.IsActive) // เฉพาะที่ active
-                .map((item: any) => ({ label: item.IQA_Name, value: item.IQA_Name, color: item.IQA_Name === 'PASS' ? 'p-tag p-tag-success' : item.IQA_Name === 'REVISE' ? 'p-tag p-tag-warning' : item.IQA_Name === 'REJECT' ? 'p-tag p-tag-danger' : 'p-tag p-tag-info' })),
+                .map((item: any) => ({ label: item.IQA_Name, value: item.IQA_Name, color: item.IQA_Name === 'PASS' ? 'p-tag p-tag-success' : item.IQA_Name === 'REWORK' ? 'p-tag p-tag-warning' : item.IQA_Name === 'REJECT' ? 'p-tag p-tag-danger' : 'p-tag p-tag-info' })),
        
     },
     actions: {
@@ -74,7 +77,11 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
         async completeIqaCheck({ invoiceNumber, ReceiveNo, lotNo }: { invoiceNumber: string; ReceiveNo: string; lotNo: string }) {
             // ค่า status ที่บันทึกลง DB จะเป็น "PASS" หรือ "FAIL" ตามที่เลือก
             await ApiService.post(`${api}/check-material-receive/iqa-check-complete`, {}, { params: { invoiceNumber, ReceiveNo, lotNo} });
-        }
+        },
+        
+        async addItemListTransaction_MC_PROD(): Promise<void> {
+            this.ItemListTransaction_MC_PROD = await ApiService.get<Iqa_Checklist[]>(`${api}/check-material-receive/add-item-transaction-mc-prod`);
+        } 
         
     }
 });

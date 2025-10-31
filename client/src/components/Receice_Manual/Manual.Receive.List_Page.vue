@@ -170,13 +170,20 @@ function clearFilter() {
 function refreshAllPage() {
     window.location.reload();
 }
+const breadcrumbItems = [
+  { label: 'Home', to: '/', icon: 'pi pi-home' },
+{ label: 'Manual Receive', to: '/manual-receive-list', icon: 'pi pi-box' },
 
+]
 
 </script>
 
 <template>
+
    <div class="flex flex-col items-center bg-transparent w-full ">
+    
     <div class="card w-full max-w-full mx-auto px-2 mt-12">
+        <Breadcrumb :items="breadcrumbItems" class="mb-4" />
         <div class="flex items-center justify-between  mb-6 ">
             <div class="text-2xl font-bold">Manual Receive List</div>
             <div class="flex gap-2">

@@ -9,8 +9,10 @@ declare module 'vue' {
   export interface GlobalComponents {
     AutoComplete: typeof import('primevue/autocomplete')['default']
     BestSellingWidget: typeof import('./src/components/dashboard/BestSellingWidget.vue')['default']
+    Breadcrumb: typeof import('./src/components/Breadcrumb.vue')['default']
     Button: typeof import('primevue/button')['default']
     Calendar: typeof import('primevue/calendar')['default']
+    Card: typeof import('primevue/card')['default']
     Checkbox: typeof import('primevue/checkbox')['default']
     Chips: typeof import('primevue/chips')['default']
     Column: typeof import('primevue/column')['default']
@@ -35,6 +37,7 @@ declare module 'vue' {
     'Manual.Receive.List_Page': typeof import('./src/components/Receice_Manual/Manual.Receive.List_Page.vue')['default']
     'Materials.Split_Delail_Page': typeof import('./src/components/Split_Materials/Materials.Split_Delail_Page.vue')['default']
     'Materials.Split_Page': typeof import('./src/components/Split_Materials/Materials.Split_Page.vue')['default']
+    Mc_view_Iqa: typeof import('./src/components/IQA_Checklist/Mc_view_Iqa.vue')['default']
     NotificationsWidget: typeof import('./src/components/dashboard/NotificationsWidget.vue')['default']
     Paginator: typeof import('primevue/paginator')['default']
     PricingWidget: typeof import('./src/components/landing/PricingWidget.vue')['default']

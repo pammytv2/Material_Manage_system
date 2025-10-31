@@ -32,8 +32,8 @@ const { getIQAStatusText, getIQARequiredClass } = manageMaterialStore;
 
 async function onIqaStatusChangeDropdown(lot: any) {
     if (!lot.selectedIqaStatus) return;
-    if (lot.selectedIqaStatus === 'REVISE' && !lot.remark_iqa) {
-        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณากรอก remark เมื่อเลือก REVISE', life: 2000 });
+    if (lot.selectedIqaStatus === 'REWORK' && !lot.remark_iqa) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณากรอก remark เมื่อเลือก REWORK', life: 2000 });
         return;
     }
     loading.value = true;
@@ -334,7 +334,7 @@ function clearFilter() {
     icon="pi pi-check"
     class="p-button-success"
     @click="onIqaStatusChangeDropdown(data)"
-    :disabled="!data.selectedIqaStatus || loading || (data.selectedIqaStatus === 'REVISE' && !data.remark_iqa)"
+    :disabled="!data.selectedIqaStatus || loading || (data.selectedIqaStatus === 'REWORK' && !data.remark_iqa)"
 />
                                         </template>
                                     </Column>
