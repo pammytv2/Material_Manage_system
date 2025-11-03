@@ -791,11 +791,11 @@ const breadcrumbItems = [
                 </template>
             </Column> -->
 
-            <Column field="iqaremark" header="IQA Remark" sortable class="w-40">
+            <!-- <Column field="iqaremark" header="IQA Remark" sortable class="w-40">
                 <template #body="{ data }">
                     {{ data.remark_iqa || '-' }}
                 </template>
-            </Column>
+            </Column> -->
         </DataTable>
 
         <div class="flex justify-end">

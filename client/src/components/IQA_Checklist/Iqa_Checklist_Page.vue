@@ -6,11 +6,12 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useManageMaterialStore } from '@/stores/manage_material';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import Dropdown from 'primevue/dropdown';
-import { FilterMatchMode } from '@primevue/core/api';
+import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 import { filterMeta } from '@/interfaces/receive.interfaces';
 import { useIqaCheckMaterialStore } from '@/stores/iqa_check_material';
 import { useConfirm } from 'primevue/useconfirm';
@@ -59,49 +60,41 @@ async function onIqaStatusChangeDropdown(lot: any) {
         loading.value = false;
     }
 }
-const filteredReceiveList = computed(() => iqaCheckMaterialStore.filteredReceiveList);
+const filteredReceiveList = computed(() => {
+    let list = iqaCheckMaterialStore.filteredReceiveList;
+    
+    // Apply search query filter
+    if (searchQuery.value && searchQuery.value.trim()) {
+        const query = searchQuery.value.trim().toLowerCase();
+        list = list.filter((item) => {
+            const receiveNo = (item.ReceiveNo || '').toLowerCase();
+            const invoiceNumber = (item.InvoiceNumber || '').toLowerCase();
+            const vendorCode = (item.VendorCode || '').toLowerCase();
+            const vendorName = (item.VendorName || '').toLowerCase();
+            const iqaStatus = (item.IQA_Status || '').toLowerCase();
+           
+            
+            return receiveNo.includes(query) || 
+                   invoiceNumber.includes(query) || 
+                   vendorCode.includes(query) || 
+                   vendorName.includes(query) || 
+                   iqaStatus.includes(query) 
+                   
+        });
+    }
+    
+    return list;
+});
 
 onMounted(async () => {
+    iqaCheckMaterialStore.selectedStatus = '';
     await iqaCheckMaterialStore.fetchIqaCheckMaterialItems();
     console.log('IQA Items:', iqaCheckMaterialStore.IqaCheckMaterialItems);
     await iqaCheckMaterialStore.status_iqa_check();
     console.log('IQA Status Items2:', iqaCheckMaterialStore._iqaStatus);
 });
 
-// const isAllLotsSelected = computed(() => {
-//     const allLots = Object.values(groupedLots.value).flat();
-//     if (allLots.length === 0) return false;
-//     return allLots.every(
-//         (lot) => lot.selectedIqaStatus === 'PASS' || lot.selectedIqaStatus === 'FAIL'
-//     );
-// });
-// async function submitIqaCheckAll() {
-//     confirm.require({
-//         message: 'Are you sure you want to submit IQA Check for all lots?',
-//         header: 'Confirm Submission',
-//         icon: 'pi pi-exclamation-triangle',
-//         accept: async () => {
-//             try {
-//                 for (const lots of Object.values(groupedLots.value)) {
-//                     for (const lot of lots) {
-//                         if (lot.selectedIqaStatus) {
-//                             await iqaCheckMaterialStore.submitIqaCheck({
-//                                 invoiceNumber: selectedReceipt.value.InvoiceNumber,
-//                                 ReceiveNo: selectedReceipt.value.ReceiveNo,
-//                                 lotNo: lot.lot_no,
-//                                 status: lot.selectedIqaStatus
-//                             });
-//                         }
-//                         toast.add({ severity: 'success', summary: 'Success', detail: 'ตรวจสอบสำเร็จ', life: 3000 });
-//                     }
-//                 }
-//                 showDetailDialog.value = false;
-//             } catch (error) {
-//                 toast.add({ severity: 'error', summary: 'Error', detail: 'เกิดข้อผิดพลาดการยืนยันตรวจ', life: 3000 });
-//             }
-//         }
-//     });
-// }
+
 async function IqaComplete() {
     confirm.require({
         message: 'Are you sure you want to submit IQA Check for all lots?',
@@ -145,24 +138,14 @@ const groupedLots = computed(() => {
     return groups;
 });
 
-const filters = ref<{
-    global: filterMeta;
-    receiveNumber: filterMeta;
-    receiveDate: filterMeta;
-    invoiceNumber: filterMeta;
-    vendorCode: filterMeta;
-    vendorName: filterMeta;
-    Status: filterMeta;
-    CountOrder: filterMeta;
-}>({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
-    invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    Status: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    CountOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
+const filters = ref({
+    global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
 });
 async function onRowClick(e: any) {
     if (!e.data) return;
@@ -181,14 +164,13 @@ async function onRowClick(e: any) {
 }
 function clearFilter() {
     filters.value = {
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
-        invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        Status: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        CountOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
+        global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
     };
 }
 </script>
@@ -196,9 +178,27 @@ function clearFilter() {
 <template>
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
-        <div class="flex items-center gap-2 mb-2">
-            <span class="font-medium">Status:</span>
-            <Dropdown v-model="iqaCheckMaterialStore.selectedStatus" :options="iqaCheckMaterialStore.statusOptions" optionValue="value" optionLabel="label" placeholder="Status" class="w-60" />
+        <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <span class="font-medium">Filter by Status:</span>
+                    <Dropdown 
+                        v-model="iqaCheckMaterialStore.selectedStatus" 
+                        :options="iqaCheckMaterialStore.statusOptions" 
+                        optionValue="value" 
+                        optionLabel="label" 
+                        placeholder="เลือกสถานะ" 
+                        class="w-60"
+                        showClear
+                    />
+                </div>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-600 mb-1">Total Items</div>
+                <div class="text-2xl font-bold text-blue-600">
+                    {{ filteredReceiveList.length }}
+                </div>
+            </div>
         </div>
     </div>
     <div class="card">
@@ -214,12 +214,12 @@ function clearFilter() {
             rowHover
             @rowClick="onRowClick"
             :globalFilter="searchQuery" 
-            :globalFilterFields="['ReceiveNo', 'InvoiceNumber', 'Status', 'VendorCode', 'VendorName', 'CountOrder']"
+            :globalFilterFields="['ReceiveNo', 'InvoiceNumber', 'Status', 'VendorCode', 'VendorName', 'lot_count']"
           
             class="mb-6"
         >
             <template #header>
-                <div class="flex justify-end gap-2">
+                <div class="flex justify-between items-center">
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
                     <IconField>
                         <InputIcon>
@@ -252,9 +252,12 @@ function clearFilter() {
                     </span>
                 </template>
             </Column>
-            <Column field="CountOrder" header="Count Order" sortable>
+            <Column field="lot_count" header="Count Order" sortable>
                 <template #body="{ data }">
-                    <span>{{ data.lotcount }}</span>
+                    <span>{{ data.lot_count }}</span>
+                </template>
+                <template #filter="{ filterModel }">
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count" />
                 </template>
             </Column>
 

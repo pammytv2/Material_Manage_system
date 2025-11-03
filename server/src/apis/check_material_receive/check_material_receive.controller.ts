@@ -51,5 +51,15 @@ async iqa_check_submit(
   async addItemListTransaction_MC_PROD(): Promise<IqaCheck[]> {
     return await this.checkMaterialReceiveService.addItemListTransaction_MC_PROD();
   }
+  @Get('mc-view-iqa-status')
+  async mc_view_iqa_status(): Promise<IqaCheck[]> {
+    return await this.checkMaterialReceiveService.mc_view_iqa_status();
+  }
+  @Get('mc-recnum')
+  async mc_recnum(
+    @Query('InvoiceNumber') InvoiceNumber: string,
+  ): Promise<any[]> {
+    return await this.checkMaterialReceiveService.mc_recnum(InvoiceNumber);
+  }
 
 }

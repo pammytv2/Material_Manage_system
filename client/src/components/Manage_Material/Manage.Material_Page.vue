@@ -65,6 +65,7 @@ const {
 
 // Filter metadata
 const filters = ref({
+    global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     ItemNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     ITEMDesc: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     TYPE: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
@@ -76,14 +77,17 @@ const filters = ref({
     GROUPMAT: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     CATEGORY: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     SPEC: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-    Min: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }, // ใช้ MIN
-    Max: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }, // ใช้ MAX
+    Min: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    Max: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     Packing: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     IQA: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     ExpDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     LotSplit: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     Inactive: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-    Type2Name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] } // เปลี่
+    Type2Name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ZoneID: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lotsplitStatus: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ZoneCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
 });
 
 
@@ -184,6 +188,7 @@ function confirmSave(event) {
 
 function clearFilter() {
     filters.value = {
+        global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
         ItemNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
         ITEMDesc: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
         TYPE: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
@@ -202,7 +207,10 @@ function clearFilter() {
         ExpDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
         LotSplit: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
         Inactive: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-        Type2Name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
+        Type2Name: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        ZoneID: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        lotsplitStatus: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        ZoneCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
     };
 }
 function refreshAllPage() {
@@ -246,7 +254,7 @@ function rowStyleNA(row: any) {
             showGridlines
             rowHover
             @rowClick="(e) => handleRowClick(e.data)"
-            :globalFilterFields="['ItemNo', 'ZoneID', 'Type2Name', 'ExpDate', 'Max', 'Min', 'ITEMDesc', 'TYPE', 'VENDOR', 'UNIT', 'PROJECT', 'PARTCHIP', 'GROUPMAT', 'SECTIONGROUP', 'CATEGORY', 'SPEC', 'Inactive', 'lotsplitStatus']"
+            :globalFilterFields="['ItemNo', 'ZoneCode', 'Type2Name', 'ExpDate', 'Max', 'Min', 'ITEMDesc', 'TYPE', 'VENDOR', 'UNIT', 'PROJECT', 'PARTCHIP', 'GROUPMAT', 'SECTIONGROUP', 'CATEGORY', 'SPEC', 'Inactive', 'lotsplitStatus']"
             class="mb-6"
             :loading="loading"
             :rowStyle="rowStyleNA"
@@ -337,7 +345,7 @@ function rowStyleNA(row: any) {
                     <InputText v-model="filterModel.value" type="text" placeholder="Search by Section Group" />
                 </template>
             </Column>
-            <Column field="ZoneID" header="Zone" sortable style="min-width: 8rem">
+            <Column field="ZoneCode" header="Zone" sortable style="min-width: 8rem" :filterFunction="customFilterFunction">
                 <template #body="{ data }">
                     {{ data.ZoneCode ?? 'N/A' }}
                 </template>

@@ -8,12 +8,11 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
+import DatePicker from 'primevue/datepicker';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import { filterMeta } from '@/interfaces/receive.interfaces';
-import { FilterMatchMode } from '@primevue/core/api';
-import { display } from '@primeuix/themes/lara/inplace';
-import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
+import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
 
 const loading = ref(false);
 const syncProgress = ref(0); // <-- add for progress bar
@@ -21,22 +20,14 @@ const router = useRouter();
 const dateError = ref('');
 const receiveStore = useReceiveStore();
 // const loading = receiveStore.loading;
-const filters = ref<{
-    global: filterMeta;
-    receiveNumber: filterMeta;
-    receiveDate: filterMeta;
-    invoiceNumber: filterMeta;
-    vendorCode: filterMeta;
-    vendorName: filterMeta;
-    countOrder: filterMeta;
-}>({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
-    invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-    vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
+const filters = ref({
+    global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReceptNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    ReciveDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.DATE_IS }] },
+    InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    CountOrder: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
 });
 
 const showDetailDialog = ref(false); // Dialog visibility
@@ -238,13 +229,13 @@ async function syncMaterials() {
 
 function clearFilter() {
     filters.value = {
-        global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        receiveNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        receiveDate: { value: null, matchMode: FilterMatchMode.DATE_IS },
-        invoiceNumber: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        vendorCode: { value: null, matchMode: FilterMatchMode.STARTS_WITH },
-        vendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        countOrder: { value: null, matchMode: FilterMatchMode.CONTAINS }
+        global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        ReceptNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        ReciveDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.DATE_IS }] },
+        InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+        VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        CountOrder: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
     };
 }
 

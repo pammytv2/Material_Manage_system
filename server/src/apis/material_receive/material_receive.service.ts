@@ -84,7 +84,7 @@ export class MaterialReceiveService {
 async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     // Sync data
     const syncQuery = `
-   WITH ranked_lot AS (
+WITH ranked_lot AS (
   SELECT
     d.*,
     -- Replace t.status with IQA_Name logic
@@ -97,7 +97,12 @@ async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
     t.remark_iqa,
     ROW_NUMBER () OVER (
       PARTITION BY d.ReceptNumber, d.ITEMNO 
-      ORDER BY CASE WHEN t.status = 'FAIL' THEN 1 ELSE 2 END
+      ORDER BY 
+        CASE 
+          WHEN t.status = 'REJECT' THEN 1
+          WHEN t.status = 'REWORK' THEN 2
+          ELSE 3
+        END
     ) AS rn 
   FROM
     accpac_sync_poreceipt_icshipment_detail d
@@ -137,7 +142,12 @@ WHERE
     t.remark_iqa,
     ROW_NUMBER () OVER (
       PARTITION BY d.ReceptNumber, d.ITEMNO 
-      ORDER BY CASE WHEN t.status = 'FAIL' THEN 1 ELSE 2 END
+      ORDER BY 
+        CASE 
+          WHEN t.status = 'REJECT' THEN 1
+          WHEN t.status = 'REWORK' THEN 2
+          ELSE 3
+        END
     ) AS rn 
   FROM
     accpac_sync_poreceipt_icshipment_detail d
@@ -157,7 +167,8 @@ SELECT
 FROM
   ranked_lot 
 WHERE
-  rn = 1`;
+  rn = 1
+   `;
     return await this.databaseService.query(selectQuery, [
       { name: 'InvoiceNumber', type: sql.VarChar, value: InvoiceNumber },
     ]);

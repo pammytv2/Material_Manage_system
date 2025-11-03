@@ -1,6 +1,7 @@
 import { Injectable, Post } from '@nestjs/common';
 import { DatabaseService } from '../../database/database.service';
 import { IqaCheck } from '../../../shared/interfaces/mms-system/iqa_check';
+
 import {
   Item,
   ItemListResponse,
@@ -8,19 +9,28 @@ import {
 } from 'shared/interfaces/mms-system/Item_List';
 import * as sql from 'mssql';
 
+
 @Injectable()
 export class CheckMaterialReceiveService {
   constructor(private readonly databaseService: DatabaseService) {}
 
   async getItemIQA(): Promise<any[]> {
     const sqlQuery = `
-     SELECT
+    SELECT
   t.ReceiveNo,
   t.InvoiceNumber,
   a.VendorCode,
   a.VendorName,
-  i.IQA_Status,
-  COUNT(DISTINCT t.ITEMNO) AS lotcount
+  CASE 
+    WHEN SUM(CASE WHEN t.status IN ('REWORK', 'REJECT') THEN 1 ELSE 0 END) > 0 THEN 'Failed Inspection'
+    ELSE i.IQA_Status
+  END AS IQA_Status,
+  COUNT(DISTINCT t.ITEMNO) AS lot_count,
+  COUNT(DISTINCT t.lot_no) AS lot_no,
+  SUM(CASE WHEN t.status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+  SUM(CASE WHEN t.status = 'REWORK' THEN 1 ELSE 0 END) AS rework_count,
+  SUM(CASE WHEN t.status = 'REJECT' THEN 1 ELSE 0 END) AS reject_count
+  
 FROM
   test_lot_status_iqa_check t
   LEFT JOIN accpac_sync_poreceipt_icshipment_detail a ON t.ReceiveNo = a.ReceptNumber
@@ -30,7 +40,7 @@ GROUP BY
   a.VendorCode,
   a.VendorName,
   t.ReceiveNo,
-  i.IQA_Status `;
+  i.IQA_Status`;
     return await this.databaseService.query(sqlQuery);
   }
 
@@ -117,5 +127,47 @@ GROUP BY
     const request = pool.request();
     const result = await request.execute('sp_transaction_MC_PROD');
     return result.recordsets;
+  }
+  async mc_view_iqa_status(): Promise<IqaCheck[]> {
+    const sqlQuery = `SELECT
+  t.ReceiveNo,
+  t.InvoiceNumber,
+  a.VendorCode,
+  a.VendorName,
+  CASE 
+    WHEN SUM(CASE WHEN t.status IN ('REWORK', 'REJECT') THEN 1 ELSE 0 END) > 0 THEN 'Failed Inspection'
+    ELSE i.IQA_Status
+  END AS IQA_Status,
+  COUNT(DISTINCT t.ITEMNO) AS lot_count,
+  COUNT(DISTINCT t.lot_no) AS lot_no,
+  SUM(CASE WHEN t.status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+  SUM(CASE WHEN t.status = 'REWORK' THEN 1 ELSE 0 END) AS rework_count,
+  SUM(CASE WHEN t.status = 'REJECT' THEN 1 ELSE 0 END) AS reject_count
+  
+FROM
+  test_lot_status_iqa_check t
+  LEFT JOIN accpac_sync_poreceipt_icshipment_detail a ON t.ReceiveNo = a.ReceptNumber
+  LEFT JOIN view_iqa_check_status i ON t.ReceiveNo = i.ReceiveNo
+
+GROUP BY
+  t.InvoiceNumber,
+  a.VendorCode,
+  a.VendorName,
+  t.ReceiveNo,
+  i.IQA_Status`;
+    return await this.databaseService.query(sqlQuery);
+  }
+  async mc_recnum(InvoiceNumber: string): Promise<Item[]> {
+    const sqlQuery = `SELECT h.ReciveDate FROM accpac_sync_poreceipt_icshipment_detail d
+    LEFT JOIN accpac_sync_poreceipt_icshipment_h h
+    ON d.InvoiceNumber = h.InvoiceNumber
+    WHERE h.InvoiceNumber = @InvoiceNumber
+    GROUP BY h.ReciveDate
+`;
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
+    const result = await request.query(sqlQuery);
+    return result.recordset;
   }
 }

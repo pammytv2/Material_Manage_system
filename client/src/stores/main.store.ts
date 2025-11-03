@@ -4,7 +4,7 @@ import { defineStore } from 'pinia'
 
 // ----- Service -----
 import { ApiService } from '@/service/api.service'
-import API from '@/apis/index.api.auth'
+import API from '@/apis/index.api'
 
 // ----- interface & types -----
 import type { LoadingOptions } from '@/interfaces/api.interfaces'

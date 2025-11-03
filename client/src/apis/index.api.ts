@@ -10,7 +10,7 @@ import { generateToken } from '@/utils/jwt.utils';
 
 // Create a custom Axios instance with a specific base URL
 const API = axios.create({
-  baseURL: import.meta.env.VITE_APP_API_URL,
+  baseURL: import.meta.env.VITE_APP_API_LSDS_URL,
 });
 
 API.defaults.headers.common['Content-Type'] = 'application/x-www-form-urlencoded';

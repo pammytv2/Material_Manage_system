@@ -43,9 +43,8 @@ const {
 // Filters for DataTable
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    receiveNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
     InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    ReciveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
     VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
     VendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
     PoNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -55,8 +54,9 @@ function onRowClick(event: any) {
     const invoiceNumber = event.data.InvoiceNumber;
     const poNumber = event.data.PoNumber;
     const vendorCode = (event.data.VendorCode || '').toString().trim();
+    const reciveDate = event.data.ReciveDate || '';
 
-    console.log('Row clicked:', { invoiceNumber, poNumber, vendorCode });
+    console.log('Row clicked:', { invoiceNumber, poNumber, vendorCode, reciveDate });
 
     // ส่งไปหน้า Receive.Manual_Page.vue พร้อม query
     router.push({
@@ -65,7 +65,8 @@ function onRowClick(event: any) {
             mode: 'view', // เพิ่ม mode สำหรับการดู
             invoiceNumber,
             poNumber: poNumber || '', 
-            vendorCode: vendorCode || '' // ถ้า vendorCode เป็น null ให้เป็น empty string
+            vendorCode: vendorCode || '',
+            reciveDate: reciveDate
         }
     });
 
@@ -152,14 +153,23 @@ async function createNew() {
     });
 }
 
+// Helper function to format date from YYYYMMDD to readable format
+function formatDate(dateString: string) {
+    if (!dateString || dateString.length !== 8) return dateString;
+    
+    const year = dateString.substring(0, 4);
+    const month = dateString.substring(4, 6);
+    const day = dateString.substring(6, 8);
+    
+    return `${year}-${month}-${day}`;
+}
 
 // Clear all filters
 function clearFilter() {
     filters.value = {
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        receiveNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
-        receiveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
         InvoiceNumber: { value: null, matchMode: FilterMatchMode.CONTAINS },
+        ReciveDate: { value: null, matchMode: FilterMatchMode.CONTAINS },
         VendorCode: { value: null, matchMode: FilterMatchMode.CONTAINS },
         VendorName: { value: null, matchMode: FilterMatchMode.CONTAINS },
         PoNumber: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -204,7 +214,7 @@ const breadcrumbItems = [
             loadingIcon="pi pi-spin pi-spinner"
             showGridlines
             rowHover
-            :globalFilterFields="['receiveNumber', 'receiveDate', 'InvoiceNumber', 'PoNumber', 'VendorCode', 'VendorName']"
+            :globalFilterFields="['InvoiceNumber', 'ReciveDate', 'PoNumber', 'VendorCode', 'VendorName']"
             class="w-full"
             responsiveLayout="scroll"
             :sortField="'ImportDate'" 
@@ -242,6 +252,15 @@ const breadcrumbItems = [
                 </template>
                 <template #filter="{ filterModel }">
                     <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by po number" />
+                </template>
+            </Column>
+
+            <Column field="ReciveDate" header="Receive Date" sortable style="width: 150px">
+                <template #body="slotProps">
+                    {{ formatDate(slotProps.data.ReciveDate) }}
+                </template>
+                <template #filter="{ filterModel }">
+                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive date" />
                 </template>
             </Column>
 

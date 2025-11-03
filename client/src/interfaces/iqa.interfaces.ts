@@ -8,6 +8,9 @@ interface Iqa_Checklist {
     remark: string ;
     PORHSEQ?: string;
     ITEMNO?: string;
+    ReciveDate?: Date ;
+    VendorCode?: string ;
+    VendorName?: string ;
     lot_qty?: number ;
     ReceiveNo?: string ;
 }

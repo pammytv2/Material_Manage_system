@@ -196,12 +196,13 @@ export class MaterialReceiveManualService {
   ) AS PoNumber,
   d1.VendorCode,
   d1.VendorName,
+  h.ReciveDate,
   h.ImportDate
 FROM [dbo].[accpac_sync_poreceipt_icshipment_detail] d1
 LEFT JOIN view_accpac_sync_poreceipt_icshipment_h h
   ON d1.InvoiceNumber = h.InvoiceNumber
 WHERE d1.Ismanual = 1
-GROUP BY d1.InvoiceNumber, d1.VendorCode, d1.VendorName, h.ImportDate;`;
+GROUP BY d1.InvoiceNumber, d1.VendorCode, d1.VendorName, h.ReciveDate, h.ImportDate;`;
     return await this.databaseService.query(sqlQuery);
   }
 

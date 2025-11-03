@@ -150,7 +150,7 @@ onMounted(async () => {
     pageLoading.value = true;
     try {
         await fetchVendors();
-        const { mode, vendorCode, invoiceNumber, poNumber, vdcode } = route.query;
+        const { mode, vendorCode, invoiceNumber, poNumber, vdcode, reciveDate } = route.query;
 
         // Load initial data
         const response = await useReceiveStore_manual().fetchVDCODE();
@@ -171,6 +171,22 @@ onMounted(async () => {
                 receiveForm.value.VDCODE = selectedVendor; // <-- set เป็น object
             } else {
                 receiveForm.value.VDCODE = vdcodeQuery; // fallback เป็น string
+            }
+        }
+
+        // Handle receive date from query
+        if (reciveDate) {
+            let receiveDateQuery = Array.isArray(reciveDate) ? reciveDate[0] : reciveDate;
+            receiveDateQuery = receiveDateQuery ? receiveDateQuery.toString() : '';
+            
+            // Convert from YYYYMMDD format to Date object
+            if (receiveDateQuery.length === 8) {
+                const year = receiveDateQuery.substring(0, 4);
+                const month = receiveDateQuery.substring(4, 6);
+                const day = receiveDateQuery.substring(6, 8);
+                receiveForm.value.receiveDate = new Date(`${year}-${month}-${day}`);
+            } else {
+                receiveForm.value.receiveDate = new Date(receiveDateQuery);
             }
         }
 

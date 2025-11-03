@@ -62,6 +62,8 @@ export function useManageMaterialStore() {
                     convertValue(item.SECTIONGROUP).includes(keyword) ||
                     convertValue(item.CATEGORY).includes(keyword) ||
                     convertValue(item.SPEC).includes(keyword) ||
+                    convertValue(item.ZoneID).includes(keyword) ||
+                    convertValue(item.ZoneCode).includes(keyword) ||
                     convertValue(item.Packing).includes(keyword)
                 );
             });

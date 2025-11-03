@@ -12,7 +12,8 @@ const api = import.meta.env.VITE_API_URL;
 const statusOptions = [
     { label: 'ทั้งหมด', value: 'all' }, // ค่าเริ่มต้น
     { label: 'รอการตรวจสอบ', value: 'Pending IQA Approval' },
-   
+    { label: 'ตรวจสอบผ่านแล้ว', value: 'Inspected by IQA' },
+    { label: 'ตรวจสอบยังไม่ผ่าน', value: 'Failed Inspection' },
 ];
 
 const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
@@ -86,4 +87,4 @@ const useIqaCheckMaterialStore = defineStore('iqa_check_material', {
     }
 });
     
-export { useIqaCheckMaterialStore};
+export { useIqaCheckMaterialStore };

@@ -69,7 +69,11 @@ export function useMaterialSplit() {
     const tableRows = computed(() => receiveStore.detail?.tableRows || []);
     const receiveNumber = computed(() => receiveStore.detail?.receiveNumber || route.params.receiveNumber || '');
     const receiveDate = computed(() => receiveStore.detail?.receiveDate || route.query.RecReceiveDate || route.params.receiveDate || '');
-    const invoiceNumber = computed(() => receiveStore.detail?.invoiceNumber || route.query.InvoiceNumber || route.params.invoiceNumber || '');
+    const invoiceNumber = computed(() => {
+        // If the value is encoded, decode it for display
+        const raw = receiveStore.detail?.invoiceNumber || route.query.InvoiceNumber || route.params.invoiceNumber || '';
+        return decodeURIComponent(raw);
+    });
     const specialExpDate = computed(() => receiveStore.detail?.specialExpDate || '');
     const PORHSEQ = computed(() => receiveStore.detail?.PORHSEQ || route.query.PORHSEQ || route.params.PORHSEQ || '');
     const vendorName = computed(() => receiveStore.detail?.vendorName || route.query.VendorName || route.params.vendorName || '');
@@ -156,7 +160,8 @@ export function useMaterialSplit() {
 
             const receiveNumber = receipt.ReceptNumber || '';
             const StatusRecIC = receipt.StatusRecIC || '';
-            const InvoiceNumber = receipt.InvoiceNumber || '';
+            // Encode InvoiceNumber to handle slashes and special characters
+            const InvoiceNumber = encodeURIComponent(receipt.InvoiceNumber || '');
             const RecReceiveDate = receipt.ReciveDate || '';
             const VendorName = receipt.VendorName || '';
 
