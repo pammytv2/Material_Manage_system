@@ -77,3 +77,8 @@ export const useMainStore = defineStore('main', {
     },
   },
 });
+
+// ตัวอย่างการเรียกใช้งานหลัง login หรือใน App.vue
+// import { useMainStore } from '@/stores/main.store';
+// const mainStore = useMainStore();
+// mainStore.getUserData();

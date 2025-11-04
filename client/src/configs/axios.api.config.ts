@@ -5,6 +5,7 @@ import Swal, { type SweetAlertIcon } from 'sweetalert2';
 
 //  Pinia Store for show / hide Loading Overlay
 import { useMainStore } from '@/stores/main.store';
+import { generateToken } from '@/utils/jwt.utils';
 /*  ------ ➕ Imports ➕ ------ */
 
 // Create a custom Axios instance with a specific base URL
@@ -25,7 +26,9 @@ API.interceptors.request.use(
       // Check if the environment is development
       if (import.meta.env.MODE === 'development') {
         token = import.meta.env.VITE_DEV_TOKEN;
+        
       }
+      
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

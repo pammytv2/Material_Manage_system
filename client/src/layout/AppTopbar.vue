@@ -4,6 +4,7 @@ import { onMounted } from 'vue';
 import AppConfigurator from './AppConfigurator.vue';
 import { useMainStore } from '@/stores/main.store';
 import { imageUrl } from '../utils/custom';
+import type { IViewEmployee } from '@/shared/interfaces/template-web-stack-2025/employee.interface';
 
 const { onMenuToggle, toggleDarkMode, isDarkTheme } = useLayout();
 const mainStore = useMainStore();
@@ -14,6 +15,9 @@ onMounted(() => {
     if (prefersDarkMode && !isDarkTheme.value) {
         toggleDarkMode();
     }
+    // log SECCD ที่รับมา
+    console.log('userInfo:', mainStore._userInfo, 'SECCD:', String((mainStore._userInfo as IViewEmployee).SECCD));////
+   
 });
 </script>
 
@@ -33,9 +37,8 @@ onMounted(() => {
         <div class="layout-topbar-actions flex flex-row items-center mr-6">
             <div class="user-info-block flex items-center mr-16">
                 <img
-                  v-if="mainStore && mainStore._userInfo?.cardcode"
-                  :src="imageUrl(mainStore._userInfo.cardcode)"
-                  
+                  v-if="mainStore && (mainStore._userInfo as IViewEmployee)?.cardcode"
+                  :src="imageUrl((mainStore._userInfo as IViewEmployee).cardcode)"
                   alt="user profile"
                   style="width: 40px; 
                   height: 40px; 
@@ -47,11 +50,11 @@ onMounted(() => {
                 <i v-else class="pi pi-user" style="font-size: 40px; margin-right: 12px;"></i>
                 <div class="flex flex-col">
                   <div class="user-name">
-                    {{ mainStore?._userInfo?.eng_name }} 
+                    {{ (mainStore._userInfo as IViewEmployee).eng_name }} 
                   
                   </div>
                   <div class="user-position">
-                    {{ mainStore?._userInfo?.position_name }}
+                    {{ (mainStore._userInfo as IViewEmployee).position_name }}
                   </div>
                 </div>
             </div>

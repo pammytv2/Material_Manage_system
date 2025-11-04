@@ -15,7 +15,7 @@ interface IViewEmployeeAll {
   // organizational info
   ExeOfficeCode: string;
   ExeOfficeDesc: string;
-  SECCD: string;
+  SECCD: string | number;
   section_name: string;
   GRPCD: string;
   group_name: string;

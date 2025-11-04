@@ -22,7 +22,6 @@ declare module 'vue' {
     'Materials.Split_Page': typeof import('./src/components/Split_Materials/Materials.Split_Page.vue')['default']
     Mc_view_Iqa: typeof import('./src/components/IQA_Checklist/Mc_view_Iqa.vue')['default']
     NotificationsWidget: typeof import('./src/components/dashboard/NotificationsWidget.vue')['default']
-    PermissionDebug: typeof import('./src/components/PermissionDebug.vue')['default']
     PricingWidget: typeof import('./src/components/landing/PricingWidget.vue')['default']
     Receive_mat_Page: typeof import('./src/components/Receice/Receive_mat_Page.vue')['default']
     'Receive.Detail_Page': typeof import('./src/components/Receice/Receive.Detail_Page.vue')['default']

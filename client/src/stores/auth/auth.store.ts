@@ -1,5 +1,8 @@
 import { defineStore } from 'pinia';
 import { Permission, Role, UserPermissions, MenuPermission } from '@/interfaces/auth.interfaces';
+import type { IViewEmployee } from '@/shared/interfaces/template-web-stack-2025/employee.interface';
+import { useMainStore } from '@/stores/main.store';
+
 
 export const usePermissionStore = defineStore('permission', {
   state: () => ({
@@ -33,6 +36,7 @@ export const usePermissionStore = defineStore('permission', {
 
       // ตรวจสอบ permissions
       if (menuPermission.requiredPermissions.length > 0) {
+        console.log('requiredPermissions:', menuPermission.requiredPermissions); // เพิ่มบรรทัดนี้
         const hasRequiredPermission = menuPermission.requiredPermissions.some(
           permission => state.userPermissions!.permissions.includes(permission)
         );
@@ -49,6 +53,7 @@ export const usePermissionStore = defineStore('permission', {
 
       // ตรวจสอบ SECCD
       if (menuPermission.requiredSeccd && menuPermission.requiredSeccd.length > 0) {
+        console.log('requiredSeccd:', menuPermission.requiredSeccd); // เพิ่มบรรทัดนี้
         const hasRequiredSeccd = menuPermission.requiredSeccd.includes(state.userPermissions!.seccd);
         if (!hasRequiredSeccd) return false;
       }
@@ -68,30 +73,47 @@ export const usePermissionStore = defineStore('permission', {
         {
           menuId: 'dashboard',
           requiredPermissions: ['view_dashboard'],
+          requiredSeccd: ['2130', '3110', '3300'], // ทุก SECCD เข้าได้
+        },
+        {
+          menuId: 'production',
+          requiredPermissions: ['view_production'],
+          requiredSeccd: ['2130', '3100', '3410', '3500', '3700', '3800', '3830', '3900'], // ทุก SECCD เข้าได้
         },
         {
           menuId: 'manage_material',
           requiredPermissions: ['manage_material'],
-          requiredSeccd: ['2130', '2120'],
+          requiredSeccd: ['2130', '3110'], // Admin และ MC เข้าได้
         },
         {
           menuId: 'receive_material',
           requiredPermissions: ['receive_material'],
+          requiredSeccd: ['2130', '3110'], // Admin และ MC เข้าได้
         },
         {
           menuId: 'split_material',
           requiredPermissions: ['split_material'],
-          requiredRoles: ['admin', 'manager'],
+          requiredSeccd: ['2130', '3110'], // Admin และ MC เข้าได้
         },
         {
           menuId: 'iqa_checklist',
           requiredPermissions: ['iqa_check'],
-          requiredSeccd: ['3110', '3230'],
+          requiredSeccd: ['2130', '3300'], // Admin และ IQA เข้าได้
         },
         {
           menuId: 'admin_panel',
           requiredPermissions: [],
-          requiredRoles: ['admin'],
+          requiredSeccd: ['2130'], // Admin เท่านั้น
+        },
+        {
+          menuId: 'mc_group',
+          requiredPermissions: ['manage_material'],
+          requiredSeccd: ['2130', '3110'], // Admin และ MC เข้าได้
+        },
+        {
+          menuId: 'iqa_group',
+          requiredPermissions: ['iqa_check'],
+          requiredSeccd: ['2130', '3300'], // Admin และ IQA เข้าได้
         },
       ];
 
@@ -113,6 +135,11 @@ export const usePermissionStore = defineStore('permission', {
           permissions: ['view_dashboard', 'receive_material'],
         },
         {
+          id: 'production',
+          name: 'Production',
+          permissions: ['view_dashboard', 'view_production'],
+        },
+        {
           id: 'iqa_checker',
           name: 'IQA Checker',
           permissions: ['view_dashboard', 'iqa_check'],
@@ -120,23 +147,6 @@ export const usePermissionStore = defineStore('permission', {
       ];
     },
 
-    async loadUserPermissions(userId: string) {
-      try {
-        // เรียก API เพื่อดึงสิทธิ์ของ user
-        // const response = await api.get(`/users/${userId}/permissions`);
-        
-        // ตัวอย่างข้อมูลจำลอง - ในการใช้งานจริงให้ดึงจาก API
-        const mockUserPermissions: UserPermissions = {
-          userId: userId,
-          roles: ['user'],
-          permissions: ['view_dashboard', 'receive_material'],
-          seccd: '2130',
-        };
-
-        this.setUserPermissions(mockUserPermissions);
-      } catch (error) {
-        console.error('Error loading user permissions:', error);
-      }
-    },
+   
   },
 });
