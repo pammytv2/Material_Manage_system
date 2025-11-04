@@ -1,16 +1,15 @@
 /*  ------  ➕ Imports ➕ ------ */
 import router from '@/router/index';
 import axios from 'axios';
-import Swal from 'sweetalert2';
+import Swal, { type SweetAlertIcon } from 'sweetalert2';
 
 //  Pinia Store for show / hide Loading Overlay
 import { useMainStore } from '@/stores/main.store';
-import { generateToken } from '@/utils/jwt.utils';
 /*  ------ ➕ Imports ➕ ------ */
 
 // Create a custom Axios instance with a specific base URL
 const API = axios.create({
-  baseURL: import.meta.env.VITE_APP_API_LSDS_URL,
+  baseURL: import.meta.env.VITE_APP_API_URL,
 });
 
 API.defaults.headers.common['Content-Type'] = 'application/x-www-form-urlencoded';
@@ -25,9 +24,7 @@ API.interceptors.request.use(
       let token = localStorage.getItem('token');
       // Check if the environment is development
       if (import.meta.env.MODE === 'development') {
-        // Set Authorization header with a specific token for development
-        const payload = import.meta.env.VITE_DEV_TOKEN_PAYLOAD;
-        token = await generateToken(payload);
+        token = import.meta.env.VITE_DEV_TOKEN;
       }
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
@@ -51,7 +48,9 @@ API.interceptors.response.use(
     try {
       //  Loading Overlay
       const mainStore = useMainStore();
-      await mainStore.setLoading(false);
+      setTimeout(async () => {
+        await mainStore.setLoading(false);
+      }, 800);
       return config;
     } catch (error) {
       return Promise.reject(error);
@@ -61,19 +60,24 @@ API.interceptors.response.use(
     try {
       //  Loading Overlay
       const mainStore = useMainStore();
-      await mainStore.setLoading(false);
+      setTimeout(async () => {
+        await mainStore.setLoading(false);
+      }, 800);
 
-  const errorData = error.response?.data || { message: 'Unknown error', statusCode: 500 };
+      const errorData = { ...error }.response.data;
       //  show error alert
-      console.log('errorData', typeof errorData.message);
       let message = '';
       if (typeof errorData.message === 'object') {
         message = errorData.message.join(',');
       } else {
         message = errorData.message;
       }
-
-      await Swal.fire('Interceptors error', message, 'error');
+      // message = message+ apiroute
+      console.error('Interceptors Error:', { ...error }.response.config.url, { ...error }.response);
+      const title = errorData.statusCode === 500 ? 'Server Error' : 'Error';
+      const html = message;
+      const icon: SweetAlertIcon = errorData.statusCode === 500 ? 'error' : 'warning';
+      await Swal.fire(title, html, icon);
 
       // get current href url
       const currentUrl = window.location.href;

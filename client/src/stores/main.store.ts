@@ -1,41 +1,22 @@
 // ----- lib -----
-import { defineStore } from 'pinia'
-// import { PrimeIcons } from 'primevue/api'
+import { defineStore } from 'pinia';
 
 // ----- Service -----
-import { ApiService } from '@/service/api.service'
-import API from '@/apis/index.api'
+import AuthService from '@/service/auth.service';
+import EmployeeService from '@/service/employee.service';
 
 // ----- interface & types -----
-import type { LoadingOptions } from '@/interfaces/api.interfaces'
-import type { IMenuItem } from '@/interfaces/menu.interfaces'
-import type { ISysApproverPosition, IUserAuth } from '@/shared/interfaces/lsd-request';
-import type {
-  IViewEmployee,
-} from '@/shared/interfaces/lsd-request/views'
-import type { BooleanStatus } from '@/shared/interfaces/lsd-system-center/auth.interface'
-import type { AxiosRequestConfig } from 'axios'
+import type { IViewEmployee } from '@/shared/interfaces/template-web-stack-2025/employee.interface';
+
+const authService = new AuthService();
+const employeeService = new EmployeeService();
 
 interface IMainStoreState {
-  userInfo: IViewEmployee
-  userAuth: IUserAuth
-  userApproverPosition: ISysApproverPosition[]
-  isLoading: boolean
-  loadingText: string
-  isSilder: boolean
-  adminStatus: boolean
-  loading: boolean
-  loadingMessage: string
-  menuItems: IMenuItem[]
-
-  assignmentMenuItems: IMenuItem
-  confirmAssignmentMenuItems: IMenuItem
-  processMenuItems: IMenuItem
-
-  reportForIT: IMenuItem[]
-  reportForFE: IMenuItem[]
-
-
+  userInfo: IViewEmployee;
+  loading: boolean;
+  loadingMessage: string;
+  isSilder: boolean;
+  employees: IViewEmployee[];
 }
 
 //  ===== default state =====
@@ -43,39 +24,25 @@ const default_state: IMainStoreState = {
   userInfo: {
     ID: '',
     cardcode: '',
-    SECCD: '',
-    section_name: '',
-    GRPCD: '',
-    group_name: '',
     thai_name: '',
     eng_name: '',
     email: '',
     position_name: '',
+    position_level: '',
     JobPositionCode: '',
+    WorkStatus: 'Active',
     ExeOfficeCode: '',
     ExeOfficeDesc: '',
-    WorkStatus: 'Active',
+    SECCD: '',
+    section_name: '',
+    GRPCD: '',
+    group_name: '',
   },
-  userAuth: {
-    assignment: false,
-    confirm_assignment: false,
-    process: false,
-  },
-  userApproverPosition: [],
-  isLoading: false,
-  loadingText: '',
-  isSilder: false,
-  adminStatus: false, // Admin System Status
   loading: false,
   loadingMessage: 'Loading...',
-  menuItems: [],
-  assignmentMenuItems: {} as IMenuItem,
-  confirmAssignmentMenuItems: {} as IMenuItem,
-  processMenuItems: {} as IMenuItem,
-  reportForIT: [],
-  reportForFE: []
-}
-
+  isSilder: false,
+  employees: [],
+};
 
 export const useMainStore = defineStore('main', {
   state: (): IMainStoreState => ({ ...default_state }),
@@ -84,69 +51,29 @@ export const useMainStore = defineStore('main', {
     _loadingMessage: (state) => state.loadingMessage,
     _isSilder: (state) => state.isSilder,
     _userInfo: (state) => state.userInfo,
-    _userAuth: (state) => state.userAuth,
-    _userApproverPosition: (state) => state.userApproverPosition,
-    _adminStatus: (state) => state.adminStatus,
-    _menuItems: (state) => {
-      const menuItems = state.menuItems
-      if (state.userAuth.assignment) menuItems.push(state.assignmentMenuItems)
-      if (state.userAuth.process) menuItems.push(state.processMenuItems)
-      if (state.userAuth.confirm_assignment) menuItems.push(state.confirmAssignmentMenuItems)
-      if ((state.userAuth.assignment || state.userAuth.process) && state.userInfo.SECCD == '2130') {
-        menuItems.push(...state.reportForIT)
-      }
-      if ((state.userAuth.assignment || state.userAuth.process) && state.userInfo.SECCD == '3230') {
-        menuItems.push(...state.reportForFE)
-      }
-      return menuItems
-    },
+    _employees: (state) => state.employees,
   },
   actions: {
     async setLoading(status: boolean, message?: string) {
-      this.loading = status
+      this.loading = status;
       if (message) {
-        this.loadingMessage = message
+        this.loadingMessage = message;
       }
     },
     async setSlider(status: boolean) {
-      this.isSilder = status
+      this.isSilder = status;
     },
-
     async getUserData() {
-      const response = await API.get<IViewEmployee>('/auth/info')
-      this.setUserData(response.data)
+      const response = await authService.userInfo();
+      this.setUserData(response);
     },
     async setUserData(data: IViewEmployee) {
-      this.userInfo = data
+      this.userInfo = data;
     },
 
-    async getUserAuth() {
-      const response = await ApiService.get<IUserAuth>('/employee/my-auth')
-      this.setUserAuth(response)
-    },
-    async setUserAuth(data: IUserAuth) {
-      this.userAuth = data
-    },
-
-    async getUserApproverPosition() {
-      const url: string = `/employee/find-all-approver-position`
-      const config: AxiosRequestConfig = {}
-      const options: LoadingOptions = { message: `Loading Approver Position...` }
-      const response = await ApiService.get<ISysApproverPosition[]>(url, config, options)
-      this.setUserApproverPosition(response)
-    },
-    async setUserApproverPosition(data: ISysApproverPosition[]) {
-      this.userApproverPosition = data
-    },
-    async checkAdminStatus() {
-      const url: string = `/auth/check-admin`
-      const config: AxiosRequestConfig = {}
-      const options: LoadingOptions = { message: `Checking Admin...` }
-      const response = await ApiService.get<BooleanStatus>(url, config, options)
-      this.setAdminStatus(response.status)
-    },
-    async setAdminStatus(status: boolean) {
-      this.adminStatus = status
+    async getEmployees() {
+      const response = await employeeService.findAll();
+      this.employees = response;
     },
   },
-})
+});

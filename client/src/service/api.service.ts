@@ -1,4 +1,4 @@
-import API from '@/apis/index.api';
+import AXIOS from '../configs/axios.api.config';
 import type { LoadingOptions } from '@/interfaces/api.interfaces';
 import { useMainStore } from '@/stores/main.store';
 import type { AxiosRequestConfig } from 'axios';
@@ -28,7 +28,7 @@ export class ApiService {
   ): Promise<T> {
     try {
       await this.handleLoading(true, loadingOptions);
-      const response = await API.get<T>(url, config);
+      const response = await AXIOS.get<T>(url, config);
       // console.info(`GET ${url} => `, response.data);
       await this.handleLoading(false, {
         delay: loadingOptions?.delay || this.defaultDelay,
@@ -48,7 +48,7 @@ export class ApiService {
   ): Promise<T> {
     try {
       await this.handleLoading(true, loadingOptions);
-      const response = await API.post<T>(url, data, config);
+      const response = await AXIOS.post<T>(url, data, config);
       console.info(`POST ${url} => `, response.data);
       await this.handleLoading(false, {
         delay: loadingOptions?.delay || this.defaultDelay,
@@ -59,7 +59,6 @@ export class ApiService {
       throw error;
     }
   }
-
   static async put<T>(
     url: string,
     data?: any,
@@ -68,7 +67,7 @@ export class ApiService {
   ): Promise<T> {
     try {
       await this.handleLoading(true, loadingOptions);
-      const response = await API.put<T>(url, data, config);
+      const response = await AXIOS.put<T>(url, data, config);
       console.info(`PUT ${url} => `, response.data);
       await this.handleLoading(false, {
         delay: loadingOptions?.delay || this.defaultDelay,
@@ -88,7 +87,7 @@ export class ApiService {
   ): Promise<T> {
     try {
       await this.handleLoading(true, loadingOptions);
-      const response = await API.patch<T>(url, data, config);
+      const response = await AXIOS.patch<T>(url, data, config);
       console.info(`PATCH ${url} => `, response.data);
       await this.handleLoading(false, {
         delay: loadingOptions?.delay || this.defaultDelay,
@@ -107,7 +106,7 @@ export class ApiService {
   ): Promise<T> {
     try {
       await this.handleLoading(true, loadingOptions);
-      const response = await API.delete<T>(url, config);
+      const response = await AXIOS.delete<T>(url, config);
       console.info(`DELETE ${url} => `, response.data);
       await this.handleLoading(false, {
         delay: loadingOptions?.delay || this.defaultDelay,

@@ -6,7 +6,10 @@ import { MaterialReceiveModule } from './apis/material_receive/material_receive.
 import { MaterialManageModule } from './apis/material_manage/material_manage.module';
 import { MaterialReceiveManualModule } from './apis/material_receive_manual/material_receive_manual.module';
 import {CheckMaterialReceiveModule} from './apis/check_material_receive/check_material_receive.module';
-
+import {AuthModule}  from './auth/auth.module';
+import { EmployeesModule } from './apis/employees/employees.module';
+import { DatabaseModule } from './database/database.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -23,13 +26,13 @@ import {CheckMaterialReceiveModule} from './apis/check_material_receive/check_ma
         encrypt: false,
       },
     }),
-     MaterialReceiveModule,
-     MaterialManageModule,
-     MaterialReceiveManualModule,
+    DatabaseModule,
+    MaterialReceiveModule,
+    MaterialManageModule,
+    MaterialReceiveManualModule,
     CheckMaterialReceiveModule,
-     
-
-    
+    AuthModule,
+    EmployeesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
