@@ -79,6 +79,12 @@ const breadcrumbItems = [
 </script>
 
 <template>
+     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
+            <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
+                <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
+            </div>
+        </div>
   
     <div class="card">
         <Breadcrumb :items="breadcrumbItems" class="mb-4" />
@@ -124,7 +130,7 @@ const breadcrumbItems = [
             @rowClick="(e) => handleRowClick(e.data)"
             :globalFilterFields="['ReceptNumber', 'ReciveDate', 'InvoiceNumber', 'VendorCode', 'VendorName', 'CountItem', 'CountOrder']"
             class="mb-6"
-            :loading="loading"
+            
             :rowClass="rowClass"
         >
             <!-- <div class="flex justify-end">
@@ -151,12 +157,6 @@ const breadcrumbItems = [
                 </div>
             </template>
             <template #empty>No data found.</template>
-            <template #loading>
-                <div class="flex justify-center items-center py-8">
-                    <i class="pi pi-spin pi-spinner text-2xl mr-2" />
-                    กำลังโหลดข้อมูล...
-                </div>
-            </template>
 
             <Column field="ReceptNumber" header="Receive Number" sortable>
                 <template #filter="{ filterModel }">

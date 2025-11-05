@@ -113,7 +113,8 @@ const model = computed<MenuItem[]>(() => [
         menuId: 'production',
         items: [
             { label: 'Request Material', icon: 'pi pi-fw pi-box', to: '/uikit/formlayout' },
-            { label: 'Return Material', icon: 'pi pi-fw pi-undo', to: '/uikit/input' }
+            { label: 'Return Material', icon: 'pi pi-fw pi-undo', to: '/uikit/input' },
+            { label: 'Stock Material ', icon: 'pi pi-fw pi-briefcase', to: '/Transaction_Prod' }
 
         ]
     },
@@ -150,6 +151,11 @@ const model = computed<MenuItem[]>(() => [
                 label: 'Material IQA Status',
                 icon: 'pi pi-fw pi-database',
                 to: '/Mc_view_iqa'
+            },
+            {
+                label: 'Stock Material',
+                 icon: 'pi pi-fw pi-briefcase',
+                to: '/Transaction_Mc'
             },
             {
                 label: 'Return Material',

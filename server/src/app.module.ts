@@ -10,6 +10,7 @@ import {AuthModule}  from './auth/auth.module';
 import { EmployeesModule } from './apis/employees/employees.module';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
+import { MaterialTransactionModule } from './apis/material_transaction/material_transaction.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { ConfigModule } from '@nestjs/config';
     CheckMaterialReceiveModule,
     AuthModule,
     EmployeesModule,
+    MaterialTransactionModule,
   ],
   controllers: [AppController],
   providers: [AppService],

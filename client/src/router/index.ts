@@ -36,7 +36,6 @@ const routes: RouteRecordRaw[] = [
                 path: '/materials-split',
                 name: 'MaterialsSplit',
                 component: () => import('@/components/Split_Materials/Materials.Split_Page.vue')
-
             },
             // {
             //     path: '/materials-split-detail/:InvoiceNumber',
@@ -44,12 +43,11 @@ const routes: RouteRecordRaw[] = [
             //     component: () => import('@/components/Split_Materials/Materials.Split_Delail_Page.vue')
 
             // },
-      
+
             {
                 path: '/materials-split-detail/:receiveNumber',
                 name: 'MaterialsSplitDetail',
                 component: () => import('@/components/Split_Materials/Materials.Split_Delail_Page.vue')
-
             },
             {
                 path: '/manual-receive-list',
@@ -60,40 +58,39 @@ const routes: RouteRecordRaw[] = [
                 path: '/manage-material',
                 name: 'ManageMaterial',
                 component: () => import('@/components/Manage_Material/Manage.Material_Page.vue')
-
             },
             {
                 path: '/Iqa_checklist',
                 name: 'Iqa_checklist',
                 component: () => import('@/components/IQA_Checklist/Iqa_Checklist_Page.vue')
-
-
             },
             {
                 path: '/Iqa_checklist_test',
                 name: 'Iqa_checklist_test',
                 component: () => import('@/components/IQA_Checklist/testvue.vue')
-
             },
 
             {
                 path: '/Mc_view_iqa',
                 name: 'Mc_view_iqa',
                 component: () => import('@/components/IQA_Checklist/Mc_view_Iqa.vue')
-
             },
-
-            
-
-
-        
+            {
+                path: '/Transaction_Prod',
+                name: 'Transaction_Prod',
+                component: () => import('@/components/Transaction_Material/Prod_Transaction.vue')
+            },
+            {
+                path: '/Transaction_Mc',
+                name: 'Transaction_Mc',
+                component: () => import('@/components/Transaction_Material/Mc_Transaction.vue')
+            },
 
             {
                 path: '/documentation',
                 name: 'documentation',
                 component: () => import('@/views/pages/Documentation.vue')
             }
-            
         ]
     },
     {

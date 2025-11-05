@@ -176,6 +176,12 @@ function clearFilter() {
 </script>
 
 <template>
+     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
+            <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
+                <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
+            </div>
+        </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
         <div class="flex items-center justify-between mb-4">

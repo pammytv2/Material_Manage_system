@@ -149,6 +149,7 @@ function navigateToMaterialsSplit() {
 </script>
 
 <template>
+    
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
         <div class="flex items-center justify-between mb-4">

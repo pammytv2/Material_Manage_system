@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { NodeService } from '@/service/NodeService';
 import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useReceiveStore } from '@/stores/receive';

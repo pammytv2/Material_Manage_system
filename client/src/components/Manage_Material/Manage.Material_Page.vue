@@ -229,6 +229,12 @@ function rowStyleNA(row: any) {
 </script>
 
 <template>
+     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
+            <div class="flex flex-col items-center">
+                <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
+                <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
+            </div>
+        </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">Manage Material</div>
     </div>
@@ -256,7 +262,6 @@ function rowStyleNA(row: any) {
             @rowClick="(e) => handleRowClick(e.data)"
             :globalFilterFields="['ItemNo', 'ZoneCode', 'Type2Name', 'ExpDate', 'Max', 'Min', 'ITEMDesc', 'TYPE', 'VENDOR', 'UNIT', 'PROJECT', 'PARTCHIP', 'GROUPMAT', 'SECTIONGROUP', 'CATEGORY', 'SPEC', 'Inactive', 'lotsplitStatus']"
             class="mb-6"
-            :loading="loading"
             :rowStyle="rowStyleNA"
         >
             <template #header>
@@ -273,13 +278,6 @@ function rowStyleNA(row: any) {
             </template>
 
             <template #empty>No data found.</template>
-            <template #loading>
-                <div class="flex justify-center items-center py-8">
-                    <i class="pi pi-spin pi-spinner text-2xl mr-2" />
-                    กำลังโหลดข้อมูล...
-                </div>
-            </template>
-
             <Column field="ItemNo" header="Item No" sortable style="min-width: 12rem">
                 <template #body="{ data }">
                     {{ data.ItemNo }}
