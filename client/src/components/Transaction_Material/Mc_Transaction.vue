@@ -8,6 +8,7 @@ import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import Dropdown from 'primevue/dropdown';
+import { getIqaResultClass } from '@/stores/recive_material';
 import {useTransactionMCProdStore} from '@/stores/transaction_mc_prod';
 const mcViewStatusStore = useTransactionMCProdStore();
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
@@ -124,7 +125,13 @@ function clearFilter() {
             <Column field="ITEMNO" header="Material" sortable filter />
             <Column field="lot_no" header="LotNo" sortable filter />
             <Column field="lot_qty" header="LotQty" sortable filter />
-            <Column field="status" header="Status" sortable filter />
+            <Column field="status" header="Status" sortable filter>
+                <template #body="{ data }">
+                    <span :class="getIqaResultClass(data.status)">
+                        {{ data.status }}
+                    </span>
+                </template>
+            </Column>
         </DataTable>
     </div>
 </template>

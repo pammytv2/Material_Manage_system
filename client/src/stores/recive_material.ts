@@ -57,6 +57,10 @@ function getIqaResultClass(status: string) {
             return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
         case 'REJECT':
             return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
+        case 'IN':
+            return 'bg-green-100 text-green-700 font-semibold px-2 py-1 rounded';
+        case 'OUT':
+            return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
         default:
             return 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
     }
