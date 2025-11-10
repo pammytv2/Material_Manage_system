@@ -5,7 +5,6 @@ import Components from 'unplugin-vue-components/vite';
 import { defineConfig } from 'vite';
 import vueDevTools from 'vite-plugin-vue-devtools';
 
-
 // https://vitejs.dev/config/
 export default defineConfig({
     optimizeDeps: {
@@ -18,6 +17,13 @@ export default defineConfig({
             resolvers: [PrimeVueResolver()]
         })
     ],
+    // เพิ่มการตั้งค่า server สำหรับให้อุปกรณ์อื่นเข้าถึงได้
+    server: {
+        host: '0.0.0.0', // ให้ bind ทุก network interfaces
+        // port: 5173,
+        // strictPort: true
+    },
+
     resolve: {
         alias: {
             '@': path.resolve(__dirname, 'src')
@@ -34,5 +40,4 @@ export default defineConfig({
             }
         }
     }
-    
 });

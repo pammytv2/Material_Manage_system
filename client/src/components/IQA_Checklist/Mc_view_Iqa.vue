@@ -174,7 +174,7 @@ function navigateToMaterialsSplit() {
             v-model:filters="filters"
             paginator
             :rows="10"
-            dataKey="ReceiveNo"
+            
             filterDisplay="menu"
             showGridlines
             rowHover

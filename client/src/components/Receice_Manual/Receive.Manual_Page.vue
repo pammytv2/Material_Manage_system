@@ -664,7 +664,7 @@ async function refreshAllPage() {
 
             <Column field="receiveQty" header="Receive Qty" style="min-width: 100px">
                 <template #body="slotProps">
-                    <InputNumber v-model="slotProps.data.receiveQty" :min="1" :max="slotProps.data.QTYONORDER" class="w-full" />
+                    <InputNumber v-model="slotProps.data.receiveQty"  class="w-full" />
                     <span v-if="Number(slotProps.data.receiveQty) === Number(slotProps.data.QTYONORDER)" class="text-red-500 text-xs"> Receive Qty ต้องไม่เกิน QtyonOrder! </span>
                     <span v-else-if="Number(slotProps.data.receiveQty) <= 0" class="text-red-500 text-xs"> Receive Qty ต้องมากกว่า 0 </span>
                 </template>

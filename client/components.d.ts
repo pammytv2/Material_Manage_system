@@ -10,6 +10,7 @@ declare module 'vue' {
     BestSellingWidget: typeof import('./src/components/dashboard/BestSellingWidget.vue')['default']
     Breadcrumb: typeof import('./src/components/Breadcrumb.vue')['default']
     Button: typeof import('primevue/button')['default']
+    Dropdown: typeof import('primevue/dropdown')['default']
     FeaturesWidget: typeof import('./src/components/landing/FeaturesWidget.vue')['default']
     FloatingConfigurator: typeof import('./src/components/FloatingConfigurator.vue')['default']
     FooterWidget: typeof import('./src/components/landing/FooterWidget.vue')['default']
@@ -29,9 +30,11 @@ declare module 'vue' {
     'Receive.Detail_Page': typeof import('./src/components/Receice/Receive.Detail_Page.vue')['default']
     'Receive.Manual_Page': typeof import('./src/components/Receice_Manual/Receive.Manual_Page.vue')['default']
     RecentSalesWidget: typeof import('./src/components/dashboard/RecentSalesWidget.vue')['default']
+    Request_Material: typeof import('./src/components/Transaction_Material/Request_Material.vue')['default']
     RevenueStreamWidget: typeof import('./src/components/dashboard/RevenueStreamWidget.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Select: typeof import('primevue/select')['default']
     SelectButton: typeof import('primevue/selectbutton')['default']
     StatsWidget: typeof import('./src/components/dashboard/StatsWidget.vue')['default']
     Testvue: typeof import('./src/components/IQA_Checklist/testvue.vue')['default']
@@ -39,5 +42,6 @@ declare module 'vue' {
   }
   export interface ComponentCustomProperties {
     StyleClass: typeof import('primevue/styleclass')['default']
+    Tooltip: typeof import('primevue/tooltip')['default']
   }
 }

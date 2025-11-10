@@ -90,6 +90,8 @@ function getIQAStatusTextD(status: string) {
             return 'รอIQAตรวจสอบ';
         case 'IQA ตรวจแล้วส่งแก้ไข':
             return 'IQA ตรวจแล้วส่งแก้ไข';
+        case 'ส่งใหม่หลังแก้ไข':
+            return 'ส่งใหม่หลังแก้ไข';
     }
 }
 function getIqaResultClassD(status: string) {
@@ -102,6 +104,8 @@ function getIqaResultClassD(status: string) {
             return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
         case 'IQA ตรวจแล้วส่งแก้ไข':
             return 'bg-orange-100 text-orange-700 font-semibold px-2 py-1 rounded';
+        case 'ส่งใหม่หลังแก้ไข':
+            return 'bg-purple-100 text-purple-700 font-semibold px-2 py-1 rounded';
         default:
             return 'bg-gray-100 text-gray-700 px-2 py-1 rounded';
     }

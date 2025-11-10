@@ -112,7 +112,7 @@ const model = computed<MenuItem[]>(() => [
         label: 'Products',
         menuId: 'production',
         items: [
-            { label: 'Request Material', icon: 'pi pi-fw pi-box', to: '/uikit/formlayout' },
+            { label: 'Request Material', icon: 'pi pi-fw pi-shopping-cart', to: '/Request_Material' },
             { label: 'Return Material', icon: 'pi pi-fw pi-undo', to: '/uikit/input' },
             { label: 'Stock Material ', icon: 'pi pi-fw pi-briefcase', to: '/Transaction_Prod' }
 

@@ -82,96 +82,14 @@ export class MaterialReceiveService {
   }
 
 async syncData_Detail_Split(InvoiceNumber: string): Promise<any> {
-    // Sync data
-    const syncQuery = `
-WITH ranked_lot AS (
-  SELECT
-    d.*,
-    -- Replace t.status with IQA_Name logic
-    CASE 
-      WHEN d.IQA = 0 AND m.ITEMNO IS NOT NULL THEN 'PASS'
-      WHEN d.IQA = 0 THEN 'NOT_REQUIRED'
-      ELSE s.IQA_Name
-    END AS status,
-    m.isProblem,
-    t.remark_iqa,
-    ROW_NUMBER () OVER (
-      PARTITION BY d.ReceptNumber, d.ITEMNO 
-      ORDER BY 
-        CASE 
-          WHEN t.status = 'REJECT' THEN 1
-          WHEN t.status = 'REWORK' THEN 2
-          ELSE 3
-        END
-    ) AS rn 
-  FROM
-    accpac_sync_poreceipt_icshipment_detail d
-    LEFT JOIN test_lot_status_iqa_check t 
-      ON d.ReceptNumber = t.ReceiveNo 
-      AND d.InvoiceNumber = t.InvoiceNumber 
-      AND d.ITEMNO = t.ITEMNO
-    LEFT JOIN lot_status_iqa_check s 
-      ON t.status = s.IQA_Name
-    LEFT JOIN mat_lot_Split m 
-      ON d.ITEMNO = m.ITEMNO 
-  WHERE
-    d.InvoiceNumber = @InvoiceNumber
-)
-SELECT
-  *
-FROM
-  ranked_lot 
-WHERE
-  rn = 1
-    `;
-    await this.databaseService.query(syncQuery, [
-      { name: 'InvoiceNumber', type: sql.NVarChar, value: InvoiceNumber },
-    ]);
-    // Return detail
-    const selectQuery = `
-    WITH ranked_lot AS (
-  SELECT
-    d.*,
-    -- Replace t.status with IQA_Name logic
-    CASE 
-      WHEN d.IQA = 0 AND m.ITEMNO IS NOT NULL THEN 'PASS'
-      WHEN d.IQA = 0 THEN 'NOT_REQUIRED'
-      ELSE s.IQA_Name
-    END AS status,
-    m.isProblem,
-    t.remark_iqa,
-    ROW_NUMBER () OVER (
-      PARTITION BY d.ReceptNumber, d.ITEMNO 
-      ORDER BY 
-        CASE 
-          WHEN t.status = 'REJECT' THEN 1
-          WHEN t.status = 'REWORK' THEN 2
-          ELSE 3
-        END
-    ) AS rn 
-  FROM
-    accpac_sync_poreceipt_icshipment_detail d
-    LEFT JOIN test_lot_status_iqa_check t 
-      ON d.ReceptNumber = t.ReceiveNo 
-      AND d.InvoiceNumber = t.InvoiceNumber 
-      AND d.ITEMNO = t.ITEMNO
-    LEFT JOIN lot_status_iqa_check s 
-      ON t.status = s.IQA_Name
-    LEFT JOIN mat_lot_Split m 
-      ON d.ITEMNO = m.ITEMNO 
-  WHERE
-    d.InvoiceNumber = @InvoiceNumber
-)
-SELECT
-  *
-FROM
-  ranked_lot 
-WHERE
-  rn = 1
-   `;
-    return await this.databaseService.query(selectQuery, [
-      { name: 'InvoiceNumber', type: sql.VarChar, value: InvoiceNumber },
-    ]);
+  const pool = await this.databaseService.getConnection();
+  const transaction = pool.transaction();
+  await transaction.begin();
+  const request = transaction.request();
+  request.input('InvoiceNumber', sql.NVarChar, InvoiceNumber);
+  const result = await request.execute('sp_Material_Data');
+  await transaction.commit();
+  return result.recordset;
 }
 
   // Sync Dates
@@ -216,7 +134,7 @@ WHERE
     // Log เพื่อ debug
     console.log('Received isProblem:', isProblem, 'Type:', typeof isProblem);
 
-    const sqlQuery = `
+    const sqlQuery = ` 
       IF NOT EXISTS (
   SELECT 1 FROM mat_lot_Split
   WHERE lot_no = @LotSplit
@@ -285,7 +203,7 @@ END
     ]);
   }
 
-  async update_LotSplit(
+   async update_LotSplit(
     id: number,
     ItemNo: string,
     LotSplit: string,
@@ -307,12 +225,10 @@ END
       typeof isProblem,
     );
 
-
     const sqlQuery = `
   MERGE mat_lot_Split AS target
 USING (
   SELECT 
-    @Id AS id,
     @LotSplit AS lot_no,
     @ReceptNumber AS ReceiveNo,
     @LotUnit AS lot_unit,
@@ -323,7 +239,7 @@ USING (
     @PORHSEQ AS PORHSEQ,
     @LotQty AS lot_qty
 ) AS source
-ON target.id = source.id
+ON target.id = @Id
 WHEN MATCHED THEN
   UPDATE SET
     lot_no = source.lot_no,
@@ -338,12 +254,12 @@ WHEN MATCHED THEN
     lot_qty = source.lot_qty
 WHEN NOT MATCHED THEN
   INSERT (
-    id, lot_no, ReceiveNo, lot_unit, exp_date, updated_at, remark, isProblem, InvoiceNumber, PORHSEQ, lot_qty
+    lot_no, ReceiveNo, lot_unit, exp_date, updated_at, remark, isProblem, InvoiceNumber, PORHSEQ, lot_qty
   )
   VALUES (
-    source.id, source.lot_no, source.ReceiveNo, source.lot_unit, source.exp_date, GETDATE(), source.remark, source.isProblem, source.InvoiceNumber, source.PORHSEQ, source.lot_qty
+    source.lot_no, source.ReceiveNo, source.lot_unit, source.exp_date, GETDATE(), source.remark, source.isProblem, source.InvoiceNumber, source.PORHSEQ, source.lot_qty
   );
-  `;
+    `;
     let isProblemValue: number;
     if (typeof isProblem === 'string') {
       isProblemValue = isProblem.toLowerCase() === 'true' ? 1 : 0;

@@ -32,8 +32,12 @@ const lotSplitLoading = ref(false);
 const { getIQAStatusText, getIQARequiredClass } = manageMaterialStore;
 
 async function onIqaStatusChangeDropdown(lot: any) {
-    if (!lot.selectedIqaStatus) return;
-    if (lot.selectedIqaStatus === 'REWORK' && !lot.remark_iqa) {
+    console.log('selectedIqaStatus:', lot.selectedIqaStatus);
+    if (!lot.selectedIqaStatus || lot.selectedIqaStatus === 'UNDER_REVIEW') {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณาเลือก IQA Check ก่อนบันทึก', life: 2000 });
+        return;
+    }
+    if ((lot.selectedIqaStatus === 'REWORK'||lot.selectedIqaStatus === 'REJECT') && !lot.remark_iqa) {
         toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณากรอก remark เมื่อเลือก REWORK', life: 2000 });
         return;
     }
@@ -47,6 +51,7 @@ async function onIqaStatusChangeDropdown(lot: any) {
             remark_iqa: lot.remark_iqa || ''
         });
         lot.IQA_Status = lot.selectedIqaStatus;
+        await iqaCheckMaterialStore.addItemListTransaction_MC_PROD();
         toast.add({ severity: 'success', summary: 'Success', detail: 'Status saved successfully', life: 2000 });
 
         await iqaCheckMaterialStore.itemLotSplit(selectedReceipt.value.InvoiceNumber);
@@ -62,7 +67,7 @@ async function onIqaStatusChangeDropdown(lot: any) {
 }
 const filteredReceiveList = computed(() => {
     let list = iqaCheckMaterialStore.filteredReceiveList;
-    
+
     // Apply search query filter
     if (searchQuery.value && searchQuery.value.trim()) {
         const query = searchQuery.value.trim().toLowerCase();
@@ -72,17 +77,11 @@ const filteredReceiveList = computed(() => {
             const vendorCode = (item.VendorCode || '').toLowerCase();
             const vendorName = (item.VendorName || '').toLowerCase();
             const iqaStatus = (item.IQA_Status || '').toLowerCase();
-           
-            
-            return receiveNo.includes(query) || 
-                   invoiceNumber.includes(query) || 
-                   vendorCode.includes(query) || 
-                   vendorName.includes(query) || 
-                   iqaStatus.includes(query) 
-                   
+
+            return receiveNo.includes(query) || invoiceNumber.includes(query) || vendorCode.includes(query) || vendorName.includes(query) || iqaStatus.includes(query);
         });
     }
-    
+
     return list;
 });
 
@@ -93,7 +92,6 @@ onMounted(async () => {
     await iqaCheckMaterialStore.status_iqa_check();
     console.log('IQA Status Items2:', iqaCheckMaterialStore._iqaStatus);
 });
-
 
 async function IqaComplete() {
     confirm.require({
@@ -109,8 +107,7 @@ async function IqaComplete() {
                             await iqaCheckMaterialStore.completeIqaCheck({
                                 invoiceNumber: selectedReceipt.value.InvoiceNumber,
                                 ReceiveNo: selectedReceipt.value.ReceiveNo,
-                                lotNo: lot.lot_no,
-                               
+                                lotNo: lot.lot_no
                             });
                         }
                     }
@@ -176,27 +173,19 @@ function clearFilter() {
 </script>
 
 <template>
-     <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
-            <div class="flex flex-col items-center">
-                <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
-                <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
-            </div>
+    <div v-if="loading" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center z-50" style="backdrop-filter: blur(2px); z-index: 1000">
+        <div class="flex flex-col items-center">
+            <i class="pi pi-spin pi-spinner text-4xl text-white mb-4" />
+            <span class="text-white text-xl">กำลังโหลดข้อมูล...</span>
         </div>
+    </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
         <div class="flex items-center justify-between mb-4">
             <div class="flex items-center gap-4">
                 <div class="flex items-center gap-2">
                     <span class="font-medium">Filter by Status:</span>
-                    <Dropdown 
-                        v-model="iqaCheckMaterialStore.selectedStatus" 
-                        :options="iqaCheckMaterialStore.statusOptions" 
-                        optionValue="value" 
-                        optionLabel="label" 
-                        placeholder="เลือกสถานะ" 
-                        class="w-60"
-                        showClear
-                    />
+                    <Dropdown v-model="iqaCheckMaterialStore.selectedStatus" :options="iqaCheckMaterialStore.statusOptions" optionValue="value" optionLabel="label" placeholder="เลือกสถานะ" class="w-60" showClear />
                 </div>
             </div>
             <div class="text-right">
@@ -214,14 +203,13 @@ function clearFilter() {
             v-model:filters="filters"
             paginator
             :rows="10"
-            dataKey="ReceiveNo"
+            
             filterDisplay="menu"
             showGridlines
             rowHover
             @rowClick="onRowClick"
-            :globalFilter="searchQuery" 
+            :globalFilter="searchQuery"
             :globalFilterFields="['ReceiveNo', 'InvoiceNumber', 'Status', 'VendorCode', 'VendorName', 'lot_count']"
-          
             class="mb-6"
         >
             <template #header>
@@ -231,7 +219,7 @@ function clearFilter() {
                         <InputIcon>
                             <i class="pi pi-search" />
                         </InputIcon>
-                         <InputText v-model="searchQuery" placeholder="Keyword Search" />
+                        <InputText v-model="searchQuery" placeholder="Keyword Search" />
                     </IconField>
                 </div>
             </template>
@@ -338,13 +326,13 @@ function clearFilter() {
                                     </Column>
                                     <Column field="Action" header="Action" sortable class="w-60">
                                         <template #body="{ data }">
-                                          <Button
-    label="Save"
-    icon="pi pi-check"
-    class="p-button-success"
-    @click="onIqaStatusChangeDropdown(data)"
-    :disabled="!data.selectedIqaStatus || loading || (data.selectedIqaStatus === 'REWORK' && !data.remark_iqa)"
-/>
+                                            <Button
+                                                label="Save"
+                                                icon="pi pi-check"
+                                                class="p-button-success"
+                                                @click="onIqaStatusChangeDropdown(data)"
+                                                :disabled="data.selectedIqaStatus === 'UNDER_REVIEW' || loading || ((data.selectedIqaStatus === 'REWORK' || data.selectedIqaStatus === 'REJECT') && !data.remark_iqa)"
+                                            />
                                         </template>
                                     </Column>
                                 </DataTable>

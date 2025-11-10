@@ -1,3 +1,7 @@
+<!-- <template>
+        Stock Material Transaction Page
+    </template> -->
+
 <script lang="ts" setup>
 import { onMounted, ref, computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
@@ -39,7 +43,8 @@ const filteredReceiveList = computed(() => {
             (item.status && item.status.toLowerCase().includes(keyword))
         );
     }
-    return list;
+    // เรียงข้อมูลจากล่าสุดมาก่อน
+    return list.slice().reverse();
 });
 onMounted(async () => {
     loading.value = true;
@@ -47,7 +52,7 @@ onMounted(async () => {
     (mainStore._userInfo as IViewEmployee).SECCD;
    
     // const SECCD = Number((mainStore._userInfo as IViewEmployee).SECCD);
-    const SECCD = 3800
+    const SECCD = 3421
 
     console.log('SECCD in Prod_Transaction:', SECCD);
     
@@ -135,7 +140,7 @@ function clearFilter() {
             </template>
 
             <template #empty>No data found.</template>
-            <Column field="ITEMNO" header="Material" sortable filter />
+            <Column field="ITEMNO" header="Item No" sortable filter />
             <Column field="lot_no" header="LotNo" sortable filter />
             <Column field="lot_qty" header="LotQty" sortable filter />
             <Column field="status" header="Status" sortable filter>

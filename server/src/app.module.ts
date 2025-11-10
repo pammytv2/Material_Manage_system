@@ -9,6 +9,7 @@ import {CheckMaterialReceiveModule} from './apis/check_material_receive/check_ma
 import {AuthModule}  from './auth/auth.module';
 import { EmployeesModule } from './apis/employees/employees.module';
 import { DatabaseModule } from './database/database.module';
+import { MaterialRequestModule} from './apis/material_request/material_request.module';
 import { ConfigModule } from '@nestjs/config';
 import { MaterialTransactionModule } from './apis/material_transaction/material_transaction.module';
 
@@ -35,6 +36,7 @@ import { MaterialTransactionModule } from './apis/material_transaction/material_
     AuthModule,
     EmployeesModule,
     MaterialTransactionModule,
+    MaterialRequestModule,
   ],
   controllers: [AppController],
   providers: [AppService],

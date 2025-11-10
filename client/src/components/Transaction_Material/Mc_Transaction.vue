@@ -12,6 +12,7 @@ import { getIqaResultClass } from '@/stores/recive_material';
 import {useTransactionMCProdStore} from '@/stores/transaction_mc_prod';
 const mcViewStatusStore = useTransactionMCProdStore();
 import { FilterMatchMode, FilterOperator } from '@primevue/core/api';
+import { c } from 'node_modules/vite/dist/node/types.d-aGj9QkWt';
 const loading = ref(false);
 const searchQuery = ref('');
 const selectedReceipt = ref<any>(null);
@@ -28,13 +29,14 @@ const filteredReceiveList = computed(() => {
     if (searchQuery.value && searchQuery.value.trim() !== '') {
         const keyword = searchQuery.value.trim().toLowerCase();
         list = list.filter(item =>
+            (item.ReceiveNo && item.ReceiveNo.toLowerCase().includes(keyword)) ||
             (item.ITEMNO && item.ITEMNO.toLowerCase().includes(keyword)) ||
             (item.lot_no && item.lot_no.toLowerCase().includes(keyword)) ||
             (item.lot_qty && String(item.lot_qty).toLowerCase().includes(keyword)) ||
             (item.status && item.status.toLowerCase().includes(keyword))
         );
     }
-    return list;
+     return list.slice().reverse();
 });
 onMounted(async () => {
     loading.value = true;
@@ -48,6 +50,7 @@ onMounted(async () => {
 
 const filters = ref({
     global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReceptNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
     ITEMNO: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
     lot_no: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
     lot_qty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
@@ -58,6 +61,7 @@ function clearFilter() {
     searchQuery.value = '';
     filters.value = {
         global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+        ReceptNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
         ITEMNO: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
         lot_no: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
         lot_qty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
@@ -105,7 +109,7 @@ function clearFilter() {
             showGridlines
             rowHover
             :globalFilter="searchQuery"
-            :globalFilterFields="['ITEMNO', 'lot_no', 'lot_qty', 'status']"
+            :globalFilterFields="['ReceptNumber','ITEMNO', 'lot_no', 'lot_qty', 'status']"
             class="mb-6"
         >
             <template #header>
@@ -122,7 +126,10 @@ function clearFilter() {
             </template>
 
             <template #empty>No data found.</template>
-            <Column field="ITEMNO" header="Material" sortable filter />
+            <Column field="InvoiceNumber" header="Invoice No" sortable filter />
+            <Column field="ReceiveNo" header="Receive No" sortable filter />
+          
+            <Column field="ITEMNO" header="Item No" sortable filter />
             <Column field="lot_no" header="LotNo" sortable filter />
             <Column field="lot_qty" header="LotQty" sortable filter />
             <Column field="status" header="Status" sortable filter>

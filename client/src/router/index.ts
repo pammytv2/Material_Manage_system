@@ -85,7 +85,11 @@ const routes: RouteRecordRaw[] = [
                 name: 'Transaction_Mc',
                 component: () => import('@/components/Transaction_Material/Mc_Transaction.vue')
             },
-
+            {
+                path: '/Request_Material',
+                name: 'Request_Material',
+                component: () => import('@/components/Transaction_Material/Request_Material.vue')
+            },
             {
                 path: '/documentation',
                 name: 'documentation',

@@ -457,6 +457,7 @@ function Success(event?: Event) {
                             remark_iqa: row.remark_iqa ?? ''
                         }))
                     };
+                    
                     await updateRowBalanceQtys();
                 }
                 loading.value = false;
@@ -508,6 +509,45 @@ function validateTakeOutQty(row: any, idx: number) {
             });
         }
     }
+}
+
+// Add local calculation functions for debugging
+function getCurrentReceiveQty() {
+    if (dialogRowIndex.value !== null && tableRows.value && tableRows.value[dialogRowIndex.value]) {
+        const row = tableRows.value[dialogRowIndex.value];
+        const receiveQty = parseFloat(String(row.receiveQty || '0')) || 0;
+        const returnQty = parseFloat(String(row.returnQty || '0')) || 0;
+        const netQty = receiveQty - returnQty;
+        
+        console.log('Debug getCurrentReceiveQty:', {
+            receiveQty,
+            returnQty,
+            netQty,
+            getReturnQtyResult: getReturnQty(row.receiveQty, row.returnQty)
+        });
+        
+        return netQty;
+    }
+    return 0;
+}
+
+function getCurrentBalanceQty() {
+    const netReceiveQty = getCurrentReceiveQty();
+    const totalTakeOutQty = lotRows.value.reduce((sum, row) => {
+        const qty = parseFloat(String(row.takeOutQty || '0')) || 0;
+        return sum + qty;
+    }, 0);
+    
+    const balance = netReceiveQty - totalTakeOutQty;
+    
+    console.log('Debug getCurrentBalanceQty:', {
+        netReceiveQty,
+        totalTakeOutQty,
+        balance,
+        calculateBalanceQtyResult: calculateBalanceQty()
+    });
+    
+    return balance;
 }
 
 function canEditExpireDate(row: any): boolean {
@@ -583,6 +623,37 @@ async function receiveNoLot(event?: Event) {
                 // เรียก saveLotSplit เพื่อบันทึก
                 await saveLotSplit();
             }
+            // รีเฟรชตารางหลังรับ lot
+            loading.value = true;
+            const response = await receiveStore.Components_Split(invoiceNumber.value);
+            if (Array.isArray(response)) {
+                receiveStore.detail = {
+                    ...receiveStore.detail,
+                    tableRows: response.map((row, idx) => ({
+                        no: idx + 1,
+                        itemNo: row.ITEMNO ?? '',
+                        description: row.ITEMDESC ?? '',
+                        unit: row.UNIT ?? '',
+                        receiveQty: row.RQRECEIVED ?? '',
+                        lotExpireDate: row.LotExpireDate ?? '',
+                        invoice: row.Invoice ?? '',
+                        iqaStatus: row.IQAStatus ?? '',
+                        takeOutQty: row.takeOutQty ?? '',
+                        returnQty: row.returnQty ?? '',
+                        balanceQty: row.balanceQty ?? '',
+                        PORHSEQ: row.PORHSEQ ?? '',
+                        lotSplitStatusIdx: row.lotSplitStatusIdx ?? '',
+                        lotSplit: row.LotSplit ?? 0,
+                        ExpDate: row.ExpDate ?? '',
+                        IQA: row.IQA ?? '',
+                        status: row.status ?? 'PENDING',
+                        Description: row.Description ?? '',
+                        remark_iqa: row.remark_iqa ?? ''
+                    }))
+                };
+                await updateRowBalanceQtys();
+            }
+            loading.value = false;
         }
     });
 }
@@ -644,7 +715,7 @@ const breadcrumbItems = [
                 <div class="flex justify-center flex-1 sm:justify-start mt-2">
                     <div class="mb-1">
                         <span class="inline-block text-muted-color font-medium mb-1 mr-2">Vendor Details:</span>
-                        <span class="inline-block font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded cursor-pointer select-text">{{ vendorName }}</span>
+                        <span class="inline-block font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded cursor-pointer select-text">{{ vendorName || '-' }}</span>
                     </div>
 
                     <div class="ml-4">
@@ -747,7 +818,7 @@ const breadcrumbItems = [
                     </span>
                 </template>
                 <template #filter="{ filterModel }">
-                    <Dropdown v-model="filterModel.value" :options="['Lot Required', 'No Lot Required', 'Not Specified']" placeholder="Select Status">
+                    <Dropdown v-model="filterModel.value" :options="['Lot Required', 'No Lot Required', 'Not Required', 'Not Specified']" placeholder="Select Status">
                         <template #value="{ value }">
                             <span :class="getLotSplitStatusClass(value)">{{ value }}</span>
                         </template>
@@ -765,7 +836,7 @@ const breadcrumbItems = [
                     </span>
                 </template>
                 <template #filter="{ filterModel }">
-                    <Dropdown v-model="filterModel.value" :options="['IQA Required', 'No IQA Required', 'Not Specified']" placeholder="Select Requirement">
+                    <Dropdown v-model="filterModel.value" :options="['IQA Required', 'No IQA Required', 'Not Required', 'Not Specified']" placeholder="Select Requirement">
                         <template #value="{ value }">
                             <span :class="getIQARequiredClass(value)">{{ value }}</span>
                         </template>
@@ -837,7 +908,7 @@ const breadcrumbItems = [
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-muted-color font-medium">Unit:</span>
-                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded select-text">
+                            <span class="font-semibold bg-blue-100 text-blue-600 px-3 py-1 rounded cursor-pointer select-text">
                                 {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.unit : '' }}
                             </span>
                         </div>
@@ -925,7 +996,9 @@ const breadcrumbItems = [
                         </tbody>
                         <tfoot>
                             <tr>
-                                <td :colspan="isLotSplitRequired() ? 7 : 6" class="text-left font-semibold py-2 pl-4">Balance QTY: {{ calculateBalanceQty() }} / {{ dialogRowIndex !== null ? tableRows[dialogRowIndex]?.receiveQty : '' }}</td>
+                                <td :colspan="isLotSplitRequired() ? 7 : 6" class="text-left font-semibold py-2 pl-4">
+                                    Balance QTY: {{ getCurrentBalanceQty().toFixed(2) }} / {{ getCurrentReceiveQty().toFixed(2) }}
+                                </td>
                             </tr>
                         </tfoot>
                     </table>

@@ -342,6 +342,8 @@ export function useMaterialSplit() {
                 return 'bg-gray-100 text-gray-700 font-semibold px-2 py-1 rounded';
             case 'UNDER_REVIEW':
                 return 'bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded';
+            case 'RESUBMITTED':
+                return 'bg-purple-100 text-purple-700 font-semibold px-2 py-1 rounded';
             case 'PENDING':
                 return 'bg-yellow-100 text-yellow-700 font-semibold px-2 py-1 rounded';
             case 'PASS':
@@ -352,8 +354,6 @@ export function useMaterialSplit() {
                 return 'bg-red-100 text-red-700 font-semibold px-2 py-1 rounded';
             case 'CANCELLED':
                 return 'bg-orange-200 text-orange-700 font-semibold px-2 py-1 rounded';
-            case 'RESUBMITTED':
-                return 'bg-indigo-100 text-indigo-700 font-semibold px-2 py-1 rounded';
             case 'NOT_REQUIRED':
                return 'bg-blue-100 text-blue-700 font-semibold px-2 py-1 rounded';
             default:
