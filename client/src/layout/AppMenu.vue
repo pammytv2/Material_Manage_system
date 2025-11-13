@@ -174,15 +174,20 @@ const model = computed<MenuItem[]>(() => [
         menuId: 'iqa_group',
         items: [ 
             {
-                label: 'Check Material Receive',
+                label: 'IQA Material Receive QTY',
                 icon: 'pi pi-fw pi-list-check',
                 to: '/Iqa_checklist',
                 menuId: 'iqa_checklist'
             },
             {
-                label: 'IQA Checklist Material',
+                label: 'IQA  Material inspection',
                 icon: 'pi pi-fw pi-check-square',
                 to: '/Iqa_checklist_test'
+            },
+            {
+                label: 'IQA Abnormal',
+                icon: 'pi pi-fw pi-exclamation-triangle',
+                to: '/Iqa_abnormal'
             }
         ]
     },

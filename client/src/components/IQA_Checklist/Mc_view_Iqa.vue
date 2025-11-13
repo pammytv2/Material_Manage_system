@@ -35,9 +35,9 @@ const filteredReceiveList = computed(() => {
     if (status && typeof status === 'object' && 'value' in status) {
         status = status.value;
     }
-    
+
     let list = !status || status === 'all' ? mcViewStatusStore._mcViewStatusItems : mcViewStatusStore._mcViewStatusItems.filter((item) => item.IQA_Status === status);
-    
+
     // Apply search query filter
     if (searchQuery.value && searchQuery.value.trim()) {
         const query = searchQuery.value.trim().toLowerCase();
@@ -47,15 +47,11 @@ const filteredReceiveList = computed(() => {
             const vendorCode = (item.VendorCode || '').toLowerCase();
             const vendorName = (item.VendorName || '').toLowerCase();
             const iqaStatus = (item.IQA_Status || '').toLowerCase();
-            
-            return receiveNo.includes(query) ||
-                  vendorName.includes(query) ||
-                  vendorCode.includes(query) ||  
-                  invoiceNumber.includes(query) || 
-                  iqaStatus.includes(query);
+
+            return receiveNo.includes(query) || vendorName.includes(query) || vendorCode.includes(query) || invoiceNumber.includes(query) || iqaStatus.includes(query);
         });
     }
-    
+
     return list;
 });
 
@@ -149,7 +145,6 @@ function navigateToMaterialsSplit() {
 </script>
 
 <template>
-    
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
         <div class="flex items-center justify-between mb-4">
@@ -174,7 +169,6 @@ function navigateToMaterialsSplit() {
             v-model:filters="filters"
             paginator
             :rows="10"
-            
             filterDisplay="menu"
             showGridlines
             rowHover
@@ -186,7 +180,7 @@ function navigateToMaterialsSplit() {
             <template #header>
                 <div class="flex justify-between items-center">
                     <Button type="button" icon="pi pi-filter-slash" label="Clear" variant="outlined" @click="clearFilter()" />
-                    
+
                     <IconField>
                         <InputIcon>
                             <i class="pi pi-search" />
@@ -211,87 +205,53 @@ function navigateToMaterialsSplit() {
 
             <Column field="VendorCode" header="Vendor Code" sortable />
             <Column field="VendorName" header="Vendor Name" sortable />
-            <Column field="Status" header="Status" sortable>
+            <Column field="lot_no" header="Lot No" sortable class="w-60">
+                <template #body="{ data }">
+                    {{ data.lot_no }}
+                </template>
+            </Column>
+            <Column field="ItemNo" header="ItemNo" sortable>
+                <template #body="{ data }">
+                    {{ data.ITEMNO }}
+                </template>
+            </Column>
+            <Column firld = 'ITEMDESC' header="Item Description" sortable>
+                <template #body="{ data }">
+                    {{ data.ITEMDESC }}
+                </template>
+            </Column>
+            <Column field="MaterialCode" header="Lot Quantity" sortable>
+                <template #body="{ data }">
+                    {{ data.lot_qty.toLocaleString() }}
+                </template>
+            </Column>
+            <Column field="Status" header="StatusQty" sortable>
                 <template #body="{ data }">
                     <span :class="getIqaApprovalClass(data.IQA_Status)">
-                        {{ data.IQA_Status }}
+                        {{ data.status }}
                     </span>
                 </template>
             </Column>
-            <Dialog v-model:visible="showDetailDialog" header="IQA Material Detail" :style="{ width: '1100px', maxWidth: '98vw' }" modal>
-                <template #default>
-                    <div class="mb-4">
-                        <div class="flex flex-wrap gap-4">
-                            <!-- {{iqaCheckMaterialStore._itemLotSplits }} -->
-                            <div>
-                                <span class="font-medium">Receive Number:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.ReceiveNo }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Invoice Number:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.InvoiceNumber }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Receive Date:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ mcViewStatusStore._mcRcDataItems?.[0]?.ReciveDate || 'N/A' }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Vendor Name:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.VendorName || 'N/A' }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Vendor Code:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.VendorCode || 'N/A' }}</span>
-                            </div>
-                        </div>
-                        <div class="mt-5">
-                            <template v-for="(lots, itemNo) in groupedLots" :key="itemNo">
-                                <div class="text-base font-bold mb-2" style="font-family: 'Segoe UI', 'Arial', sans-serif">
-                                    [{{ itemNo }}]
-                                    <span v-if="lots[0]?.ITEMDesc">{{ lots[0].ITEMDesc }}</span>
-                                    <span v-else-if="lots[0]?.MaterialName">{{ lots[0].MaterialName }}</span>
-                                </div>
-                                <DataTable :value="lots" :loading="lotSplitLoading" showGridlines class="mb-6">
-                                    <Column field="lot_no" header="Lot No" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            {{ data.lot_no }}
-                                        </template>
-                                    </Column>
-                                    <Column field="MaterialCode" header="Lot Quantity" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            {{ data.lot_qty.toLocaleString() }}
-                                        </template>
-                                    </Column>
-                                    <Column field="MaterialName" header="IQA Check" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            <span :class="getIqaResultClass(getIQAStatusText(data.selectedIqaStatus))">
-                                                {{ getIQAStatusText(data.selectedIqaStatus) }}
-                                            </span>
-                                        </template>
-                                    </Column>
-                                    <Column field="remark" header="remark" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            <input type="text" v-model="data.remark_iqa" class="w-full p-inputtext p-component p-filled" disabled placeholder="Enter remark" />
-                                        </template>
-                                    </Column>
-                                    <Column field="Status" header="Status" sortable class="w-80">
-                                        <template #body="{ data }">
-                                            <span :class="getIqaResultClassD(data.StatusDescription ?? '')">
-                                                {{ getIQAStatusTextD(data.StatusDescription ?? '') }}
-                                            </span>
-                                        </template>
-                                    </Column>
-                                </DataTable>
-                            </template>
-                        </div>
-                    </div>
+             <Column field="Status" header="Statusinspec" sortable>
+                <template #body="{ data }">
+                    <span :class="getIqaApprovalClass(data.IQA_Status)">
+                        {{ data.status_Inspec }}
+                    </span>
                 </template>
-                <template #footer>
-                    <ConfirmDialog />
+            </Column>
+            <Column field="remark" header="remark" sortable class="w-60">
+                <template #body="{ data }">
+                    <input type="text" v-model="data.remark_iqa" class="w-full p-inputtext p-component p-filled" disabled placeholder="Enter remark" />
+                </template>
+            </Column>
+            <Column field="Action" header="Action" class="w-80">
+                <template #body="{ data }">
                     <Button label="Edit" @click="navigateToMaterialsSplit" icon="pi pi-pencil" />
-                    <Button label="Close" @click="showDetailDialog = false" :disabled="loading" />
                 </template>
-            </Dialog>
+            </Column>
+
+          
+            
         </DataTable>
     </div>
 </template>

@@ -10,9 +10,28 @@ interface Iqa_Checklist {
     ITEMNO?: string;
     ReciveDate?: Date ;
     VendorCode?: string ;
-    VendorName?: string ;
+    VendorName: string ;
     lot_qty?: number ;
     ReceiveNo?: string ;
+    status_Inspec?: string;
+    lot_no_check?: number;
+    abnormally_number?: string ;
+    inspec_date?: Date ;
+    qty_date?: Date ;
 }
 
-export type { Iqa_Checklist };
+interface Iqaabnormal {
+  Abnormal_Number: string;
+  InvoiceNumber: string;
+  statusQty: string;
+  ReceiceNo: string;
+  lot_no: string;
+  ITEMNO: string;
+  status_Inspec: string;
+  lot_qty: number;
+  inspec_date: Date;
+}
+
+
+
+export type { Iqa_Checklist , Iqaabnormal };

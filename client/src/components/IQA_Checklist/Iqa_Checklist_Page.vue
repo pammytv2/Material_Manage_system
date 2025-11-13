@@ -17,28 +17,49 @@ import { useIqaCheckMaterialStore } from '@/stores/iqa_check_material';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 import { getIqaApprovalClass, getIqaResultClass, getIqaResultClassD, getIQAStatusTextD } from '@/stores/recive_material';
+import { label } from '@primeuix/themes/aura/metergroup';
+import type { IViewEmployee } from '@/shared/interfaces/template-web-stack-2025/employee.interface';
+import { useMainStore } from '@/stores/main.store';
+import { icon } from '@primeuix/themes/aura/avatar';
 const confirm = useConfirm();
+const mainStore = useMainStore();
 const toast = useToast();
 const loading = ref(false);
 const searchQuery = ref('');
-const selectedReceipt = ref<any>(null);
-const showDetailDialog = ref(false);
-const detailRows = ref<any[]>([]);
-const showDetailPageDialog = ref(false);
+const selectedReceipt = ref<any>({});
+const statusFilter = ref<string[]>(['ALL']); // เปลี่ยนเป็น array สำหรับหลายค่า
+
+const statusOptions = [
+    { label: 'All', value: 'ALL', color: '#64748b', class: 'text-slate-500' },
+    { label: 'Under Review', value: '', color: '#2563eb', class: 'text-blue-500' },
+    { label: 'PASS', value: 'PASS', color: '#22c55e', class: 'text-green-500' },
+    { label: 'Rework', value: 'REWORK', color: '#fbbf24', class: 'text-amber-500' },
+    { label: 'Reject', value: 'REJECT', color: '#ef4444', class: 'text-red-500' }
+];
+
 const iqaCheckMaterialStore = useIqaCheckMaterialStore();
 const manageMaterialStore = useManageMaterialStore();
-const lotSplitData = ref<any[]>([]);
-const lotSplitLoading = ref(false);
-const { getIQAStatusText, getIQARequiredClass } = manageMaterialStore;
+
+const { getIQAStatusText } = manageMaterialStore;
 
 async function onIqaStatusChangeDropdown(lot: any) {
-    console.log('selectedIqaStatus:', lot.selectedIqaStatus);
+    // Add null check for selectedReceipt.value
+    if (!selectedReceipt.value) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณาเลือกเอกสารก่อน', life: 2000 });
+        return;
+    }
+
+    selectedReceipt.value = lot;
+    console.log('selectedReceipt:', selectedReceipt.value);
     if (!lot.selectedIqaStatus || lot.selectedIqaStatus === 'UNDER_REVIEW') {
         toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณาเลือก IQA Check ก่อนบันทึก', life: 2000 });
         return;
     }
-    if ((lot.selectedIqaStatus === 'REWORK'||lot.selectedIqaStatus === 'REJECT') && !lot.remark_iqa) {
-        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณากรอก remark เมื่อเลือก REWORK', life: 2000 });
+
+
+    if ((lot.selectedIqaStatus === 'REWORK' || lot.selectedIqaStatus === 'REJECT') && (!lot.remark_iqa || lot.remark_iqa.trim() === '')) {
+        toast.add({ severity: 'warn', summary: 'Warning', detail: 'กรุณากรอก remark เมื่อเลือก REWORK หรือ REJECT', life: 2000 });
+        lot.isEditing = true; 
         return;
     }
     loading.value = true;
@@ -48,7 +69,8 @@ async function onIqaStatusChangeDropdown(lot: any) {
             ReceiveNo: selectedReceipt.value.ReceiveNo,
             lotNo: lot.lot_no,
             status: lot.selectedIqaStatus,
-            remark_iqa: lot.remark_iqa || ''
+            remark_iqa: lot.remark_iqa || '',
+            lot_user: (mainStore._userInfo as IViewEmployee).thai_name
         });
         lot.IQA_Status = lot.selectedIqaStatus;
         await iqaCheckMaterialStore.addItemListTransaction_MC_PROD();
@@ -58,8 +80,9 @@ async function onIqaStatusChangeDropdown(lot: any) {
         iqaCheckMaterialStore._itemLotSplits.forEach((lot: any) => {
             lot.selectedIqaStatus = lot.status || null;
         });
-        await iqaCheckMaterialStore.fetchIqaCheckMaterialItems();
+        // await iqaCheckMaterialStore.fetchIqaCheckMaterialItems();
     } catch (error) {
+        console.error('IQA Error:', error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred', life: 2000 });
     } finally {
         loading.value = false;
@@ -67,21 +90,20 @@ async function onIqaStatusChangeDropdown(lot: any) {
 }
 const filteredReceiveList = computed(() => {
     let list = iqaCheckMaterialStore.filteredReceiveList;
-
-    // Apply search query filter
+    // Apply search query filter (search all fields)
     if (searchQuery.value && searchQuery.value.trim()) {
         const query = searchQuery.value.trim().toLowerCase();
         list = list.filter((item) => {
-            const receiveNo = (item.ReceiveNo || '').toLowerCase();
-            const invoiceNumber = (item.InvoiceNumber || '').toLowerCase();
-            const vendorCode = (item.VendorCode || '').toLowerCase();
-            const vendorName = (item.VendorName || '').toLowerCase();
-            const iqaStatus = (item.IQA_Status || '').toLowerCase();
-
-            return receiveNo.includes(query) || invoiceNumber.includes(query) || vendorCode.includes(query) || vendorName.includes(query) || iqaStatus.includes(query);
+            return Object.values(item).some(val =>
+                (val !== null && val !== undefined) &&
+                String(val).toLowerCase().includes(query)
+            );
         });
     }
-
+    // Filter by status (multi-select)
+    if (!statusFilter.value.includes('ALL')) {
+        list = list.filter((item) => statusFilter.value.includes((item.IQA_Status || item.status || '').toUpperCase()));
+    }
     return list;
 });
 
@@ -89,86 +111,63 @@ onMounted(async () => {
     iqaCheckMaterialStore.selectedStatus = '';
     await iqaCheckMaterialStore.fetchIqaCheckMaterialItems();
     console.log('IQA Items:', iqaCheckMaterialStore.IqaCheckMaterialItems);
+    iqaCheckMaterialStore.filteredReceiveList.forEach((item: any) => {
+        item.selectedIqaStatus = item.IQA_Status || item.status || null;
+        item.isEditing = !item.selectedIqaStatus; // ถ้ายังไม่เคยเลือก ให้แก้ไขได้
+    });
     await iqaCheckMaterialStore.status_iqa_check();
     console.log('IQA Status Items2:', iqaCheckMaterialStore._iqaStatus);
 });
 
-async function IqaComplete() {
-    confirm.require({
-        message: 'Are you sure you want to submit IQA Check for all lots?',
-        header: 'Confirm Submission',
-        icon: 'pi pi-exclamation-triangle',
-        accept: async () => {
-            loading.value = true;
-            try {
-                for (const lots of Object.values(groupedLots.value)) {
-                    for (const lot of lots) {
-                        if (lot.selectedIqaStatus) {
-                            await iqaCheckMaterialStore.completeIqaCheck({
-                                invoiceNumber: selectedReceipt.value.InvoiceNumber,
-                                ReceiveNo: selectedReceipt.value.ReceiveNo,
-                                lotNo: lot.lot_no
-                            });
-                        }
-                    }
-                }
-                // รีเฟรชข้อมูล Lot และ Receive Material List
-                await iqaCheckMaterialStore.itemLotSplit(selectedReceipt.value.InvoiceNumber);
-                await iqaCheckMaterialStore.fetchIqaCheckMaterialItems();
-                toast.add({ severity: 'success', summary: 'Success', detail: 'ตรวจสอบสำเร็จ', life: 3000 });
-                showDetailDialog.value = false;
-            } catch (error) {
-                toast.add({ severity: 'error', summary: 'Error', detail: 'เกิดข้อผิดพลาดการยืนยันตรวจ', life: 3000 });
-            } finally {
-                loading.value = false;
-            }
-        }
-    });
-}
-const groupedLots = computed(() => {
-    const groups: Record<string, any[]> = {};
-    iqaCheckMaterialStore._itemLotSplits.forEach((lot: any) => {
-        const key = lot.ITEMNO || lot.itemno || lot.item_no || 'UNKNOWN';
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(lot);
-    });
-    return groups;
-});
+
 
 const filters = ref({
     global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-    ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-    InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-    VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
+    ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
     VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-    Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-    lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
+    Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_no: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    CN: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    qty_date: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReciveDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_qty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    RecheckDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    remark_iqa: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
 });
-async function onRowClick(e: any) {
-    if (!e.data) return;
-    selectedReceipt.value = e.data;
-    lotSplitLoading.value = true;
-    try {
-        await iqaCheckMaterialStore.itemLotSplit(e.data.InvoiceNumber);
-        iqaCheckMaterialStore._itemLotSplits.forEach((lot: any) => {
-            lot.selectedIqaStatus = lot.status || null;
-        });
-        console.log('Lot Split Data:', iqaCheckMaterialStore._itemLotSplits);
-    } finally {
-        lotSplitLoading.value = false;
-        showDetailDialog.value = true;
-    }
-}
+
 function clearFilter() {
     filters.value = {
-        global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-        ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
-        Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.STARTS_WITH }] },
-        lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
+    global: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReceiveNo: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    InvoiceNumber: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    VendorCode: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    VendorName: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    Status: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_count: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_no: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    CN: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    qty_date: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    RecheckDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    ReciveDate: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    lot_qty: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] },
+    remark_iqa: { operator: FilterOperator.AND, constraints: [{ value: null, matchMode: FilterMatchMode.CONTAINS }] }
     };
+}
+
+const showInspectorDialog = ref(false);
+const inspectorDialogData = ref<any>(null);
+
+function openTopDrawer(data: any) {
+    inspectorDialogData.value = data;
+    showInspectorDialog.value = true;
+}
+
+function closeTopDrawer() {
+    showInspectorDialog.value = false;
+    inspectorDialogData.value = null;
 }
 </script>
 
@@ -181,11 +180,34 @@ function clearFilter() {
     </div>
     <div class="card">
         <div class="font-semibold text-xl mb-4">IQA Receive Material</div>
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-4">
-                <div class="flex items-center gap-2">
-                    <span class="font-medium">Filter by Status:</span>
-                    <Dropdown v-model="iqaCheckMaterialStore.selectedStatus" :options="iqaCheckMaterialStore.statusOptions" optionValue="value" optionLabel="label" placeholder="เลือกสถานะ" class="w-60" showClear />
+                <!-- เปลี่ยนเป็น Checkbox หลายตัว -->
+                <div class="flex gap-6">
+                    <div v-for="option in statusOptions" :key="option.value" class="flex items-center">
+                        <Checkbox
+                            :inputId="'status-' + option.value"
+                            :value="option.value"
+                            v-model="statusFilter"
+                            :binary="false"
+                            :checked="statusFilter.includes(option.value)"
+                            @change="
+                                () => {
+                                    // ถ้าเลือก ALL ให้ล้างตัวอื่น, ถ้าเลือกตัวอื่นให้เอา ALL ออก
+                                    if (option.value === 'ALL') {
+                                        statusFilter.splice(0, statusFilter.length, 'ALL');
+                                    } else {
+                                        const idx = statusFilter.indexOf('ALL');
+                                        if (idx !== -1) statusFilter.splice(idx, 1);
+                                        if (statusFilter.length === 0) statusFilter.push('ALL');
+                                    }
+                                }
+                            "
+                        />
+                        <label :for="'status-' + option.value" class="ml-1" :class="option.class">
+                            {{ option.label }}
+                        </label>
+                    </div>
                 </div>
             </div>
             <div class="text-right">
@@ -203,13 +225,26 @@ function clearFilter() {
             v-model:filters="filters"
             paginator
             :rows="10"
-            
             filterDisplay="menu"
             showGridlines
             rowHover
-            @rowClick="onRowClick"
             :globalFilter="searchQuery"
-            :globalFilterFields="['ReceiveNo', 'InvoiceNumber', 'Status', 'VendorCode', 'VendorName', 'lot_count']"
+            :globalFilterFields="[
+                'ReceiveNo',
+                'InvoiceNumber',
+                'Status',
+                'VendorCode',
+                'VendorName',
+                'lot_count',
+                'lot_no',
+                'ITEMNO',
+                'qty_date',
+                'ReciveDate',
+                'RecheckDate',
+                'lot_qty',
+                'remark_iqa',
+                'IQA_Status'
+            ]"
             class="mb-6"
         >
             <template #header>
@@ -223,129 +258,98 @@ function clearFilter() {
                     </IconField>
                 </div>
             </template>
-
-            <template #empty>No data found.</template>
-            <Column field="ReceiveNo" header="Receive Number" sortable>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by receive number" />
-                </template>
-            </Column>
-
-            <Column field="InvoiceNumber" header="Invoice Number" sortable>
+            <Column field="lot_no" header="Lot No" sortable />
+            <Column field="ITEMNO" header="Item No" sortable />
+            <Column field="ReceiveNo" header="Receive No" sortable />
+            <Column field="InvoiceNumber" header="Invoice Number" sortable />
+            <Column field="qty_date" header="Recheck Date" sortable>
                 <template #body="{ data }">
-                    <span>{{ data.InvoiceNumber || 'N/A' }}</span>
+                    <span>{{ data.qty_date ? new Date(data.qty_date).toISOString().slice(0, 10) : 'N/A' }}</span>
                 </template>
             </Column>
-
-            <Column field="VendorCode" header="Vendor Code" sortable />
+            <Column field="ReciveDate" header="Receipt Date" sortable />
             <Column field="VendorName" header="Vendor Name" sortable />
-            <Column field="Status" header="Status" sortable>
+            <Column field="lot_qty" header="Lot Qty" sortable />
+            <Column field="IQA_Status" sortField="IQA_Status" header="StatusQty" sortable>
                 <template #body="{ data }">
-                    <span :class="getIqaApprovalClass(data.IQA_Status)">
-                        {{ data.IQA_Status }}
-                    </span>
+                    <Dropdown v-model="data.selectedIqaStatus" :options="iqaCheckMaterialStore.iqaCheckOptions" :disabled="!data.isEditing" optionLabel="label" optionValue="value" placeholder="Select Status" class="w-50">
+                        <template #option="slotProps">
+                            <span :class="getIqaResultClass(getIQAStatusText(slotProps.option.value))">
+                                {{ getIQAStatusText(slotProps.option.value) }}
+                            </span>
+                        </template>
+                        <template #value="slotProps">
+                            <span :class="getIqaResultClass(getIQAStatusText(slotProps.value))">
+                                {{ getIQAStatusText(slotProps.value) }}
+                            </span>
+                        </template>
+                    </Dropdown>
                 </template>
             </Column>
-            <Column field="lot_count" header="Count Order" sortable>
+            <Column field="remark_iqa" header="Remark Qty" sortable>
                 <template #body="{ data }">
-                    <span>{{ data.lot_count }}</span>
-                </template>
-                <template #filter="{ filterModel }">
-                    <InputText v-model="filterModel.value" type="text" class="p-column-filter" placeholder="Search by count" />
+                    <InputText v-model="data.remark_iqa" placeholder=" remark " class="w-full" :disabled="!data.isEditing" />
                 </template>
             </Column>
-
-            <Dialog v-model:visible="showDetailDialog" header="IQA Material Detail" :style="{ width: '1100px', maxWidth: '98vw' }" modal>
-                <template #default>
-                    <div class="mb-4">
-                        <div class="flex flex-wrap gap-4">
-                            <!-- {{iqaCheckMaterialStore._itemLotSplits }} -->
-                            <div>
-                                <span class="font-medium">Receive Number:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.ReceiveNo }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Invoice Number:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.InvoiceNumber }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Vendor Name:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.VendorName || 'N/A' }}</span>
-                            </div>
-                            <div>
-                                <span class="font-medium">Vendor Code:</span>
-                                <span class="font-semibold bg-blue-100 text-blue-600 px-2 py-1 rounded">{{ selectedReceipt.VendorCode || 'N/A' }}</span>
-                            </div>
-                        </div>
-                        <div class="mt-5">
-                            <template v-for="(lots, itemNo) in groupedLots" :key="itemNo">
-                                <div class="text-base font-bold mb-2" style="font-family: 'Segoe UI', 'Arial', sans-serif">
-                                    [{{ itemNo }}]
-                                    <span v-if="lots[0]?.ITEMDesc">{{ lots[0].ITEMDesc }}</span>
-                                    <span v-else-if="lots[0]?.MaterialName">{{ lots[0].MaterialName }}</span>
-                                </div>
-                                <DataTable :value="lots" :loading="lotSplitLoading" showGridlines class="mb-6">
-                                    <Column field="lot_no" header="Lot No" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            {{ data.lot_no }}
-                                        </template>
-                                    </Column>
-                                    <Column field="MaterialCode" header="Lot Quantity" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            {{ data.lot_qty.toLocaleString() }}
-                                        </template>
-                                    </Column>
-                                    <Column field="MaterialName" header="IQA Check" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            <Dropdown v-model="data.selectedIqaStatus" :options="iqaCheckMaterialStore.iqaCheckOptions" optionLabel="label" optionValue="value" placeholder="Select Status" class="w-50">
-                                                <template #option="slotProps">
-                                                    <span :class="getIqaResultClass(getIQAStatusText(slotProps.option.value))">
-                                                        {{ getIQAStatusText(slotProps.option.value) }}
-                                                    </span>
-                                                </template>
-                                                <template #value="slotProps">
-                                                    <span :class="getIqaResultClass(getIQAStatusText(slotProps.value))">
-                                                        {{ getIQAStatusText(slotProps.value) }}
-                                                    </span>
-                                                </template>
-                                            </Dropdown>
-                                        </template>
-                                    </Column>
-                                    <Column field="remark" header="remark" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            <input type="text" v-model="data.remark_iqa" class="w-full p-inputtext p-component p-filled" placeholder="Enter remark" />
-                                        </template>
-                                    </Column>
-                                    <Column field="Status" header="Status" sortable class="w-80">
-                                        <template #body="{ data }">
-                                            <span :class="getIqaResultClassD(data.StatusDescription ?? '')">
-                                                {{ getIQAStatusTextD(data.StatusDescription ?? '') }}
-                                            </span>
-                                            <!-- {{ data.StatusDescription }} -->
-                                        </template>
-                                    </Column>
-                                    <Column field="Action" header="Action" sortable class="w-60">
-                                        <template #body="{ data }">
-                                            <Button
-                                                label="Save"
-                                                icon="pi pi-check"
-                                                class="p-button-success"
-                                                @click="onIqaStatusChangeDropdown(data)"
-                                                :disabled="data.selectedIqaStatus === 'UNDER_REVIEW' || loading || ((data.selectedIqaStatus === 'REWORK' || data.selectedIqaStatus === 'REJECT') && !data.remark_iqa)"
-                                            />
-                                        </template>
-                                    </Column>
-                                </DataTable>
-                            </template>
-                        </div>
+            <Column header="Action">
+                <template #body="{ data }">
+                    <div class="flex items-center gap-3" style="font-size: 0.95rem;">
+                        <SplitButton
+                            :label="data.isEditing ? 'Save' : 'Edit'"
+                            :icon="data.isEditing ? 'pi pi-check' : 'pi pi-pencil'"
+                            :model="[
+                                {
+                                    label: data.isEditing ? 'Save' : 'Edit',
+                                    icon: data.isEditing ? 'pi pi-check' : 'pi pi-pencil',
+                                    
+                                    command: () => {
+                                        if (!data.isEditing) {
+                                            data.isEditing = true;
+                                        } else {
+                                            selectedReceipt.value = data;
+                                            onIqaStatusChangeDropdown(data);
+                                            if (!((data.selectedIqaStatus === 'REWORK' || data.selectedIqaStatus === 'REJECT') && (!data.remark_iqa || data.remark_iqa.trim() === ''))) {
+                                                data.isEditing = false;
+                                            }
+                                        }
+                                    }
+                                }
+                            ]"
+                            @click="
+                                () => {
+                                    if (data.isEditing) {
+                                        selectedReceipt.value = data;
+                                        onIqaStatusChangeDropdown(data);
+                                        if (!((data.selectedIqaStatus === 'REWORK' || data.selectedIqaStatus === 'REJECT') && (!data.remark_iqa || data.remark_iqa.trim() === ''))) {
+                                            data.isEditing = false;
+                                        }
+                                    } else {
+                                        data.isEditing = true;
+                                    }
+                                }
+                            "
+                            v-tooltip.bottom="data.isEditing ? 'Save status' : 'Edit status'"
+                        />
+                        <Button  icon="pi pi-eye" v-tooltip.bottom="'View User Check'"  @click="openTopDrawer(data)">
+                            
+                        </Button>
                     </div>
                 </template>
-                <template #footer>
-                    <!-- <Button label="IQA Submit" @click="IqaComplete" :disabled="loading" /> -->
-                    <ConfirmDialog />
-                    <Button label="Close" @click="showDetailDialog = false" :disabled="loading" />
-                </template>
-            </Dialog>
+            </Column>
         </DataTable>
     </div>
+    <Dialog
+        v-model:visible="showInspectorDialog"
+        :modal="true"
+        :closable="true"
+        :dismissableMask="true"
+        position="right"
+        style="width: 400px; max-width: 90vw;"
+        :header="'Inspector Records'"
+    >
+        <div v-if="inspectorDialogData">
+            <div><strong>Inspector:</strong> {{ inspectorDialogData.lot_user || 'N/A' }}</div>
+            <!-- Add more fields as needed -->
+        </div>
+    </Dialog>
 </template>

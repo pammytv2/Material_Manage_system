@@ -10,11 +10,20 @@ import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon'; // <-- Add this line
+import ToastService from 'primevue/toastservice';
+import { useToast } from 'primevue/usetoast';
 import type { IViewEmployee } from '@/shared/interfaces/template-web-stack-2025/employee.interface';
 const mainStore = useMainStore();
 const materialRequestStore = useMaterialRequestStore();
+const toast = useToast();
 const selectedGroupmat = ref(null);
 const selectedtype2 = ref(null);
+// Track requested quantities for each material by id
+const loadingGroupmat = ref(false);
+const loadingType2Name = ref(false);
+const requestQuantities = ref<Record<number, number>>({});
+// Track selected materials for request actions
+const selectedMaterials = ref<any[]>([]);
 // Initialize toast and confirm directly in component
 const breadcrumbItems = [
     { label: 'Home', to: '/', icon: 'pi pi-home' },
@@ -64,26 +73,61 @@ async function fetchMaterialRequests() {
         );
     }
 }
+
 watch([selectedGroupmat, selectedtype2], fetchMaterialRequests);
 
 const loadType2Name = async () => {
     if (selectedGroupmat.value) {
+        loadingType2Name.value = true;
         const sectgroup = 3412;
         await materialRequestStore.getType2Name(sectgroup, selectedGroupmat.value);
+        loadingType2Name.value = false;
     }
 };
 const loadGroupmat = async () => {
     (mainStore._userInfo as IViewEmployee).GRPCD;
+    loadingGroupmat.value = true;
 
     // const sectgroup = Number((mainStore._userInfo as IViewEmployee).GRPCD);
     const sectgroup = 3412;
     await materialRequestStore.getGroupmat(sectgroup);
+    loadingGroupmat.value = false;
     console.log('Groupmat List:', materialRequestStore._materialGroupmat);
 };
+async function addToRequest(material: any) {
+    const quantity = requestQuantities.value[material.id];
+
+     if (!quantity || quantity <= 0) {
+        toast.add({ 
+            severity: 'warn', 
+            summary: 'แจ้งเตือน', 
+            detail: 'กรุณาใส่จำนวนที่ต้องการเบิก', 
+            life: 3000 
+        });
+        return;
+    }
+    
+   
+    console.log('Adding to request:', material);
+   
+}
+function removeFromRequest(materialId: number): void {
+    selectedMaterials.value = selectedMaterials.value.filter(item => item.id !== materialId);
+    delete requestQuantities.value[materialId];
+    toast.add({ 
+        severity: 'info', 
+        summary: 'ลบแล้ว', 
+        detail: 'ลบรายการออกจากคำขอเบิกแล้ว', 
+        life: 3000 
+    });
+}
 
 // Refresh only the Manual Receive List table data (not full page reload)
 async function refreshAllPage() {}
 </script>
+
+
+
 
 <template>
     <div class="card mb-6">
@@ -111,12 +155,18 @@ async function refreshAllPage() {}
                     filter
                     show-clear
                     @show="loadGroupmat"
+                    :loading="loadingGroupmat"
                     @change="selectedtype2 = null"
                 >
                     <template #option="slotProps">
                         <div class="p-2">
                             <div class="font-medium">{{ slotProps.option.GROUPMAT }}</div>
                         </div>
+                    </template>
+                      <template #empty>
+                        <div class="p-2 text-gray-500">
+                        {{ loadingGroupmat ? 'LOADING...' : 'ไม่พบข้อมูล' }}
+                    </div>
                     </template>
                 </Dropdown>
             </div>
@@ -133,11 +183,17 @@ async function refreshAllPage() {}
                     filter
                     show-clear
                     @show="loadType2Name"
+                    :loading="loadingType2Name"
                 >
                     <template #option="slotProps">
                         <div class="p-2">
                             <div class="font-medium">{{ slotProps.option.Type2Name }}</div>
                         </div>
+                    </template>
+                    <template #empty>
+                        <div class="p-2 text-gray-500">
+                        {{ loadingType2Name ? 'LOADING...' : 'ไม่พบข้อมูล' }}
+                    </div>
                     </template>
                 </Dropdown>
             </div>
@@ -179,9 +235,40 @@ async function refreshAllPage() {}
             <Column field="SPEC" header="Spec" sortable style="min-width: 120px" />
             <Column field="GROUPMAT" header="Groupmat" sortable style="min-width: 120px" />
             <Column field="Total_After_qty" header="Quantity" sortable style="min-width: 100px" />
-            <Column field="receiveQty" header="Receive Qty" sortable style="min-width: 120px" />
-            <Column field="UNIT" header="Unit" sortable style="min-width: 80px" />
-            <Column header="Actions" style="min-width: 150px" />
+            <Column field="receiveQty" header="Receive Qty" sortable style="min-width: 120px"
+             <template #body="slotProps">
+                            <InputNumber 
+                                v-model="requestQuantities[slotProps.data.id]" 
+                                :min="0" 
+                                placeholder="0"
+                                class="w-full"
+                                size="small"
+                                :suffix="` ${slotProps.data.UNIT}`"
+                            />
+                         
+            </Column>
+
+            
+            <Column header="Actions" style="min-width: 150px">
+                <template #body="slotProps">
+                    <Button 
+                        icon="pi pi-plus" 
+                        size="small" 
+                        severity="success"
+                        @click="addToRequest(slotProps.data)"
+                        :disabled="!requestQuantities[slotProps.data.id] || requestQuantities[slotProps.data.id] <= 0"
+                        v-tooltip.top="'เพิ่มในรายการเบิก'"
+                    />
+                    <Button 
+                        icon="pi pi-minus" 
+                        size="small" 
+                        severity="danger"
+                        @click="removeFromRequest(slotProps.data.id)"
+                        :disabled="!selectedMaterials.find(item => item.id === slotProps.data.id)"
+                        v-tooltip.top="'ลบออกจากรายการเบิก'"
+                    />
+                </template>
+            </Column>
         </DataTable>
     </div>
 </template>

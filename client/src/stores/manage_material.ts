@@ -150,7 +150,7 @@ export function useManageMaterialStore() {
         if (iqa === 'PASS') return 'PASS';
         if (iqa === 'REJECT') return 'REJECT';
         if (iqa ==='REWORK' ) return 'REWORK';
-        return 'Not Specified';
+        return 'Select Status';
     }
 
     function getIQARequiredClass(text: string) {
@@ -169,7 +169,7 @@ export function useManageMaterialStore() {
                 return 'p-tag p-tag-secondary';
             
             default:
-                return 'p-tag';
+                return 'p-tag p-tag-secondary';
         }
     }
 

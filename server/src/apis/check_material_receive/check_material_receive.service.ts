@@ -8,41 +8,27 @@ import {
   Item_List_LotSplit,
 } from 'shared/interfaces/mms-system/Item_List';
 import * as sql from 'mssql';
-
+import { Iqaabnormal } from 'shared/interfaces/mms-system/iqa_abnormal';
 
 @Injectable()
 export class CheckMaterialReceiveService {
   constructor(private readonly databaseService: DatabaseService) {}
 
-  async getItemIQA(): Promise<any[]> {
+  async getItemIQA(): Promise<IqaCheck[]> {
     const sqlQuery = `
-    SELECT
-  t.ReceiveNo,
-  t.InvoiceNumber,
-  a.VendorCode,
-  a.VendorName,
-  CASE 
-    WHEN SUM(CASE WHEN t.status IN ('REWORK', 'REJECT') THEN 1 ELSE 0 END) > 0 THEN 'Failed Inspection'
-    ELSE i.IQA_Status
-  END AS IQA_Status,
-  COUNT(DISTINCT t.ITEMNO) AS lot_count,
-  COUNT(DISTINCT t.lot_no) AS lot_no,
-  SUM(CASE WHEN t.status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
-  SUM(CASE WHEN t.status = 'REWORK' THEN 1 ELSE 0 END) AS rework_count,
-  SUM(CASE WHEN t.status = 'REJECT' THEN 1 ELSE 0 END) AS reject_count
-  
-FROM
-  test_lot_status_iqa_check t
-  LEFT JOIN accpac_sync_poreceipt_icshipment_detail a ON t.ReceiveNo = a.ReceptNumber
-  LEFT JOIN view_iqa_check_status i ON t.ReceiveNo = i.ReceiveNo
-GROUP BY
-  t.InvoiceNumber,
-  a.VendorCode,
-  a.VendorName,
-  t.ReceiveNo,
-  i.IQA_Status`;
+  SELECT * FROM view_iqa_check_status `;
     return await this.databaseService.query(sqlQuery);
   }
+  async getIttemIQA_inspec(): Promise<IqaCheck[]> {
+    const sqlQuery = `
+  SELECT * FROM view_iqa_check_status_inspec `;
+    return await this.databaseService.query(sqlQuery);
+  }
+  // async getItemIQA_abnormal(): Promise<Iqaabnormal[]> {
+  //   const sqlQuery = `
+  // SELECT * FROM view_iqa_abnormal `;
+  //   return await this.databaseService.query(sqlQuery);
+  // }
 
   async sumIQA(invoiceNumber: string, itemNo: string): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
@@ -62,7 +48,7 @@ GROUP BY
       t.ReceiveNo,
       t.lot_no,
       t.ITEMNO,
-      v.ITEMDesc,
+      v.ITEMDesc,           
       t.remark,
       t.remark_iqa,
       t.lot_qty,
@@ -81,20 +67,47 @@ GROUP BY
     const result = await request.query(sqlQuery);
     return result.recordset;
   }
+
   async get_status_iqa_check(): Promise<IqaCheck[]> {
     const sqlQuery = `SELECT * FROM lot_status_iqa_check
                     WHERE IQA_ID IN (3, 4 , 9);`;
     return await this.databaseService.query(sqlQuery);
   }
+
+  async Update_status_iqa_check_Inspec(
+    lot_no: string,
+    InvoiceNumber: string,
+    ReceiveNo: string,
+    status_Inspec?: string,
+    inspec_user?: string,
+    remark_inspec?: string,
+  ): Promise<void> {
+    const sqlQuery = `UPDATE test_lot_status_iqa_check
+  SET status_Inspec = @status_Inspec, remark_inspec = @remark_inspec,lot_no_check = 1, inspec_user = @inspec_user,inspec_date = GETDATE()
+  WHERE InvoiceNumber = @InvoiceNumber AND ReceiveNo = @ReceiveNo AND lot_no = @lot_no;`;
+
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('lot_no', sql.VarChar, lot_no);
+    request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
+    request.input('ReceiveNo', sql.VarChar, ReceiveNo);
+    request.input('status_Inspec', sql.VarChar, status_Inspec);
+    request.input('remark_inspec', sql.VarChar, remark_inspec);
+    request.input('inspec_user', sql.VarChar, inspec_user);
+    await request.query(sqlQuery);
+  }
+
+  // qty
   async Update_status_iqa_check(
     lot_no: string,
     status: string,
     remark_iqa: string,
+    lot_user: string,
     InvoiceNumber: string,
     ReceiveNo: string,
   ): Promise<void> {
     const sqlQuery = `UPDATE test_lot_status_iqa_check
-  SET status = @status, remark_iqa = @remark_iqa,Iqa_check = 1
+  SET status = @status, remark_iqa = @remark_iqa,Iqa_check = 1,qty_date = GETDATE(), lot_user = @lot_user
   WHERE InvoiceNumber = @InvoiceNumber AND ReceiveNo = @ReceiveNo AND lot_no = @lot_no;`;
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
@@ -103,6 +116,27 @@ GROUP BY
     request.input('remark_iqa', sql.VarChar, remark_iqa);
     request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
     request.input('ReceiveNo', sql.VarChar, ReceiveNo);
+    request.input('lot_user', sql.VarChar, lot_user);
+    await request.query(sqlQuery);
+  }
+
+  async Update_status_iqa_check_Inspec_all(
+    ITEMNO: string,
+    InvoiceNumber: string,
+    inspec_user?: string,
+    status_Inspec?: string,
+    remark_inspec?: string,
+  ): Promise<void> {
+    const sqlQuery = `UPDATE test_lot_status_iqa_check
+  SET status_Inspec = @status_Inspec, remark_inspec = @remark_inspec, inspec_user = @inspec_user,lot_no_check = 1, inspec_date = GETDATE()
+  WHERE InvoiceNumber = @InvoiceNumber AND  ITEMNO = @ITEMNO;`;
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('ITEMNO', sql.VarChar, ITEMNO);
+    request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
+    request.input('status_Inspec', sql.VarChar, status_Inspec);
+    request.input('remark_inspec', sql.VarChar, remark_inspec);
+    request.input('inspec_user', sql.VarChar, inspec_user);
     await request.query(sqlQuery);
   }
 
@@ -122,6 +156,46 @@ GROUP BY
     await request.query(sqlQuery);
   }
 
+  async Add_Abnormal_Number(
+    abnormal_user: string,
+    Abnormal_Number: string,
+    InvoiceNumber: string,
+    lot_no: string,
+    ITEMNO: string,
+  ): Promise<void> {
+    const sqlQuery = `UPDATE iqa_abnormal_aumber  
+
+SET Abnormal_Number = @Abnormal_Number ,abnormal_user = @abnormal_user
+WHERE InvoiceNumber = @InvoiceNumber AND lot_no = @lot_no AND ITEMNO = @ITEMNO;`;
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('abnormal_user', sql.VarChar, abnormal_user);
+    request.input('Abnormal_Number', sql.VarChar, Abnormal_Number);
+    request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
+    request.input('lot_no', sql.VarChar, lot_no);
+    request.input('ITEMNO', sql.VarChar, ITEMNO);
+    await request.query(sqlQuery);
+  }
+  async Add_Abnormal_Number_all(
+    abnormal_user: string,
+    Abnormal_Number: string,
+    InvoiceNumber: string,
+    ITEMNO: string,
+  ): Promise<void> {
+    const sqlQuery = `UPDATE iqa_abnormal_aumber  
+
+SET Abnormal_Number = @Abnormal_Number , abnormal_user = @abnormal_user
+WHERE InvoiceNumber = @InvoiceNumber AND ITEMNO = @ITEMNO;`;
+
+    const pool = await this.databaseService.getConnection();
+    const request = pool.request();
+    request.input('abnormal_user', sql.VarChar, abnormal_user);
+    request.input('Abnormal_Number', sql.VarChar, Abnormal_Number);
+    request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
+    request.input('ITEMNO', sql.VarChar, ITEMNO);
+    await request.query(sqlQuery);
+  }
+
   async addItemListTransaction_MC_PROD(): Promise<any[]> {
     const pool = await this.databaseService.getConnection();
     const request = pool.request();
@@ -129,32 +203,7 @@ GROUP BY
     return result.recordsets;
   }
   async mc_view_iqa_status(): Promise<IqaCheck[]> {
-    const sqlQuery = `SELECT
-  t.ReceiveNo,
-  t.InvoiceNumber,
-  a.VendorCode,
-  a.VendorName,
-  CASE 
-    WHEN SUM(CASE WHEN t.status IN ('REWORK', 'REJECT') THEN 1 ELSE 0 END) > 0 THEN 'Failed Inspection'
-    ELSE i.IQA_Status
-  END AS IQA_Status,
-  COUNT(DISTINCT t.ITEMNO) AS lot_count,
-  COUNT(DISTINCT t.lot_no) AS lot_no,
-  SUM(CASE WHEN t.status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
-  SUM(CASE WHEN t.status = 'REWORK' THEN 1 ELSE 0 END) AS rework_count,
-  SUM(CASE WHEN t.status = 'REJECT' THEN 1 ELSE 0 END) AS reject_count
-  
-FROM
-  test_lot_status_iqa_check t
-  LEFT JOIN accpac_sync_poreceipt_icshipment_detail a ON t.ReceiveNo = a.ReceptNumber
-  LEFT JOIN view_iqa_check_status i ON t.ReceiveNo = i.ReceiveNo
-
-GROUP BY
-  t.InvoiceNumber,
-  a.VendorCode,
-  a.VendorName,
-  t.ReceiveNo,
-  i.IQA_Status`;
+    const sqlQuery = `SELECT * FROM view_iqa_stuts  `;
     return await this.databaseService.query(sqlQuery);
   }
   async mc_recnum(InvoiceNumber: string): Promise<Item[]> {
@@ -169,5 +218,20 @@ GROUP BY
     request.input('InvoiceNumber', sql.VarChar, InvoiceNumber);
     const result = await request.query(sqlQuery);
     return result.recordset;
+  }
+
+  async iqa_view_item_normal(): Promise<Iqaabnormal[]> {
+    const sqlQuery = `SELECT * FROM  view_iqa_abnormal  `;
+    return await this.databaseService.query(sqlQuery);
+  }
+
+  async insert_item_normal(): Promise<Iqaabnormal[]> {
+    const pool = await this.databaseService.getConnection();
+    const transaction = pool.transaction();
+    await transaction.begin();
+    const request = transaction.request();
+    const result = await request.execute('sp_iqa_insert_abnormal');
+    await transaction.commit();
+    return result.recordsets;
   }
 }
